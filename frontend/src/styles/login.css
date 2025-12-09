@@ -1,0 +1,92 @@
+/* Contenedor principal */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+/* Tarjeta */
+.login-card {
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  width: 24rem;
+  box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+/* Título */
+.login-title {
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+  color: #2563eb; /* azul tailwind */
+}
+
+/* Formulario */
+.login-form {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Inputs */
+.login-input {
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #d1d5db;
+  margin-bottom: 1.25rem;
+  width: 100%;
+  font-size: 1rem;
+}
+
+/* Botón */
+.login-button {
+  background-color: #2563eb;
+  color: white;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: 0.3s;
+  font-size: 1rem;
+}
+
+.login-button:hover {
+  background-color: #1d4ed8;
+}
+
+/* ---------------------------------------------------
+   CONTRASEÑA CON OJO INTEGRADO EN EL INPUT
+----------------------------------------------------- */
+
+/* Contenedor especial que envuelve al input */
+.input-password-container {
+  position: relative;
+  width: 100%;
+}
+
+/* Espacio para que el icono no se superponga al texto */
+.password-input {
+  padding-right: 48px !important; /* evita que el texto tape al ojo */
+  height: 45px;                  /* altura más precisa */
+  line-height: 45px;             /* ayuda a centrar el ícono */
+}
+
+/* Icono del ojo dentro del input */
+.toggle-password {
+  position: absolute;
+  right: 12px;
+  bottom: 15%;
+  height: 100%;
+  display: flex;
+  align-items: center;  /* CENTRADO perfecto */
+  justify-content: center;
+  cursor: pointer;
+  color: #7a7a7a;
+  font-size: 1.2rem;
+
+}
+
+.toggle-password:hover {
+  color: #000;
+}
