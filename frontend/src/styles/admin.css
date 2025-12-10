@@ -1,9 +1,145 @@
 .admin-container {
-  padding: 2rem;
+  padding: 20px 40px;
+  color: #1e293b;
 }
 
-.admin-title {
-  font-size: 1.75rem;
+
+/* ===== NAVBAR ===== */
+.navbar-admin {
+  background: #000000;
+  height: 50px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 1rem;
+  color: white;
   font-weight: bold;
-  margin-bottom: 1.5rem;
+}
+
+.menu-icon {
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.navbar-user {
+  padding: 8px 14px;
+  background-color: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s ease, text-shadow 0.2s ease;
+}
+
+/* Hover que llama más la atención */
+.navbar-user:hover {
+  color: #93c5fd; /* azul claro */
+  transform: translateY(-2px);
+  text-shadow: 0px 0px 6px rgba(147, 197, 253, 0.8); /* glow azul */
+}
+
+
+
+/* Títulos */
+.admin-title {
+  font-size: 30px;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+
+.section-title {
+  margin-top: 25px;
+  font-size: 22px;
+  margin-bottom: 10px;
+}
+
+/* Tabla */
+.table-container {
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 30px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  background: #1e293b;
+  color: white;
+  padding: 10px;
+  text-align: left;
+}
+
+td {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+tr:hover {
+  background: #f1f5f9;
+}
+
+/* Botones */
+.btn-success {
+  background: #16a34a;
+  color: white;
+  border: none;
+  padding: 7px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-success:hover {
+  background: #15803d;
+}
+
+.btn-danger {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 7px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: white;
+  padding: 25px;
+  width: 350px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.modal-title {
+  margin-bottom: 15px;
+  font-size: 20px;
+}
+
+.modal-text {
+  margin-bottom: 20px;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: space-between;
 }

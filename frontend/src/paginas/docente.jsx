@@ -67,15 +67,15 @@ function Docente() {
   };
 
   return (
-    <div className="admin-page">
+    <div className="docente-page">
 
       {/* NAVBAR */}
-      <div className="navbar-admin">
+      <div className="navbar-docente">
 
         <div className="menu-icon">☰</div>
 
         <div className="navbar-user" onClick={() => setMenuUsuario(!menuUsuario)}>
-          Keny Elan Nieto Plua <span className="user-icon">👤</span>
+          Keny Elan Nieto Plua 
         </div>
 
         {menuUsuario && (
@@ -86,9 +86,9 @@ function Docente() {
       </div>
 
       {/* CONTENIDO PRINCIPAL */}
-      <div className="admin-container">
+      <div className="docente-container">
 
-        <h1 className="admin-title">Cursos</h1>
+        <h1 className="docente-title">Cursos</h1>
 
         <div className="add-course-section">
           <input
