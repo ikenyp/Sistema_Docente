@@ -1,9 +1,206 @@
-.docente-container {
+/* ===== PAGE GENERAL ===== */
+.admin-page {
+  background: #ffffff;
+  min-height: 100vh;
+}
+
+/* ===== NAVBAR ===== */
+.navbar-admin {
+  background: #000000;
+  height: 50px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 1rem;
+  color: white;
+  font-weight: bold;
+}
+
+.menu-icon {
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.navbar-user {
+  padding: 8px 14px;
+  background-color: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s ease, text-shadow 0.2s ease;
+}
+
+/* Hover que llama más la atención */
+.navbar-user:hover {
+  color: #93c5fd; /* azul claro */
+  transform: translateY(-2px);
+  text-shadow: 0px 0px 6px rgba(147, 197, 253, 0.8); /* glow azul */
+}
+
+
+.user-icon {
+  font-size: 20px;
+}
+
+/* ===== CONTENEDOR PRINCIPAL ===== */
+.admin-container {
   padding: 2rem;
 }
 
-.docente-title {
-  font-size: 1.75rem;
+.admin-title {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+/* ===== ADD COURSE ===== */
+.add-course-section {
+  display: flex;
+  width: 500px;
+  gap: 10px;
+  margin-bottom: 2rem;
+}
+
+.input-curso {
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  flex: 1;
+}
+
+.btn-add {
+  padding: 0.6rem 1rem;
+  background: #777;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+/* ===== GRID ===== */
+.grid-cursos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+/* ===== CURSO CARD ===== */
+.curso-card {
+  background: #ececec;
+  border-radius: 10px;
+  padding: 1rem;
+  position: relative;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* ===== HEADER (3 puntos) ===== */
+.card-header {
+  display: flex;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.options-btn {
+  background: #7a7a7a;
+  border: none;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+/* ===== MENU FLOAT ===== */
+.menu-opciones {
+  position: absolute;
+  right: 0;
+  top: 25px;
+  background: white;
+  border-radius: 8px;
+  padding: 6px 0;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  z-index: 10;
+}
+
+.menu-opciones button {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.menu-opciones button:hover {
+  background: #eee;
+}
+
+.menu-opciones .delete {
+  color: red;
+}
+
+/* ===== TEXTO ===== */
+.curso-nombre {
+  font-size: 1rem;
+  margin: 10px 0 15px 0;
+}
+
+/* ===== RENOMBRAR ===== */
+.input-edit {
+  width: 100%;
+  padding: 6px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+.btn-save {
+  background: #2563eb;
+  color: white;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* ===== BOTÓN INGRESAR ===== */
+.btn-ingresar {
+  width: 100%;
+  background: #4caf50;
+  color: white;
+  padding: 8px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
   font-weight: bold;
-  margin-bottom: 1.5rem;
+  margin-top: 10px;
+}
+
+.btn-ingresar:hover {
+  background: #3e8e41;
+}
+
+/* ===== MENU USUARIO ===== */
+.menu-usuario {
+  position: absolute;
+  top: 50px;
+  right: 10px;
+  background: white;
+  border-radius: 10px;
+  color: rgb(0, 0, 0);
+  padding: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  z-index: 20;
+}
+
+.menu-usuario button {
+  background: none;
+  border: none;
+  padding: 10px 20px;
+  width: 100%;
+  display: block;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-usuario button:hover {
+  background: #f2f2f2;
 }
