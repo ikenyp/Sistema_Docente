@@ -15,7 +15,7 @@ class Estudiante(Base):
 
     estado = Column(Enum(EstadoEstudianteEnum, name="estado_estudiante"), default="matriculado")
 
-    id_curso_actual = Column(Integer, ForeignKey("cursos.id_curso"))
+    id_curso_actual = Column(Integer, ForeignKey("cursos.id_curso", ondelete="SET NULL", onupdate="CASCADE"), nullable=True)
 
     curso_actual = relationship("Curso", back_populates="estudiantes")
     notas = relationship("Nota", back_populates="estudiante")

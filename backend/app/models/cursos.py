@@ -8,7 +8,7 @@ class Curso(Base):
 
     id_curso = Column(Integer, primary_key=True)
     nombre = Column(String(100), nullable=False)
-    anio_lectivo = Column(Integer, nullable=False)
+    anio_lectivo = Column(String(20), nullable=False)
 
     id_docente = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=False)
     id_tutor = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=False)
