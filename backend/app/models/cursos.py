@@ -13,8 +13,8 @@ class Curso(Base):
     id_docente = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=False)
     id_tutor = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=False)
 
-    docente = relationship("Usuario", foreign_keys=[id_docente])
-    tutor = relationship("Usuario", foreign_keys=[id_tutor])
+    docente = relationship("Usuario", foreign_keys=[id_docente], back_populates="cursos_dictados", overlaps="cursos_tutor")
+    tutor = relationship("Usuario", foreign_keys=[id_tutor], back_populates="cursos_tutor", overlaps="cursos_dictados")
 
     estudiantes = relationship("Estudiante", back_populates="curso_actual")
     materias_docentes = relationship("CursoMateriaDocente", back_populates="curso")

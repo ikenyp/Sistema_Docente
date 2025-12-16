@@ -1,9 +1,11 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 from enum import Enum
+from datetime import date
 
 # ENUM 
 class EstadoEstudiante(str, Enum):
+    matriculado = "matriculado"
     activo = "activo"
     inactivo = "inactivo"
     graduado = "graduado"
@@ -13,7 +15,7 @@ class EstudianteBase(BaseModel):
     nombre: str = Field(..., max_length=100)
     apellido: str = Field(..., max_length=100)
     cedula : str = Field(..., max_length=20)
-    fecha_nacimiento: str #YYYY-MM-DD
+    fecha_nacimiento: date
     estado: EstadoEstudiante = EstadoEstudiante.matriculado
     id_curso_actual: Optional[int] = None
 
@@ -26,7 +28,7 @@ class EstudianteUpdate(BaseModel):
     nombre: Optional[str] = None
     apellido: Optional[str] = None
     cedula : Optional[str] = None
-    fecha_nacimiento: Optional[str] = None #YYYY-MM-DD
+    fecha_nacimiento: Optional[date] = None
     estado: Optional[EstadoEstudiante] = None
     id_curso_actual: Optional[int] = None
 
@@ -40,7 +42,7 @@ class EstudianteResponse(EstudianteBase):
     nombre: str
     apellido: str
     cedula : str
-    fecha_nacimiento: str
+    fecha_nacimiento: date
     estado: EstadoEstudiante
     id_curso_actual: Optional[int] = None
 

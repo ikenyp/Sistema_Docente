@@ -6,7 +6,8 @@ class RolUsuarioEnum(str, enum.Enum):
 
 class EstadoEstudianteEnum(str, enum.Enum):
     matriculado = "matriculado"
-    retirado = "retirado"
+    activo = "activo"
+    inactivo = "inactivo"
     graduado = "graduado"
 
 class EstadoAsistenciaEnum(str, enum.Enum):

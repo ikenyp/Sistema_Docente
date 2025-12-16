@@ -14,5 +14,5 @@ class Usuario(Base):
     contrasena = Column(String(200), nullable=False)
     rol = Column(Enum(RolUsuarioEnum, name="rol_usuario"), nullable=False)
 
-    cursos_dictados = relationship("Curso", foreign_keys="Curso.id_docente")
-    cursos_tutor = relationship("Curso", foreign_keys="Curso.id_tutor")
+    cursos_dictados = relationship("Curso", foreign_keys="Curso.id_docente", back_populates="docente", overlaps="tutor, cursos_tutor")
+    cursos_tutor = relationship("Curso", foreign_keys="Curso.id_tutor", back_populates="tutor", overlaps="docente, cursos_dictados")

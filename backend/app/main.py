@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from app.core.config import settings
-
-app = FastAPI(title="Sistema Inteligente de Desempeño Académico")
-
-print("DATABASE_URL CARGADO:", settings.DATABASE_URL)
+from app.api import estudiantes
+app = FastAPI(
+    title="Sistema Inteligente de Informacion Académica",
+    version="1.0.0",)
 
 @app.get("/")
 def root():
     return {"mensaje": "API funcionando correctamente"}
+
+app.include_router(estudiantes.router)  

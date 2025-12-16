@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, Date, Enum, ForeignKey
+from sqlalchemy import Column, Integer, String, Date, Enum, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from app.models.enums import EstadoEstudianteEnum
+
 
 
 class Estudiante(Base):
@@ -16,6 +17,8 @@ class Estudiante(Base):
     estado = Column(Enum(EstadoEstudianteEnum, name="estado_estudiante"), default="matriculado")
 
     id_curso_actual = Column(Integer, ForeignKey("cursos.id_curso", ondelete="SET NULL", onupdate="CASCADE"), nullable=True)
+
+    eliminado = Column(Boolean, default=False)
 
     curso_actual = relationship("Curso", back_populates="estudiantes")
     notas = relationship("Nota", back_populates="estudiante")
