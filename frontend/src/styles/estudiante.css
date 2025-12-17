@@ -1,0 +1,112 @@
+.estudiantes-page {
+  padding: 70px;
+}
+
+.page-title {
+  font-size: 24px;
+  margin-bottom: 20px;
+  color: #1e293b;
+}
+
+.navbar-notas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+
+  background: #4A75B5;
+  height: 50px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  padding: 0 1.5rem;
+  color: white;
+  font-weight: bold;
+
+  z-index: 1000;
+}
+
+.menu-icon {
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.navbar-user {
+  padding: 8px 14px;
+  background-color: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s ease, text-shadow 0.2s ease;
+}
+
+.navbar-user:hover {
+  color: #4A75B5;
+  transform: translateY(-2px);
+  text-shadow: 0px 0px 6px rgba(147, 197, 253, 0.8); 
+}
+
+.btn-back {
+  margin-bottom: 15px;
+  padding: 8px 14px;
+  border: none;
+  background-color: #2563eb;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.btn-back:hover {
+  background-color: #1d4ed8;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+thead {
+  background-color: #1e293b;
+  color: white;
+}
+
+th,
+td {
+  padding: 12px;
+  text-align: left;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #f1f5f9;
+}
+
+tbody tr:hover {
+  background-color: #e2e8f0;
+}
+
+.acciones-curso {
+  margin-bottom: 1rem;
+}
+
+.btn-notas {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-notas:hover {
+  background-color: #43a047;
+}

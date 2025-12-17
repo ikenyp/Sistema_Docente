@@ -1,36 +1,35 @@
-/* Contenedor principal */
 .login-container {
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
+  
 }
 
-/* Tarjeta */
 .login-card {
   background: white;
   border-radius: 1rem;
   padding: 2rem;
   width: 24rem;
   box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.15);
+  font-family: Arial, Verdana, sans-serif;
 }
 
-/* Título */
 .login-title {
   text-align: center;
   font-size: 1.5rem;
   font-weight: bold;
   margin-bottom: 1.5rem;
-  color: #2563eb; /* azul tailwind */
+  color: #000000; 
+  font-family: Arial, Verdana, sans-serif;
 }
 
-/* Formulario */
 .login-form {
   display: flex;
   flex-direction: column;
+  font-family: Arial, Verdana, sans-serif;
 }
 
-/* Inputs */
 .login-input {
   padding: 0.75rem;
   border-radius: 0.5rem;
@@ -40,46 +39,41 @@
   font-size: 1rem;
 }
 
-/* Botón */
 .login-button {
-  background-color: #2563eb;
-  color: white;
+  background-color: #4A75B5;
+  color: rgb(0, 0, 0);
   padding: 0.75rem;
   border-radius: 0.75rem;
   cursor: pointer;
   transition: 0.3s;
   font-size: 1rem;
+  font-family: Arial, Verdana, sans-serif;
 }
 
 .login-button:hover {
-  background-color: #1d4ed8;
+  background-color: #376097;
 }
 
-/* ---------------------------------------------------
-   CONTRASEÑA CON OJO INTEGRADO EN EL INPUT
------------------------------------------------------ */
-
-/* Contenedor especial que envuelve al input */
 .input-password-container {
   position: relative;
   width: 100%;
 }
 
-/* Espacio para que el icono no se superponga al texto */
+
 .password-input {
-  padding-right: 48px !important; /* evita que el texto tape al ojo */
-  height: 45px;                  /* altura más precisa */
-  line-height: 45px;             /* ayuda a centrar el ícono */
+  padding-right: 48px !important; 
+  height: 45px;                
+  line-height: 45px;            
 }
 
-/* Icono del ojo dentro del input */
+
 .toggle-password {
   position: absolute;
   right: 12px;
   bottom: 15%;
   height: 100%;
   display: flex;
-  align-items: center;  /* CENTRADO perfecto */
+  align-items: center;
   justify-content: center;
   cursor: pointer;
   color: #7a7a7a;

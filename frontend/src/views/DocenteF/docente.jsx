@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import "./../styles/docente.css";
+import "../../styles/docente.css";
 
 function Docente() {
   const navigate = useNavigate();
@@ -12,7 +12,7 @@ function Docente() {
   const [nombreEditado, setNombreEditado] = useState("");
   const [menuUsuario, setMenuUsuario] = useState(false);
 
-  // ====================== SIMULACIÓN TEMPORAL BD ======================
+  // ====================== SIMULACIÓN BD ======================
   const getCursos = async () => {
     const data = [
       { id: "1", nombre: "2do Ciencias Emprendimiento" },
