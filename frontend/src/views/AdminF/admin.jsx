@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import "./../styles/admin.css";
-
+import "../../styles/admin.css"
 function Admin() {
   const navigate = useNavigate();
 
@@ -154,15 +153,26 @@ function Admin() {
               <tr>
                 <th>Curso</th>
                 <th>Estudiantes</th>
+                <th>Acción</th>
               </tr>
             </thead>
 
             <tbody>
-              {cursos.map((c) => (
-                <tr key={c.id}>
-                  <td>{c.nombre}</td>
-                  <td>{c.estudiantes}</td>
-                </tr>
+                {cursos.map((c) => (
+                  <tr key={c.id}>
+                    <td>{c.nombre}</td>
+                    <td>{c.estudiantes}</td>
+                    <td>
+                      <button
+                        className="btn-view"
+                        onClick={() =>
+                          navigate(`/admin/cursos/${c.id}/estudiantes`)
+                        }
+                      >
+                        Ver Estudiantes
+                      </button>
+                    </td>
+                  </tr>
               ))}
             </tbody>
           </table>

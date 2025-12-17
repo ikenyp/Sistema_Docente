@@ -1,12 +1,12 @@
 .admin-container {
   padding: 20px 40px;
-  color: #1e293b;
+  color: #000000;
+  font-family: Arial, Verdana, sans-serif;
 }
 
 
-/* ===== NAVBAR ===== */
 .navbar-admin {
-  background: #000000;
+  background: #4A75B5;
   height: 50px;
   display: flex;
   justify-content: space-between;
@@ -24,25 +24,24 @@
 .navbar-user {
   padding: 8px 14px;
   background-color: transparent;
-  color: #ffffff;
+  color: #ffffff !important;
   cursor: pointer;
   transition: color 0.2s ease, transform 0.2s ease, text-shadow 0.2s ease;
 }
 
-/* Hover que llama más la atención */
 .navbar-user:hover {
-  color: #93c5fd; /* azul claro */
+  color: #000000 !important;
   transform: translateY(-2px);
-  text-shadow: 0px 0px 6px rgba(147, 197, 253, 0.8); /* glow azul */
+  text-shadow: 0px 20px 30px rgba(147, 197, 253, 0.8); 
 }
 
 
 
-/* Títulos */
 .admin-title {
   font-size: 30px;
   margin-bottom: 20px;
   font-weight: bold;
+  color: #000000;
 }
 
 .section-title {
@@ -51,36 +50,37 @@
   margin-bottom: 10px;
 }
 
-/* Tabla */
 .table-container {
-  background: white;
+  background: #f3f2f2;
   padding: 15px;
   border-radius: 10px;
   margin-bottom: 30px;
+
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
+  
 }
 
 th {
-  background: #1e293b;
+  background: #4A75B5;
   color: white;
   padding: 10px;
   text-align: left;
+  
 }
 
 td {
   padding: 10px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 2px solid #ddd;
 }
 
 tr:hover {
   background: #f1f5f9;
 }
 
-/* Botones */
 .btn-success {
   background: #16a34a;
   color: white;
@@ -109,7 +109,6 @@ tr:hover {
   background: #b91c1c;
 }
 
-/* Modal */
 .modal {
   position: fixed;
   top: 0;
