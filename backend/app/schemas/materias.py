@@ -20,7 +20,6 @@ class MateriaUpdate(BaseModel):
 # Schema para respuesta
 class MateriaResponse(MateriaBase):
     id_materia: int
-    nombre: str
 
     model_config = {
         "from_attributes": True 

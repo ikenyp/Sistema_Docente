@@ -20,9 +20,6 @@ class CMDUpdate(BaseModel):
 # Schema para respuesta
 class CMDResponse(CMDBase):
     id_cmd: int
-    id_curso: int
-    id_materia: int
-    id_docente: int
 
     model_config = {
         "from_attributes": True

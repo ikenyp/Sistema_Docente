@@ -16,3 +16,11 @@ class NotaUpdate(BaseModel):
     id_alumno: Optional[int] = None
     id_curso_materia_docente: Optional[int] = None
     nota: Optional[float] = None
+
+# Schema para respuesta
+class NotaResponse(NotaBase):
+    id_nota: int
+
+    model_config = {
+        "from_attributes": True 
+    }

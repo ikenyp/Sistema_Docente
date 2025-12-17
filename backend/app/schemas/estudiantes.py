@@ -39,12 +39,6 @@ class EstudianteUpdate(BaseModel):
 # Schema para respuesta
 class EstudianteResponse(EstudianteBase):
     id_estudiante: int
-    nombre: str
-    apellido: str
-    cedula : str
-    fecha_nacimiento: date
-    estado: EstadoEstudiante
-    id_curso_actual: Optional[int] = None
 
     model_config = {
         "from_attributes": True 

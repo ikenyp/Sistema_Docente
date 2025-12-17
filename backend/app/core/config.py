@@ -1,6 +1,9 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
+    SECRET_KEY: str = "super-secret-key"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     DATABASE_URL: str = "postgresql+asyncpg://postgres:Kenp2606@localhost:5432/sis_docente"
 
     # Ignorar variables extra en .env

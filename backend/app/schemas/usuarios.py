@@ -4,8 +4,8 @@ from enum import Enum
 
 # ENUMS
 class RolUsuario(str, Enum):
-    docente = "docente"
-    administrativo = "administrativo"
+    DOCENTE = "docente"
+    ADMINISTRATIVO = "administrativo"
 
 #Schema Base
 class UsuarioBase(BaseModel):
@@ -27,12 +27,8 @@ class UsuarioUpdate(BaseModel):
     contrasena: Optional [str] = None
 
 # Schema para respuesta
-class UsuarioResponse(BaseModel):
+class UsuarioResponse(UsuarioBase):
     id_usuario: int
-    nombre: str
-    apellido: str
-    correo: EmailStr
-    rol: RolUsuario
 
     model_config = {
         "from_attributes": True 

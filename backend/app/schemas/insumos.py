@@ -22,13 +22,10 @@ class InsumoUpdate(BaseModel):
     ponderacion: Optional[float] = None
 
 # Schema para respuesta
-class InsumoResponse(BaseModel):
+class InsumoResponse(InsumoBase):
     id_insumo: int
     id_cmd: int
-    nombre: str
-    descripcion: Optional[str] = None
     fecha_creacion: date
-    ponderacion: float
 
     model_config = {
         "from_attributes": True 

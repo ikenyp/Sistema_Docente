@@ -27,10 +27,6 @@ class CursoUpdate(BaseModel):
 # Schema para respuesta
 class CursoResponse(CursoBase):
     id_curso: int
-    nombre: str
-    anio_lectivo: str
-    id_docente: int
-    id_tutor: int
 
     model_config = {
         "from_attributes": True
