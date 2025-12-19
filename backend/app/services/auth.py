@@ -21,11 +21,10 @@ async def autenticar_usuario(
     token = crear_access_token(
         data={
             "sub": str(usuario.id_usuario),
-            "rol": usuario.rol
+            "rol": usuario.rol.value
         }
     )
 
     return {
-        "access_token": token,
-        "token_type": "bearer"
+        "access_token": token, "token_type": "bearer"
     }

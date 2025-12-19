@@ -16,9 +16,11 @@ async def crear_usuario(db: AsyncSession, data: UsuarioCreate):
         )
     usuario = Usuario(
         nombre=data.nombre,
+        apellido=data.apellido,
         correo=data.correo,
         contrasena=hash_contrasena(data.contrasena),
-        rol=data.rol
+        rol=data.rol,
+        activo=True
     )
     return await crud.crear(db, usuario)
 

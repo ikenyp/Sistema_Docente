@@ -5,8 +5,8 @@ from typing import Optional
 class CursoBase(BaseModel):
     nombre: str = Field(..., max_length=100)
     anio_lectivo: str 
-    id_docente: int
-    id_tutor: int
+    id_docente: Optional[int] = None
+    id_tutor: Optional[int] = None
 
 
 # Schema para crear

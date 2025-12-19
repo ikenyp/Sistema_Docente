@@ -31,6 +31,7 @@ async def listar_usuarios(db: AsyncSession):
 #  Crear usuario
 async def crear(db: AsyncSession, usuario: Usuario):
     db.add(usuario)
+    db.flush
     await db.commit()
     await db.refresh(usuario)
     return usuario

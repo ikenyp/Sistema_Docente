@@ -1,8 +1,8 @@
 import enum
 
 class RolUsuarioEnum(str, enum.Enum):
-    docente = "docente"
-    administrativo = "administrativo"
+    DOCENTE = "docente"
+    ADMINISTRATIVO = "administrativo"
 
 class EstadoEstudianteEnum(str, enum.Enum):
     matriculado = "matriculado"

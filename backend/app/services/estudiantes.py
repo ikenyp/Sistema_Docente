@@ -18,7 +18,7 @@ async def crear_estudiante(db: AsyncSession, data: EstudianteCreate):
         nombre=data.nombre,
         apellido=data.apellido,
         cedula=data.cedula,
-        fecha_nacimiento=date.fromisoformat(data.fecha_nacimiento),
+        fecha_nacimiento= data.fecha_nacimiento,
         estado=data.estado,
         id_curso_actual=data.id_curso_actual
     )
