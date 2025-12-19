@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import date
 
@@ -6,7 +6,7 @@ from datetime import date
 class InsumoBase(BaseModel):
     nombre: str
     descripcion: Optional[str] = None
-    ponderacion: float
+    ponderacion: float = Field(..., ge=0, le=10) 
 
 # Schema para crear
 class InsumoCreate(InsumoBase):
@@ -19,7 +19,7 @@ class InsumoCreate(InsumoBase):
 class InsumoUpdate(BaseModel):
     nombre: Optional[str] = None
     descripcion: Optional[str] = None
-    ponderacion: Optional[float] = None
+    ponderacion: Optional[float] = Field(None, ge=0, le=10)
 
 # Schema para respuesta
 class InsumoResponse(InsumoBase):

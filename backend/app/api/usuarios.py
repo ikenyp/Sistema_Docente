@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from scipy import stats
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.schemas.usuarios import (
+    RolUsuario,
     UsuarioCreate,
     UsuarioUpdate,
     UsuarioResponse
@@ -25,9 +26,19 @@ async def crear_usuario(
 
 @router.get("/", response_model=list[UsuarioResponse])
 async def listar_usuarios(
+    rol: RolUsuario | None = Query(None),
+    nombre: str | None = Query(None),
+    page: int = Query(1, ge=1),
+    size: int = Query(10, le=100),
     db: AsyncSession = Depends(get_session)
 ):
-    return await service.listar_usuarios(db)
+    return await service.listar_usuarios(
+        db=db,
+        rol=rol,
+        nombre=nombre,
+        page=page,
+        size=size
+    )
 
 @router.get("/{id_usuario}", response_model=UsuarioResponse)
 async def obtener_usuario(

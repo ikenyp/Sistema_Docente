@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.usuarios import Usuario
+from app.schemas.usuarios import RolUsuario
 
 #  Obtener por ID
 async def obtener_por_id(db: AsyncSession, id_usuario: int):
@@ -23,9 +24,26 @@ async def obtener_por_correo(db: AsyncSession, correo: str):
     return result.scalar_one_or_none()
 
 #  Listar usuarios
-async def listar_usuarios(db: AsyncSession):
-    result = await db.execute(
-        select(Usuario).where(Usuario.activo == True))
+async def listar_usuarios(
+    db: AsyncSession,
+    rol: RolUsuario | None = None,
+    nombre: str | None = None,
+    page: int = 1,
+    size: int = 10
+):
+    query = select(Usuario).where(Usuario.activo == True)
+
+    if rol:
+        query = query.where(Usuario.rol == rol)
+
+    if nombre:
+        query = query.where(
+            Usuario.nombre.ilike(f"%{nombre}%")
+        )
+
+    query = query.offset((page - 1) * size).limit(size)
+
+    result = await db.execute(query)
     return result.scalars().all()
 
 #  Crear usuario

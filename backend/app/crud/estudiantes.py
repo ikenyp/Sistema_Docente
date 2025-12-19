@@ -28,18 +28,24 @@ async def obtener_por_cedula(db: AsyncSession, cedula: str):
 
 #  Listar estudiantes
 async def listar_estudiantes(
-    db: AsyncSession,
-    estado: EstadoEstudiante | None,
-    page: int,
-    size: int
+    db: AsyncSession, 
+    estado: EstadoEstudiante | None = None, 
+    nombre: str | None = None, 
+    apellido: str | None = None, 
+    id_curso_actual: int | None = None, 
+    page: int = 1, 
+    size: int = 10
 ):
     query = select(Estudiante).where(Estudiante.eliminado == False)
-
+    
     if estado:
         query = query.where(Estudiante.estado == estado)
-
-    query = query.offset((page - 1) * size).limit(size)
-
+    if nombre:
+        query = query.where(Estudiante.nombre.ilike(f"%{nombre}%"))
+    if apellido:
+        query = query.where(Estudiante.apellido.ilike(f"%{apellido}%"))
+    
+    query = query.offset((page-1)*size).limit(size)
     result = await db.execute(query)
     return result.scalars().all()
 

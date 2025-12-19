@@ -4,7 +4,7 @@ from app.core.security import hash_contrasena
 
 from app.models.usuarios import Usuario
 from app.crud import usuarios as crud
-from app.schemas.usuarios import UsuarioCreate, UsuarioUpdate
+from app.schemas.usuarios import RolUsuario, UsuarioCreate, UsuarioUpdate
 
 
 #  Crear usuario
@@ -25,8 +25,26 @@ async def crear_usuario(db: AsyncSession, data: UsuarioCreate):
     return await crud.crear(db, usuario)
 
 #  Listar usuarios
-async def listar_usuarios(db: AsyncSession):
-    return await crud.listar_usuarios(db)
+async def listar_usuarios(
+    db: AsyncSession,
+    rol: RolUsuario | None = None,
+    nombre: str | None = None,
+    page: int = 1,
+    size: int = 10
+):
+    # Validación básica de paginación
+    if page < 1:
+        page = 1
+    if size < 1 or size > 100:
+        size = 10
+
+    return await crud.listar_usuarios(
+        db=db,
+        rol=rol,
+        nombre=nombre,
+        page=page,
+        size=size
+    )
 
 #  Obtener usuario por ID
 async def obtener_usuario(db: AsyncSession, id_usuario: int):

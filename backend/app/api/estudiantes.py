@@ -26,12 +26,22 @@ async def crear_estudiante(
 
 @router.get("/", response_model=list[EstudianteResponse])
 async def listar_estudiantes(
-    estado: EstadoEstudiante | None = Query(None, description="Estado del estudiante"),
+    estado: EstadoEstudiante | None = Query(None),
+    nombre: str | None = Query(None, description="Búsqueda parcial por nombre"),
+    apellido: str | None = Query(None, description="Búsqueda parcial por apellido"),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_session)
 ):
-    return await service.listar_estudiantes(db, estado, page, size)
+    return await service.listar_estudiantes(
+        db=db,
+        estado=estado,
+        nombre=nombre,
+        apellido=apellido,
+        page=page,
+        size=size
+    )
+
 
 
 @router.get("/{id_estudiante}", response_model=EstudianteResponse)

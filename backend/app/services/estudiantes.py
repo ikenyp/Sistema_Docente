@@ -29,7 +29,10 @@ async def crear_estudiante(db: AsyncSession, data: EstudianteCreate):
 #  Listar estudiantes
 async def listar_estudiantes(
     db: AsyncSession,
-    estado: str | None,
+    estado: EstadoEstudiante | None,
+    nombre: str | None,
+    apellido: str | None,
+    id_curso_actual: int | None,
     page: int,
     size: int
 ):
@@ -39,7 +42,15 @@ async def listar_estudiantes(
     if size < 1 or size > 100:
         size = 10
 
-    return await crud.listar_estudiantes(db, estado, page, size)
+    return await crud.listar_estudiantes(
+        db=db, 
+        estado=estado, 
+        nombre=nombre, 
+        apellido=apellido, 
+        id_curso_actual=id_curso_actual, 
+        page=page, 
+        size=size
+    )
 
 
 #  Obtener estudiante
