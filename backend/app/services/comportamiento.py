@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.comportamiento import Comportamiento
-from app.crud import comportamientos as crud
+from app.crud import comportamiento as crud
 from app.schemas.comportamiento import (
     ComportamientoCreate,
     ComportamientoUpdate

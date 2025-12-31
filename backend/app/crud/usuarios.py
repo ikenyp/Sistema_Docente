@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.usuarios import Usuario
-from app.schemas.usuarios import RolUsuario
+from app.schemas.usuarios import RolUsuarioEnum
 
 #  Obtener por ID
 async def obtener_por_id(db: AsyncSession, id_usuario: int):
@@ -26,7 +26,7 @@ async def obtener_por_correo(db: AsyncSession, correo: str):
 #  Listar usuarios
 async def listar_usuarios(
     db: AsyncSession,
-    rol: RolUsuario | None = None,
+    rol: RolUsuarioEnum | None = None,
     nombre: str | None = None,
     page: int = 1,
     size: int = 10

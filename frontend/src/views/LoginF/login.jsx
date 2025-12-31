@@ -2,18 +2,48 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../styles/login.css";
 
-function Login() {
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+
+export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const [role, setRole] = useState("admin");
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const form = new URLSearchParams();
+      form.append("username", email); // el backend espera "username"
+      form.append("password", password);
 
-    if (role === "admin") {
-      navigate("/admin");
-    } else {
-      navigate("/docente");
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: form.toString(),
+      });
+
+      if (!res.ok) throw new Error("Credenciales inválidas");
+
+      const data = await res.json();
+      const role = (data.role ?? data.rol ?? "").toLowerCase();
+      console.log("login data:", data, "role:", role);
+
+      if (!role) throw new Error("No se pudo iniciar sesión, intenta de nuevo");
+
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("role", role);
+
+      if (role === "administrativo") navigate("/admin");
+      else if (role === "docente") navigate("/docente");
+      else throw new Error(`Rol desconocido: ${role}`);
+    } catch (err) {
+      setError(err.message || "Error al iniciar sesión");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -23,38 +53,30 @@ function Login() {
         <h1 className="login-title">Iniciar Sesión</h1>
 
         <form className="login-form" onSubmit={handleSubmit}>
-
           <input
-            type="text"
-            placeholder="Usuario"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Correo"
             className="login-input"
             required
           />
 
           <input
             type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             placeholder="Contraseña"
             className="login-input"
             required
           />
+          {error && <div className="login-error">{error}</div>}
 
-          <select
-            className="login-input"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-          >
-            <option value="admin">Administrador</option>
-            <option value="docente">Docente</option>
-          </select>
-
-          <button className="login-button" type="submit">
-            Iniciar Sesión
+          <button className="login-button" type="submit" disabled={loading}>
+            {loading ? "Ingresando..." : "Ingresar"}
           </button>
-
         </form>
       </div>
     </div>
   );
 }
-
-export default Login;

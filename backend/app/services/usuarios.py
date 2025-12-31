@@ -4,7 +4,7 @@ from app.core.security import hash_contrasena
 
 from app.models.usuarios import Usuario
 from app.crud import usuarios as crud
-from app.schemas.usuarios import RolUsuario, UsuarioCreate, UsuarioUpdate
+from app.schemas.usuarios import RolUsuarioEnum, UsuarioCreate, UsuarioUpdate
 
 
 #  Crear usuario
@@ -14,12 +14,13 @@ async def crear_usuario(db: AsyncSession, data: UsuarioCreate):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El correo ya está registrado"
         )
+    rol_norm = (data.rol.value if hasattr(data.rol, "value") else data.rol).lower()
     usuario = Usuario(
         nombre=data.nombre,
         apellido=data.apellido,
         correo=data.correo,
         contrasena=hash_contrasena(data.contrasena),
-        rol=data.rol,
+        rol=rol_norm,
         activo=True
     )
     return await crud.crear(db, usuario)
@@ -27,7 +28,7 @@ async def crear_usuario(db: AsyncSession, data: UsuarioCreate):
 #  Listar usuarios
 async def listar_usuarios(
     db: AsyncSession,
-    rol: RolUsuario | None = None,
+    rol: RolUsuarioEnum | None = None,
     nombre: str | None = None,
     page: int = 1,
     size: int = 10
@@ -66,7 +67,6 @@ async def actualizar_usuario(
 
     values = data.model_dump(exclude_unset=True)
 
-    #Validar correo que no se repita
     if "correo" in values:
         existente = await crud.obtener_por_correo(db, values["correo"])
         if existente and existente.id_usuario != id_usuario:
@@ -74,10 +74,12 @@ async def actualizar_usuario(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El correo ya está registrado"
             )    
-        
-    # Si se actualiza la contaseña, volverla a hashear
+    
     if "contrasena" in values:
         values["contrasena"] = hash_contrasena(values["contrasena"])
+
+    if "rol" in values and values["rol"] is not None:
+        values["rol"] = (values["rol"].value if hasattr(values["rol"], "value") else values["rol"]).lower()
 
     for key, value in values.items():
         setattr(usuario, key, value)

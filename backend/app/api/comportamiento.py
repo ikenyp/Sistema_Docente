@@ -7,10 +7,10 @@ from app.schemas.comportamiento import (
     ComportamientoUpdate,
     ComportamientoResponse
 )
-from app.services import comportamientos as service
+from app.services import comportamiento as service
 
 router = APIRouter(
-    prefix="/comportamientos",
+    prefix="/comportamiento",
     tags=["Comportamiento"]
 )
 

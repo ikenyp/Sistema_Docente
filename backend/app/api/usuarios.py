@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, Query
-from scipy import stats
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.schemas.usuarios import (
-    RolUsuario,
+    RolUsuarioEnum,
     UsuarioCreate,
     UsuarioUpdate,
     UsuarioResponse
@@ -26,7 +26,7 @@ async def crear_usuario(
 
 @router.get("/", response_model=list[UsuarioResponse])
 async def listar_usuarios(
-    rol: RolUsuario | None = Query(None),
+    rol: RolUsuarioEnum | None = Query(None),
     nombre: str | None = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(10, le=100),
@@ -55,7 +55,7 @@ async def actualizar_usuario(
 ):
     return await service.actualizar_usuario(db, id_usuario, data)
 
-@router.delete("/{id_usuario}", status_code=stats.HTTP_204_NO_CONTENT)
+@router.delete("/{id_usuario}", status_code=status.HTTP_204_NO_CONTENT)
 async def eliminar_usuario(
     id_usuario: int,
     db: AsyncSession = Depends(get_session)
