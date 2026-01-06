@@ -1,0 +1,38 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Backend - FastAPI",
+      "type": "shell",
+      "command": "venv\\Scripts\\python -m uvicorn app.main:app --reload",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "group": "dev"
+      }
+    },
+    {
+      "label": "Frontend - React",
+      "type": "shell",
+      "command": "npm start",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "group": "dev"
+      }
+    },
+    {
+      "label": "Dev - Fullstack",
+      "type": "shell",
+      "dependsOn": ["Backend - FastAPI", "Frontend - React"]
+    }
+  ]
+}
