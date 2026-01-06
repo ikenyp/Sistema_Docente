@@ -6,7 +6,6 @@ from app.schemas.notas import (NotaCreate, NotaUpdate,NotaResponse)
 from app.services import notas as service
 
 router = APIRouter(
-    prefix="/notas",
     tags=["Notas"]
 )
 

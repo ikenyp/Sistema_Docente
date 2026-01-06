@@ -11,7 +11,6 @@ from app.schemas.asistencia import (
 from app.services import asistencia as service
 
 router = APIRouter(
-    prefix="/asistencia",
     tags=["Asistencia"]
 )
 

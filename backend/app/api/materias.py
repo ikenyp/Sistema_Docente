@@ -10,7 +10,6 @@ from app.schemas.materias import (
 from app.services import materias as service
 
 router = APIRouter(
-    prefix="/materias",
     tags=["Materias"]
 )
 

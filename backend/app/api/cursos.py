@@ -5,7 +5,6 @@ from app.schemas.cursos import CursoCreate, CursoUpdate, CursoResponse
 from app.services import cursos as service
 
 router = APIRouter(
-    prefix="/cursos",
     tags=["Cursos"]
 )
 

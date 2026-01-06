@@ -44,6 +44,8 @@ async def listar_estudiantes(
         query = query.where(Estudiante.nombre.ilike(f"%{nombre}%"))
     if apellido:
         query = query.where(Estudiante.apellido.ilike(f"%{apellido}%"))
+    if id_curso_actual is not None:
+        query = query.where(Estudiante.id_curso_actual == id_curso_actual)
     
     query = query.offset((page-1)*size).limit(size)
     result = await db.execute(query)

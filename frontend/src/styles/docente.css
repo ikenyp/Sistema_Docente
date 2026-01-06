@@ -4,7 +4,7 @@
 }
 
 .navbar-docente {
-  background: #4A75B5;
+  background: #4a75b5;
   height: 50px;
   display: flex;
   justify-content: space-between;
@@ -28,11 +28,10 @@
 }
 
 .navbar-user:hover {
-  color: #000000 !important; 
+  color: #000000 !important;
   transform: translateY(-2px);
-  text-shadow: 0px 0px 6px rgba(147, 197, 253, 0.8); 
+  text-shadow: 0px 0px 6px rgba(147, 197, 253, 0.8);
 }
-
 
 .docente-container {
   padding: 2rem;
@@ -40,113 +39,82 @@
 
 .docente-title {
   font-size: 2rem;
-  margin-bottom: 1rem;
+  margin-bottom: 2rem;
+  color: #2c3e50;
 }
 
+/* Removemos la sección de agregar curso */
 .add-course-section {
-  display: flex;
-  width: 500px;
-  gap: 10px;
-  margin-bottom: 2rem;
+  display: none;
 }
 
 .input-curso {
-  padding: 0.5rem;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  flex: 1;
+  display: none;
 }
 
 .btn-add {
-  padding: 0.6rem 1rem;
-  background: #777;
-  color: white;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
+  display: none;
 }
 
 .grid-cursos {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
+  margin-top: 2rem;
 }
 
 .curso-card {
-  background: #F3F2F2;
-  border-radius: 10px;
-  padding: 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 20px;
   position: relative;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-  font-family:  Arial, Verdana, sans-serif;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  font-family: Arial, Verdana, sans-serif;
+  color: white;
+  transition: transform 0.3s, box-shadow 0.3s;
+  cursor: pointer;
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
+.curso-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Removemos menú de opciones */
 .card-header {
-  display: flex;
-  justify-content: flex-end;
-  position: relative;
+  display: none;
 }
 
 .options-btn {
-  background: #7a7a7a;
-  border: none;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-family:  Arial, Verdana, sans-serif;
+  display: none;
 }
 
 .menu-opciones {
-  position: absolute;
-  right: 0;
-  top: 25px;
-  background: #F3F2F2;
-  border-radius: 8px;
-  padding: 6px 0;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-  z-index: 10;
-  font-family:  Arial, Verdana, sans-serif;
-}
-
-.menu-opciones button {
-  display: block;
-  width: 100%;
-  padding: 8px 12px;
-  text-align: left;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.menu-opciones button:hover {
-  background: #e5dede;
-}
-
-.menu-opciones .delete {
-  color: red;
+  display: none;
 }
 
 .curso-nombre {
-  font-size: 1rem;
-  margin: 10px 0 15px 0;
+  font-size: 1.3rem;
+  margin: 0 0 8px 0;
+  font-weight: bold;
+}
+
+.curso-info {
+  font-size: 0.9rem;
+  margin: 5px 0;
+  opacity: 0.9;
 }
 
 .input-edit {
-  width: 100%;
-  padding: 6px;
-  border-radius: 6px;
-  margin-bottom: 6px;
+  display: none;
 }
 
 .btn-save {
-  background: #4A75B5;
-  color: white;
-  padding: 5px 10px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
+  display: none;
 }
 
 .btn-ingresar {
@@ -173,7 +141,7 @@
   border-radius: 10px;
   color: rgb(0, 0, 0);
   padding: 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   z-index: 20;
 }
 

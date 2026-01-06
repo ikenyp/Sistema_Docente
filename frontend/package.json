@@ -22,7 +22,7 @@
 
     "frontend": "npm start",
     "backend": "cd ../backend && venv\\Scripts\\python -m uvicorn app.main:app --reload",
-    "dev": "concurrently \"npm run backend\" \"npm run frontend\""
+    "dev": "concurrently --kill-others=false \"npm run backend\" \"npm run frontend\""
   },
   "eslintConfig": {
     "extends": [

@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.auth.dependencies import get_current_user, require_role
 from app.core.database import get_session
 from app.services.auth import autenticar_usuario
-from app.schemas.usuarios import RolUsuarioEnum
+from app.schemas.usuarios import RolUsuarioEnum, UsuarioResponse
 from app.crud import usuarios as crud
 
 router = APIRouter()
@@ -29,7 +29,7 @@ async def login(
     }
 
 # Ruta protegida que devuelve el usuario actual
-@router.get("/me")
+@router.get("/me", response_model=UsuarioResponse)
 async def leer_usuario_actual(
     usuario = Depends(get_current_user)
 ):

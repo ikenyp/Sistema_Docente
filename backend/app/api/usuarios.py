@@ -13,7 +13,6 @@ from app.schemas.usuarios import (
 from app.services import usuarios as service
 
 router = APIRouter(
-    prefix="/usuarios",
     tags=["Usuarios"]
 )
 

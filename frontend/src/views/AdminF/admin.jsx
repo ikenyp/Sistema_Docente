@@ -42,7 +42,17 @@ function Admin() {
   useEffect(() => {
     const fetchUsuarios = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/usuarios/usuarios");
+        const token = localStorage.getItem("token");
+        const headers = {
+          "Content-Type": "application/json",
+        };
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        const res = await fetch("http://localhost:8000/api/usuarios", {
+          headers,
+        });
         if (!res.ok) throw new Error("Error al traer los usuarios");
         const data = await res.json();
         setUsuarios(data);
@@ -60,7 +70,17 @@ function Admin() {
   useEffect(() => {
     const fetchCursos = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/cursos/cursos");
+        const token = localStorage.getItem("token");
+        const headers = {
+          "Content-Type": "application/json",
+        };
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        const res = await fetch("http://localhost:8000/api/cursos", {
+          headers,
+        });
         if (!res.ok) throw new Error("Error al traer cursos");
         const data = await res.json();
         setCursos(data);
@@ -80,12 +100,20 @@ function Admin() {
 
   const confirmarAccion = async () => {
     try {
+      const token = localStorage.getItem("token");
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+
       const res = await fetch(
-        `http://localhost:8000/api/usuarios/usuarios/${usuarioSeleccionado.id_usuario}`,
+        `http://localhost:8000/api/usuarios/${usuarioSeleccionado.id_usuario}`,
         {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rol: accion === "asignar" ? "tutor" : "docente" }),
+          method: "PUT",
+          headers,
+          body: JSON.stringify({
+            rol: accion === "asignar" ? "tutor" : "docente",
+          }),
         }
       );
 
@@ -109,18 +137,35 @@ function Admin() {
   const abrirAgregarModal = () => setModalAgregarOpen(true);
   const cerrarAgregarModal = () => {
     setModalAgregarOpen(false);
-    setNuevoUsuario({ nombre: "", apellido: "", correo: "", contrasena: "", rol: "docente" });
+    setNuevoUsuario({
+      nombre: "",
+      apellido: "",
+      correo: "",
+      contrasena: "",
+      rol: "docente",
+    });
   };
 
   const agregarUsuario = async () => {
-    if (!nuevoUsuario.nombre || !nuevoUsuario.apellido || !nuevoUsuario.correo || !nuevoUsuario.contrasena) {
+    if (
+      !nuevoUsuario.nombre ||
+      !nuevoUsuario.apellido ||
+      !nuevoUsuario.correo ||
+      !nuevoUsuario.contrasena
+    ) {
       alert("Todos los campos son obligatorios");
       return;
     }
     try {
-      const res = await fetch("http://localhost:8000/api/usuarios/usuarios", {
+      const token = localStorage.getItem("token");
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+
+      const res = await fetch("http://localhost:8000/api/usuarios", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(nuevoUsuario),
       });
 
@@ -147,7 +192,12 @@ function Admin() {
   const abrirAgregarCursoModal = () => setModalAgregarCursoOpen(true);
   const cerrarAgregarCursoModal = () => {
     setModalAgregarCursoOpen(false);
-    setNuevoCurso({ nombre: "", anio_lectivo: "", id_docente: "", id_tutor: "" });
+    setNuevoCurso({
+      nombre: "",
+      anio_lectivo: "",
+      id_docente: "",
+      id_tutor: "",
+    });
   };
 
   const agregarCurso = async () => {
@@ -156,10 +206,20 @@ function Admin() {
       return;
     }
     try {
-      const res = await fetch("http://localhost:8000/api/cursos/cursos", {
+      const token = localStorage.getItem("token");
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+
+      const res = await fetch("http://localhost:8000/api/cursos", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(nuevoCurso),
+        headers,
+        body: JSON.stringify({
+          nombre: nuevoCurso.nombre,
+          anio_lectivo: nuevoCurso.anio_lectivo,
+          id_tutor: nuevoCurso.id_tutor ? parseInt(nuevoCurso.id_tutor) : null,
+        }),
       });
 
       if (!res.ok) throw new Error("Error al agregar curso");
@@ -181,7 +241,10 @@ function Admin() {
       {/* NAVBAR */}
       <div className="navbar-admin">
         <div className="menu-icon">☰</div>
-        <div className="navbar-user" onClick={() => setMenuUsuario(!menuUsuario)}>
+        <div
+          className="navbar-user"
+          onClick={() => setMenuUsuario(!menuUsuario)}
+        >
           Keny Elan Nieto Plua
         </div>
         {menuUsuario && (
@@ -203,7 +266,11 @@ function Admin() {
         </div>
 
         {cargandoUsuarios && <p>Cargando usuarios...</p>}
-        {errorUsuarios && <p style={{ color: "red", textAlign: "center" }}>No se pudieron cargar los usuarios registrados</p>}
+        {errorUsuarios && (
+          <p style={{ color: "red", textAlign: "center" }}>
+            No se pudieron cargar los usuarios registrados
+          </p>
+        )}
 
         {!cargandoUsuarios && !errorUsuarios && (
           <div className="table-container">
@@ -226,9 +293,19 @@ function Admin() {
                     <td>{u.rol}</td>
                     <td>
                       {u.rol === "tutor" ? (
-                        <button className="btn-danger" onClick={() => abrirModal(u, "quitar")}>Quitar Tutor</button>
+                        <button
+                          className="btn-danger"
+                          onClick={() => abrirModal(u, "quitar")}
+                        >
+                          Quitar Tutor
+                        </button>
                       ) : (
-                        <button className="btn-success" onClick={() => abrirModal(u, "asignar")}>Asignar Tutor</button>
+                        <button
+                          className="btn-success"
+                          onClick={() => abrirModal(u, "asignar")}
+                        >
+                          Asignar Tutor
+                        </button>
                       )}
                     </td>
                   </tr>
@@ -241,7 +318,9 @@ function Admin() {
         {/* CURSOS */}
         <div className="docentes-header">
           <h2 className="section-title">Cursos Disponibles</h2>
-          <button className="btn-add-docente" onClick={abrirAgregarCursoModal}>Añadir Curso</button>
+          <button className="btn-add-docente" onClick={abrirAgregarCursoModal}>
+            Añadir Curso
+          </button>
         </div>
 
         <div className="table-container">
@@ -259,7 +338,10 @@ function Admin() {
                   <td>{c.nombre}</td>
                   <td>{c.estudiantes}</td>
                   <td>
-                    <button className="btn-view" onClick={() => navigate(`/curso/${c.id}/notas`)}>
+                    <button
+                      className="btn-view"
+                      onClick={() => navigate(`/curso/${c.id}/notas`)}
+                    >
                       Ver Estudiantes
                     </button>
                   </td>
@@ -274,11 +356,24 @@ function Admin() {
       {modalOpen && (
         <div className="modal">
           <div className="modal-content">
-            <h3>{accion === "asignar" ? "Asignar rol de Tutor" : "Quitar rol de Tutor"}</h3>
-            <p>{`¿Deseas ${accion === "asignar" ? "asignar" : "quitar"} el rol de tutor a ${usuarioSeleccionado.nombre}?`}</p>
+            <h3>
+              {accion === "asignar"
+                ? "Asignar rol de Tutor"
+                : "Quitar rol de Tutor"}
+            </h3>
+            <p>{`¿Deseas ${
+              accion === "asignar" ? "asignar" : "quitar"
+            } el rol de tutor a ${usuarioSeleccionado.nombre}?`}</p>
             <div className="modal-buttons">
-              <button className="btn-success" onClick={confirmarAccion}>Confirmar</button>
-              <button className="btn-danger" onClick={() => setModalOpen(false)}>Cancelar</button>
+              <button className="btn-success" onClick={confirmarAccion}>
+                Confirmar
+              </button>
+              <button
+                className="btn-danger"
+                onClick={() => setModalOpen(false)}
+              >
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
@@ -289,13 +384,45 @@ function Admin() {
         <div className="modal">
           <div className="modal-content">
             <h3>Añadir Usuario</h3>
-            <input type="text" placeholder="Nombre" value={nuevoUsuario.nombre} onChange={(e) => setNuevoUsuario({ ...nuevoUsuario, nombre: e.target.value })} />
-            <input type="text" placeholder="Apellido" value={nuevoUsuario.apellido} onChange={(e) => setNuevoUsuario({ ...nuevoUsuario, apellido: e.target.value })} />
-            <input type="email" placeholder="Correo" value={nuevoUsuario.correo} onChange={(e) => setNuevoUsuario({ ...nuevoUsuario, correo: e.target.value })} />
-            <input type="password" placeholder="Contraseña" value={nuevoUsuario.contrasena} onChange={(e) => setNuevoUsuario({ ...nuevoUsuario, contrasena: e.target.value })} />
+            <input
+              type="text"
+              placeholder="Nombre"
+              value={nuevoUsuario.nombre}
+              onChange={(e) =>
+                setNuevoUsuario({ ...nuevoUsuario, nombre: e.target.value })
+              }
+            />
+            <input
+              type="text"
+              placeholder="Apellido"
+              value={nuevoUsuario.apellido}
+              onChange={(e) =>
+                setNuevoUsuario({ ...nuevoUsuario, apellido: e.target.value })
+              }
+            />
+            <input
+              type="email"
+              placeholder="Correo"
+              value={nuevoUsuario.correo}
+              onChange={(e) =>
+                setNuevoUsuario({ ...nuevoUsuario, correo: e.target.value })
+              }
+            />
+            <input
+              type="password"
+              placeholder="Contraseña"
+              value={nuevoUsuario.contrasena}
+              onChange={(e) =>
+                setNuevoUsuario({ ...nuevoUsuario, contrasena: e.target.value })
+              }
+            />
             <div className="modal-buttons">
-              <button className="btn-save" onClick={agregarUsuario}>Guardar</button>
-              <button className="btn-cancel" onClick={cerrarAgregarModal}>Cancelar</button>
+              <button className="btn-save" onClick={agregarUsuario}>
+                Guardar
+              </button>
+              <button className="btn-cancel" onClick={cerrarAgregarModal}>
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
@@ -306,24 +433,48 @@ function Admin() {
         <div className="modal">
           <div className="modal-content">
             <h3>Añadir Curso</h3>
-            <input type="text" placeholder="Nombre del curso" value={nuevoCurso.nombre} onChange={(e) => setNuevoCurso({ ...nuevoCurso, nombre: e.target.value })} />
-            <input type="text" placeholder="Año lectivo" value={nuevoCurso.anio_lectivo} onChange={(e) => setNuevoCurso({ ...nuevoCurso, anio_lectivo: e.target.value })} />
-            
-            <select value={nuevoCurso.id_tutor} onChange={(e) => setNuevoCurso({ ...nuevoCurso, id_tutor: e.target.value })}>
+            <input
+              type="text"
+              placeholder="Nombre del curso"
+              value={nuevoCurso.nombre}
+              onChange={(e) =>
+                setNuevoCurso({ ...nuevoCurso, nombre: e.target.value })
+              }
+            />
+            <input
+              type="text"
+              placeholder="Año lectivo"
+              value={nuevoCurso.anio_lectivo}
+              onChange={(e) =>
+                setNuevoCurso({ ...nuevoCurso, anio_lectivo: e.target.value })
+              }
+            />
+
+            <select
+              value={nuevoCurso.id_tutor}
+              onChange={(e) =>
+                setNuevoCurso({ ...nuevoCurso, id_tutor: e.target.value })
+              }
+            >
               <option value="">Selecciona un tutor (opcional)</option>
               {usuarios.map((u) => (
-                <option key={u.id_usuario} value={u.id_usuario}>{u.nombre} {u.apellido}</option>
+                <option key={u.id_usuario} value={u.id_usuario}>
+                  {u.nombre} {u.apellido}
+                </option>
               ))}
             </select>
 
             <div className="modal-buttons">
-              <button className="btn-save" onClick={agregarCurso}>Guardar</button>
-              <button className="btn-cancel" onClick={cerrarAgregarCursoModal}>Cancelar</button>
+              <button className="btn-save" onClick={agregarCurso}>
+                Guardar
+              </button>
+              <button className="btn-cancel" onClick={cerrarAgregarCursoModal}>
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

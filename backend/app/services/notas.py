@@ -11,7 +11,7 @@ from app.schemas.notas import NotaCreate, NotaUpdate
 async def crear_nota(db: AsyncSession, data: NotaCreate):
 
     # Validar rango de nota (0 - 10)
-    if not 0 <= data.nota <= 10:
+    if not 0 <= data.calificacion <= 10:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La nota debe estar entre 0 y 10"
@@ -20,8 +20,8 @@ async def crear_nota(db: AsyncSession, data: NotaCreate):
     # Validar que no exista nota para ese estudiante + insumo
     if await crud.obtener_por_estudiante_insumo(
         db,
-        id_estudiante=data.id_alumno,
-        id_insumo=data.id_curso_materia_docente
+        id_estudiante=data.id_estudiante,
+        id_insumo=data.id_insumo
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -29,9 +29,9 @@ async def crear_nota(db: AsyncSession, data: NotaCreate):
         )
 
     nota = Nota(
-        id_estudiante=data.id_alumno,
-        id_insumo=data.id_curso_materia_docente,
-        calificacion=data.nota,
+        id_estudiante=data.id_estudiante,
+        id_insumo=data.id_insumo,
+        calificacion=data.calificacion,
         fecha_asignacion=date.today()
     )
 
@@ -75,16 +75,16 @@ async def actualizar_nota(
     values = data.model_dump(exclude_unset=True)
 
     # Validar rango de nota si se actualiza
-    if "nota" in values:
-        if not 0 <= values["nota"] <= 10:
+    if "calificacion" in values:
+        if not 0 <= values["calificacion"] <= 10:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="La nota debe estar entre 0 y 10"
             )
 
     # Validar unicidad si cambia estudiante o insumo
-    nuevo_estudiante = values.get("id_alumno", nota.id_estudiante)
-    nuevo_insumo = values.get("id_curso_materia_docente", nota.id_insumo)
+    nuevo_estudiante = values.get("id_estudiante", nota.id_estudiante)
+    nuevo_insumo = values.get("id_insumo", nota.id_insumo)
 
     if (
         nuevo_estudiante != nota.id_estudiante
@@ -101,12 +101,12 @@ async def actualizar_nota(
             )
 
     # Mapear campos schema → modelo
-    if "id_alumno" in values:
-        nota.id_estudiante = values["id_alumno"]
-    if "id_curso_materia_docente" in values:
-        nota.id_insumo = values["id_curso_materia_docente"]
-    if "nota" in values:
-        nota.calificacion = values["nota"]
+    if "id_estudiante" in values:
+        nota.id_estudiante = values["id_estudiante"]
+    if "id_insumo" in values:
+        nota.id_insumo = values["id_insumo"]
+    if "calificacion" in values:
+        nota.calificacion = values["calificacion"]
 
     return await crud.actualizar(db, nota)
 

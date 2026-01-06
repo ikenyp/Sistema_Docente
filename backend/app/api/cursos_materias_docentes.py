@@ -10,7 +10,6 @@ from app.schemas.cursos_materias_docentes import (
 from app.services import cursos_materias_docentes as service
 
 router = APIRouter(
-    prefix="/cursos-materias-docentes",
     tags=["Cursos - Materias - Docentes"]
 )
 

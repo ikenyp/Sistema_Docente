@@ -37,6 +37,18 @@ export default function Login() {
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("role", role);
 
+      // Obtener datos completos del usuario
+      const userRes = await fetch(`${API_URL}/auth/me`, {
+        headers: {
+          Authorization: `Bearer ${data.access_token}`,
+        },
+      });
+
+      if (userRes.ok) {
+        const usuario = await userRes.json();
+        localStorage.setItem("usuario", JSON.stringify(usuario));
+      }
+
       if (role === "administrativo") navigate("/admin");
       else if (role === "docente") navigate("/docente");
       else throw new Error(`Rol desconocido: ${role}`);

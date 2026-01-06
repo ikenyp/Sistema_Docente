@@ -12,7 +12,6 @@ from app.schemas.estudiantes import (
 from app.services import estudiantes as service
 
 router = APIRouter(
-    prefix="/estudiantes",
     tags=["Estudiantes"]
 )
 
@@ -29,6 +28,7 @@ async def listar_estudiantes(
     estado: EstadoEstudiante | None = Query(None),
     nombre: str | None = Query(None, description="Búsqueda parcial por nombre"),
     apellido: str | None = Query(None, description="Búsqueda parcial por apellido"),
+    id_curso: int | None = Query(None, description="Filtrar por curso actual"),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_session)
@@ -38,6 +38,7 @@ async def listar_estudiantes(
         estado=estado,
         nombre=nombre,
         apellido=apellido,
+        id_curso_actual=id_curso,
         page=page,
         size=size
     )

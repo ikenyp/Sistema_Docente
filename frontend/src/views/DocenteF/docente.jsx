@@ -1,68 +1,73 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../styles/docente.css";
+import { cursosAPI } from "../../services/api";
 
 function Docente() {
   const navigate = useNavigate();
 
   const [cursos, setCursos] = useState([]);
-  const [nuevoCurso, setNuevoCurso] = useState("");
-  const [menuAbierto, setMenuAbierto] = useState(null);
-  const [editandoId, setEditandoId] = useState(null);
-  const [nombreEditado, setNombreEditado] = useState("");
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState(null);
   const [menuUsuario, setMenuUsuario] = useState(false);
+  const [datosUsuario, setDatosUsuario] = useState(null);
 
-  // ====================== SIMULACIÓN BD ======================
+  // ====================== CARGAR CURSOS DEL DOCENTE ======================
+  const cargarCursos = useCallback(async () => {
+    try {
+      setCargando(true);
+      setError(null);
+
+      // Obtener datos del usuario actual desde localStorage
+      const usuarioJSON = localStorage.getItem("usuario");
+      if (!usuarioJSON) {
+        setError("No hay usuario autenticado");
+        navigate("/");
+        return;
+      }
+
+      const usuario = JSON.parse(usuarioJSON);
+      setDatosUsuario(usuario);
+
+      // Obtener cursos del docente (tutor)
+      console.log("Cargando cursos para tutor:", usuario.id_usuario);
+      const cursosData = await cursosAPI.obtenerCursosPorDocente(
+        usuario.id_usuario
+      );
+      console.log("Cursos obtenidos:", cursosData);
+      setCursos(cursosData || []);
+    } catch (err) {
+      console.error("Error al cargar cursos:", err);
+      // Si el error es 404, significa que no hay cursos, no es un error real
+      if (err.message && err.message.includes("404")) {
+        setCursos([]);
+      } else {
+        setError(err.message || "Error al cargar los cursos");
+      }
+    } finally {
+      setCargando(false);
+    }
+  }, [navigate]);
+
   useEffect(() => {
-    const data = [
-      { id: "1", nombre: "2do Ciencias Emprendimiento" },
-      { id: "2", nombre: "3ro Ciencias Emprendimiento" },
-      { id: "3", nombre: "3ro Técnico Matemáticas" },
-    ];
-    setCursos(data);
-  }, []);
-
-  // ====================== CRUD SIMULADO ======================
-  const crearCurso = (nombre) => {
-    const nuevo = { id: Date.now().toString(), nombre };
-    setCursos((prev) => [...prev, nuevo]);
-  };
-
-  const editarCurso = (id, nuevoNombre) => {
-    setCursos((prev) =>
-      prev.map((c) =>
-        c.id === id ? { ...c, nombre: nuevoNombre } : c
-      )
-    );
-  };
-
-  const eliminarCurso = (id) => {
-    setCursos((prev) => prev.filter((c) => c.id !== id));
-  };
+    cargarCursos();
+  }, [cargarCursos]);
 
   // ====================== ACCIONES ======================
-  const handleGuardar = (id) => {
-    if (!nombreEditado.trim()) return;
-    editarCurso(id, nombreEditado.trim());
-    setEditandoId(null);
-  };
-
-  const handleAgregarCurso = () => {
-    if (!nuevoCurso.trim()) {
-      alert("Debe ingresar un nombre de curso");
-      return;
-    }
-    crearCurso(nuevoCurso.trim());
-    setNuevoCurso("");
+  const irAlCurso = (curso) => {
+    navigate(`/curso/${curso.id_curso}`, {
+      state: { curso, rol: "Docente" },
+    });
   };
 
   const cerrarSesion = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
     navigate("/");
   };
 
   return (
     <div className="docente-page">
-
       {/* ====================== NAVBAR ====================== */}
       <div className="navbar-docente">
         <div className="menu-icon">☰</div>
@@ -71,7 +76,9 @@ function Docente() {
           className="navbar-user"
           onClick={() => setMenuUsuario(!menuUsuario)}
         >
-          Keny Elan Nieto Plua
+          {datosUsuario
+            ? `${datosUsuario.nombre} ${datosUsuario.apellido}`
+            : "Docente"}
         </div>
 
         {menuUsuario && (
@@ -83,96 +90,33 @@ function Docente() {
 
       {/* ====================== CONTENIDO ====================== */}
       <div className="docente-container">
-        <h1 className="docente-title">Cursos</h1>
+        <h1 className="docente-title">Mis Cursos</h1>
 
-        {/* AGREGAR CURSO */}
-        <div className="add-course-section">
-          <input
-            type="text"
-            placeholder="Nombre del curso"
-            value={nuevoCurso}
-            onChange={(e) => setNuevoCurso(e.target.value)}
-            className="input-curso"
-          />
-
-          <button className="btn-add" onClick={handleAgregarCurso}>
-            Añadir Curso
-          </button>
-        </div>
+        {/* MENSAJE DE CARGA/ERROR */}
+        {cargando && <p>Cargando cursos...</p>}
+        {error && <p style={{ color: "red" }}>Error: {error}</p>}
 
         {/* GRID DE CURSOS */}
-        <div className="grid-cursos">
-          {cursos.map((curso) => (
-            <div className="curso-card" key={curso.id}>
-
-              {/* MENÚ SUPERIOR */}
-              <div className="card-header">
-                <button
-                  className="options-btn"
-                  onClick={() =>
-                    setMenuAbierto(menuAbierto === curso.id ? null : curso.id)
-                  }
-                >
-                  ⋯
-                </button>
-
-                {menuAbierto === curso.id && (
-                  <div className="menu-opciones">
-                    <button
-                      onClick={() => {
-                        setEditandoId(curso.id);
-                        setNombreEditado(curso.nombre);
-                        setMenuAbierto(null);
-                      }}
-                    >
-                      Renombrar
-                    </button>
-
-                    <button
-                      className="delete"
-                      onClick={() => eliminarCurso(curso.id)}
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* NOMBRE / EDICIÓN */}
-              {editandoId === curso.id ? (
-                <div>
-                  <input
-                    type="text"
-                    className="input-edit"
-                    value={nombreEditado}
-                    onChange={(e) => setNombreEditado(e.target.value)}
-                  />
+        {!cargando && !error && (
+          <div className="grid-cursos">
+            {cursos.length === 0 ? (
+              <p>No tienes cursos asignados</p>
+            ) : (
+              cursos.map((curso) => (
+                <div className="curso-card" key={curso.id_curso}>
+                  <p className="curso-nombre">{curso.nombre}</p>
+                  <p className="curso-info">Año: {curso.anio_lectivo}</p>
                   <button
-                    className="btn-save"
-                    onClick={() => handleGuardar(curso.id)}
+                    className="btn-ingresar"
+                    onClick={() => irAlCurso(curso)}
                   >
-                    Guardar
+                    Ver Curso
                   </button>
                 </div>
-              ) : (
-                <p className="curso-nombre">{curso.nombre}</p>
-              )}
-
-              {/* INGRESAR A NOTAS */}
-              <button
-                className="btn-ingresar"
-                onClick={() =>
-                  navigate(`/curso/${curso.id}/notas`, {
-                    state: { rol: "Docente" },
-                  })
-                }
-              >
-                Ingresar
-              </button>
-
-            </div>
-          ))}
-        </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,2 +1,3 @@
 backend/alembic.ini
 backend/app/core/config.py
+backend/.env

@@ -10,7 +10,6 @@ from app.schemas.insumos import (
 from app.services import insumos as service
 
 router = APIRouter(
-    prefix="/insumos",
     tags=["Insumos"]
 )
 
