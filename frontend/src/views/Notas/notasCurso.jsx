@@ -1,24 +1,28 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import "../../styles/notas.css";
 
 function NotasCurso() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
+  // ===================== ROL =====================
+  // Se recibe desde Admin o Docente
+  const rolUsuario = location.state?.rol || "Admin";
+  const puedeEditar = rolUsuario === "Docente";
+
+  // ===================== ESTADOS =====================
   const [menuUsuario, setMenuUsuario] = useState(false);
   const [curso, setCurso] = useState(null);
   const [estudiantes, setEstudiantes] = useState([]);
 
-  // ================= ROL (SIMULADO) =================
-  const rolUsuario = "Admin"; // "Admin" | "Docente"
-  const puedeEditar = rolUsuario === "Docente";
-
+  // ===================== SIMULACIÓN BD =====================
   useEffect(() => {
     const cursosBD = [
-      { id: "1", nombre: "2do Ciencias A" },
-      { id: "2", nombre: "3ro Técnico B" },
-      { id: "3", nombre: "1ro Ciencias C" },
+      { id: "1", nombre: "2do Ciencias Emprendimiento" },
+      { id: "2", nombre: "3ro Ciencias Emprendimiento" },
+      { id: "3", nombre: "3ro Técnico Matemáticas" },
     ];
 
     const estudiantesBD = {
@@ -29,16 +33,17 @@ function NotasCurso() {
       "2": [
         { id: 3, nombre: "María Gómez", nota: 9.1 },
         { id: 4, nombre: "Carlos Vera", nota: 8.3 },
-        { id: 6, nombre: "Daniela Ruiz", nota: 9.5 },
-
+        { id: 5, nombre: "Daniela Ruiz", nota: 9.5 },
       ],
-      "3": [{ id: 5, nombre: "José Molina", nota: 7.4 }],
+      "3": [{ id: 6, nombre: "José Molina", nota: 7.4 }],
     };
 
-    setCurso(cursosBD.find((c) => c.id === id));
+    const cursoEncontrado = cursosBD.find((c) => c.id === id);
+    setCurso(cursoEncontrado || null);
     setEstudiantes(estudiantesBD[id] || []);
   }, [id]);
 
+  // ===================== FUNCIONES =====================
   const cerrarSesion = () => navigate("/");
 
   const actualizarNota = (idEst, valor) => {
@@ -51,9 +56,20 @@ function NotasCurso() {
     );
   };
 
+  // ===================== PROTECCIÓN =====================
+  if (!curso) {
+    return (
+      <div style={{ padding: 30 }}>
+        <p>Cargando curso...</p>
+      </div>
+    );
+  }
+
+  // ===================== RENDER =====================
   return (
     <div className="notas-page">
-      {/* ================= NAVBAR ================= */}
+
+      {/* -------- NAVBAR -------- */}
       <div className="navbar-notas">
         <div className="menu-icon">☰</div>
 
@@ -61,7 +77,7 @@ function NotasCurso() {
           className="navbar-user"
           onClick={() => setMenuUsuario(!menuUsuario)}
         >
-          Keny Elan Nieto Plua
+          Keny Elan Nieto Plua ({rolUsuario})
         </div>
 
         {menuUsuario && (
@@ -76,9 +92,10 @@ function NotasCurso() {
       </button>
 
       <h1 className="page-title">
-        Notas del curso – {curso?.nombre}
+        Notas del curso – {curso.nombre}
       </h1>
 
+      {/* -------- TABLA -------- */}
       <div className="table-container">
         <table>
           <thead>
@@ -98,10 +115,10 @@ function NotasCurso() {
                   {puedeEditar ? (
                     <input
                       type="number"
-                      value={e.nota}
                       min="0"
                       max="10"
                       step="0.1"
+                      value={e.nota}
                       className="input-nota"
                       onChange={(ev) =>
                         actualizarNota(e.id, ev.target.value)
@@ -117,7 +134,7 @@ function NotasCurso() {
         </table>
       </div>
 
-      {/*  SOLO PARA DOCENTE */}
+      {/* -------- SOLO DOCENTE -------- */}
       {puedeEditar && (
         <button
           className="btn-guardar"

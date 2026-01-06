@@ -13,55 +13,49 @@ function Docente() {
   const [menuUsuario, setMenuUsuario] = useState(false);
 
   // ====================== SIMULACIÓN BD ======================
-  const getCursos = async () => {
+  useEffect(() => {
     const data = [
       { id: "1", nombre: "2do Ciencias Emprendimiento" },
       { id: "2", nombre: "3ro Ciencias Emprendimiento" },
       { id: "3", nombre: "3ro Técnico Matemáticas" },
     ];
     setCursos(data);
-  };
+  }, []);
 
-  const crearCurso = async (nombre) => {
+  // ====================== CRUD SIMULADO ======================
+  const crearCurso = (nombre) => {
     const nuevo = { id: Date.now().toString(), nombre };
     setCursos((prev) => [...prev, nuevo]);
   };
 
-  const editarCurso = async (id, nuevoNombre) => {
+  const editarCurso = (id, nuevoNombre) => {
     setCursos((prev) =>
-      prev.map((curso) =>
-        curso.id === id ? { ...curso, nombre: nuevoNombre } : curso
+      prev.map((c) =>
+        c.id === id ? { ...c, nombre: nuevoNombre } : c
       )
     );
   };
 
-  const eliminarCurso = async (id) => {
-    setCursos((prev) => prev.filter((curso) => curso.id !== id));
+  const eliminarCurso = (id) => {
+    setCursos((prev) => prev.filter((c) => c.id !== id));
   };
 
-  useEffect(() => {
-    getCursos();
-  }, []);
-
-  // ====================== GUARDAR EDICIÓN ======================
+  // ====================== ACCIONES ======================
   const handleGuardar = (id) => {
     if (!nombreEditado.trim()) return;
     editarCurso(id, nombreEditado.trim());
     setEditandoId(null);
   };
 
-  // ====================== AGREGAR CURSO ======================
   const handleAgregarCurso = () => {
     if (!nuevoCurso.trim()) {
-      alert("Debe ingresar un nombre de curso.");
+      alert("Debe ingresar un nombre de curso");
       return;
     }
-
     crearCurso(nuevoCurso.trim());
     setNuevoCurso("");
   };
 
-  // ====================== CERRAR SESIÓN ======================
   const cerrarSesion = () => {
     navigate("/");
   };
@@ -69,13 +63,15 @@ function Docente() {
   return (
     <div className="docente-page">
 
-      {/* NAVBAR */}
+      {/* ====================== NAVBAR ====================== */}
       <div className="navbar-docente">
-
         <div className="menu-icon">☰</div>
 
-        <div className="navbar-user" onClick={() => setMenuUsuario(!menuUsuario)}>
-          Keny Elan Nieto Plua 
+        <div
+          className="navbar-user"
+          onClick={() => setMenuUsuario(!menuUsuario)}
+        >
+          Keny Elan Nieto Plua
         </div>
 
         {menuUsuario && (
@@ -85,11 +81,11 @@ function Docente() {
         )}
       </div>
 
-      {/* CONTENIDO PRINCIPAL */}
+      {/* ====================== CONTENIDO ====================== */}
       <div className="docente-container">
-
         <h1 className="docente-title">Cursos</h1>
 
+        {/* AGREGAR CURSO */}
         <div className="add-course-section">
           <input
             type="text"
@@ -109,7 +105,7 @@ function Docente() {
           {cursos.map((curso) => (
             <div className="curso-card" key={curso.id}>
 
-              {/* BOTONES SUPERIORES */}
+              {/* MENÚ SUPERIOR */}
               <div className="card-header">
                 <button
                   className="options-btn"
@@ -142,7 +138,7 @@ function Docente() {
                 )}
               </div>
 
-              {/* INPUT PARA EDITAR */}
+              {/* NOMBRE / EDICIÓN */}
               {editandoId === curso.id ? (
                 <div>
                   <input
@@ -162,10 +158,14 @@ function Docente() {
                 <p className="curso-nombre">{curso.nombre}</p>
               )}
 
-              {/* BOTÓN INGRESAR */}
+              {/* INGRESAR A NOTAS */}
               <button
                 className="btn-ingresar"
-                onClick={() => alert("Ingresando a " + curso.nombre)}
+                onClick={() =>
+                  navigate(`/curso/${curso.id}/notas`, {
+                    state: { rol: "Docente" },
+                  })
+                }
               >
                 Ingresar
               </button>
@@ -173,7 +173,6 @@ function Docente() {
             </div>
           ))}
         </div>
-
       </div>
     </div>
   );
