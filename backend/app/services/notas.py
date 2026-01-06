@@ -74,12 +74,21 @@ async def crear_nota(db: AsyncSession, data: NotaCreate):
 async def listar_notas(
     db: AsyncSession,
     id_estudiante: int | None = None,
-    id_insumo: int | None = None
+    id_insumo: int | None = None,
+    page: int = 1,
+    size: int = 10
 ):
+    if page < 1:
+        page = 1
+    if size < 1 or size > 100:
+        size = 10
+
     return await crud.listar_notas(
         db=db,
         id_estudiante=id_estudiante,
-        id_insumo=id_insumo
+        id_insumo=id_insumo,
+        page=page,
+        size=size
     )
 
 

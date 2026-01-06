@@ -6,7 +6,7 @@ import Admin from "./views/AdminF/admin";
 import Docente from "./views/DocenteF/docente";
 import CursoPrincipal from "./views/DocenteF/cursoPrincipal";
 import Estudiantes from "./views/Estudiantes/estudiantes";
-import NotasCurso from "./views/Notas/notasCurso";
+import NotasCurso from "./views/Notas/notasCurso.jsx";
 
 function App() {
   return (

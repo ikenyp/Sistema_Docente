@@ -27,7 +27,7 @@ async def crear_usuario(db: AsyncSession, data: UsuarioCreate):
         )
     
     # Validar rol
-    if data.rol not in [RolUsuarioEnum.DOCENTE, RolUsuarioEnum.ADMINISTRATIVO]:
+    if data.rol not in [RolUsuarioEnum.docente, RolUsuarioEnum.administrativo]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El rol debe ser 'docente' o 'administrativo'"
@@ -108,7 +108,7 @@ async def actualizar_usuario(
 
     if "rol" in values and values["rol"] is not None:
         # Validar rol
-        if values["rol"] not in [RolUsuarioEnum.DOCENTE, RolUsuarioEnum.ADMINISTRATIVO]:
+        if values["rol"] not in [RolUsuarioEnum.docente, RolUsuarioEnum.administrativo]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El rol debe ser 'docente' o 'administrativo'"

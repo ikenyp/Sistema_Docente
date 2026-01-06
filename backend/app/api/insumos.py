@@ -9,6 +9,9 @@ from app.schemas.insumos import (
     InsumoResponse
 )
 from app.services import insumos as service
+from app.auth.dependencies import get_current_user, require_role
+from app.schemas.usuarios import RolUsuarioEnum
+from app.models.usuarios import Usuario
 
 router = APIRouter(
     tags=["Insumos"]
@@ -18,9 +21,10 @@ router = APIRouter(
 @router.post("/", response_model=InsumoResponse)
 async def crear_insumo(
     data: InsumoCreate,
+    current_user: Usuario = Depends(require_role(RolUsuarioEnum.docente)),
     db: AsyncSession = Depends(get_session)
 ):
-    return await service.crear_insumo(db, data)
+    return await service.crear_insumo(db, data, current_user)
 
 
 @router.get("/", response_model=list[InsumoResponse])
@@ -31,6 +35,7 @@ async def listar_insumos(
     tipo_insumo: TipoInsumoEnum | None = Query(None, description="Filtrar por tipo de insumo"),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
+    current_user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
 ):
     return await service.listar_insumos(
@@ -47,6 +52,7 @@ async def listar_insumos(
 @router.get("/{id_insumo}", response_model=InsumoResponse)
 async def obtener_insumo(
     id_insumo: int,
+    current_user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
 ):
     return await service.obtener_insumo(db, id_insumo)
@@ -56,14 +62,16 @@ async def obtener_insumo(
 async def actualizar_insumo(
     id_insumo: int,
     data: InsumoUpdate,
+    current_user: Usuario = Depends(require_role(RolUsuarioEnum.docente)),
     db: AsyncSession = Depends(get_session)
 ):
-    return await service.actualizar_insumo(db, id_insumo, data)
+    return await service.actualizar_insumo(db, id_insumo, data, current_user)
 
 
 @router.delete("/{id_insumo}", status_code=200)
 async def eliminar_insumo(
     id_insumo: int,
+    current_user: Usuario = Depends(require_role(RolUsuarioEnum.docente)),
     db: AsyncSession = Depends(get_session)
 ):
-    return await service.eliminar_insumo(db, id_insumo)
+    return await service.eliminar_insumo(db, id_insumo, current_user)

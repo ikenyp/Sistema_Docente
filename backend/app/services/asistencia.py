@@ -48,6 +48,28 @@ async def crear_asistencia(db: AsyncSession, data: AsistenciaCreate):
             detail="La fecha de asistencia no puede ser futura"
         )
 
+    # VALIDACIÓN: Solo lunes a viernes (0=lunes, 6=domingo)
+    dia_semana = data.fecha.weekday()
+    if dia_semana > 4:  # 5=sábado, 6=domingo
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La asistencia solo puede ser registrada de lunes a viernes"
+        )
+
+    # VALIDACIÓN: No permitir duplicados (mismo estudiante, mismo día, misma materia/CMD)
+    asistencia_existente = await db.execute(
+        select(Asistencia).where(
+            Asistencia.id_cmd == data.id_cmd,
+            Asistencia.id_estudiante == data.id_estudiante,
+            Asistencia.fecha == data.fecha
+        )
+    )
+    if asistencia_existente.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ya existe un registro de asistencia para este estudiante, fecha y materia"
+        )
+
     asistencia = Asistencia(
         id_cmd=data.id_cmd,
         id_estudiante=data.id_estudiante,
@@ -115,6 +137,14 @@ async def actualizar_asistencia(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="La fecha de asistencia no puede ser futura"
             )
+        
+        # Validar que sea L-V
+        dia_semana = values["fecha"].weekday()
+        if dia_semana > 4:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La asistencia solo puede ser registrada de lunes a viernes"
+            )
 
     # Validar que CMD exista si se modifica
     if "id_cmd" in values:
@@ -157,6 +187,26 @@ async def actualizar_asistencia(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El estudiante no está matriculado en el curso"
+            )
+
+    # Validar no duplicados si cambian id_cmd, id_estudiante o fecha
+    if "id_cmd" in values or "id_estudiante" in values or "fecha" in values:
+        nuevo_cmd = values.get("id_cmd", asistencia.id_cmd)
+        nuevo_est = values.get("id_estudiante", asistencia.id_estudiante)
+        nueva_fecha = values.get("fecha", asistencia.fecha)
+        
+        duplicado = await db.execute(
+            select(Asistencia).where(
+                Asistencia.id_cmd == nuevo_cmd,
+                Asistencia.id_estudiante == nuevo_est,
+                Asistencia.fecha == nueva_fecha,
+                Asistencia.id_asistencia != id_asistencia
+            )
+        )
+        if duplicado.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Ya existe un registro de asistencia para este estudiante, fecha y materia"
             )
 
     for key, value in values.items():

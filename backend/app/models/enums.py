@@ -19,7 +19,6 @@ class ValorComportamientoEnum(str, enum.Enum):
     B = "B"
     C = "C"
     D = "D"
-    E = "E"
 
 class TipoInsumoEnum(str, enum.Enum):
     actividad = "actividad"

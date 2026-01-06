@@ -11,7 +11,9 @@ from app.api import (
     notas,
     insumos,
     asistencia,
-    comportamiento
+    comportamiento,
+    trimestres,
+    promedios
 )
 
 app = FastAPI(
@@ -42,3 +44,5 @@ app.include_router(notas.router, prefix="/api/notas", tags=["Notas"])
 app.include_router(insumos.router, prefix="/api/insumos", tags=["Insumos"])
 app.include_router(asistencia.router, prefix="/api/asistencia", tags=["Asistencia"])
 app.include_router(comportamiento.router, prefix="/api/comportamiento", tags=["Comportamiento"])
+app.include_router(trimestres.router, prefix="/api/trimestres", tags=["Trimestres"])
+app.include_router(promedios.router, prefix="/api", tags=["Promedios"])

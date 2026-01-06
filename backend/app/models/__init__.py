@@ -7,3 +7,4 @@ from app.models.materias import Materia
 from app.models.usuarios import Usuario
 from app.models.insumos import Insumo
 from app.models.cursos_materias_docentes import CursoMateriaDocente
+from app.models.trimestres import Trimestre

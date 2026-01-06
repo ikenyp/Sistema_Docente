@@ -44,7 +44,7 @@ async def crear_cmd(db: AsyncSession, data: CMDCreate):
             detail="El docente no existe"
         )
     
-    if docente_obj.rol != RolUsuarioEnum.DOCENTE:
+    if docente_obj.rol != RolUsuarioEnum.docente:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El usuario no tiene rol de docente"
@@ -149,7 +149,7 @@ async def actualizar_cmd(
                 detail="El docente no existe"
             )
         
-        if docente_obj.rol != RolUsuarioEnum.DOCENTE:
+        if docente_obj.rol != RolUsuarioEnum.docente:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El usuario no tiene rol de docente"

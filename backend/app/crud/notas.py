@@ -27,11 +27,13 @@ async def obtener_por_estudiante_insumo(
     return result.scalar_one_or_none()
 
 
-# Listar notas (opcionalmente por estudiante o insumo)
+# Listar notas (con paginación)
 async def listar_notas(
     db: AsyncSession,
     id_estudiante: int | None = None,
-    id_insumo: int | None = None
+    id_insumo: int | None = None,
+    page: int = 1,
+    size: int = 10
 ):
     query = select(Nota)
 
@@ -39,6 +41,10 @@ async def listar_notas(
         query = query.where(Nota.id_estudiante == id_estudiante)
     if id_insumo:
         query = query.where(Nota.id_insumo == id_insumo)
+
+    # Aplicar paginación
+    offset = (page - 1) * size
+    query = query.offset(offset).limit(size)
 
     result = await db.execute(query)
     return result.scalars().all()

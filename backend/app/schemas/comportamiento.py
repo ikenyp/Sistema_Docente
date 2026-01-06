@@ -8,7 +8,6 @@ class ValorComportamiento(str, Enum):
     B = "B"
     C = "C"
     D = "D"
-    E = "E"
 
 # Schema Base
 class ComportamientoBase(BaseModel):

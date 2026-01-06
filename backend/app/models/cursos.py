@@ -19,4 +19,5 @@ class Curso(Base):
     estudiantes = relationship("Estudiante", back_populates="curso_actual")
     materias_docentes = relationship("CursoMateriaDocente", back_populates="curso")
     comportamientos = relationship("Comportamiento", back_populates="curso")
+    trimestres = relationship("Trimestre", back_populates="curso", cascade="all, delete-orphan")
 

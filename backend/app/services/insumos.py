@@ -6,27 +6,36 @@ from datetime import date
 from app.models.insumos import Insumo
 from app.models.cursos_materias_docentes import CursoMateriaDocente
 from app.models.enums import TipoInsumoEnum
+from app.models.notas import Nota
 from app.crud import insumos as crud
 from app.schemas.insumos import InsumoCreate, InsumoUpdate
 
 
 # Crear insumo
-async def crear_insumo(db: AsyncSession, data: InsumoCreate):
+async def crear_insumo(db: AsyncSession, data: InsumoCreate, current_user = None):
     # Validar que CMD exista
     cmd = await db.execute(
         select(CursoMateriaDocente).where(CursoMateriaDocente.id_cmd == data.id_cmd)
     )
-    if not cmd.scalar_one_or_none():
+    cmd_obj = cmd.scalar_one_or_none()
+    if not cmd_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La asignación curso-materia-docente no existe"
         )
+    
+    # VALIDACIÓN: Docente solo puede crear insumos en sus propias asignaciones
+    if current_user and current_user.id_usuario != cmd_obj.id_docente:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo puedes crear insumos para tus propias materias"
+        )
 
-    # Validar ponderación (0 - 10)
-    if not 0 <= data.ponderacion <= 10:
+    # Validar ponderación (1 - 10)
+    if not 1 <= data.ponderacion <= 10:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La ponderación debe estar entre 0 y 10"
+            detail="La ponderación debe estar entre 1 y 10"
         )
 
     # Validar trimestre
@@ -121,18 +130,26 @@ async def obtener_insumo(db: AsyncSession, id_insumo: int):
 async def actualizar_insumo(
     db: AsyncSession,
     id_insumo: int,
-    data: InsumoUpdate
+    data: InsumoUpdate,
+    current_user = None
 ):
     insumo = await obtener_insumo(db, id_insumo)
+    
+    # VALIDACIÓN: Docente solo puede actualizar sus propios insumos
+    if current_user and current_user.id_usuario != insumo.cmd.id_docente:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo el docente asignado puede actualizar este insumo"
+        )
 
     values = data.model_dump(exclude_unset=True)
 
     # Validar ponderación si se actualiza
     if "ponderacion" in values:
-        if not 0 <= values["ponderacion"] <= 10:
+        if not 1 <= values["ponderacion"] <= 10:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="La ponderación debe estar entre 0 y 10"
+                detail="La ponderación debe estar entre 1 y 10"
             )
 
     # Validar trimestre si se actualiza
@@ -141,6 +158,17 @@ async def actualizar_insumo(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El trimestre debe ser 1, 2 o 3"
+            )
+
+    # VALIDACIÓN CRÍTICA: No permitir cambiar tipo_insumo si ya tiene notas
+    if "tipo_insumo" in values:
+        notas_existentes = await db.execute(
+            select(Nota).where(Nota.id_insumo == id_insumo)
+        )
+        if notas_existentes.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se puede cambiar el tipo de insumo si ya tiene notas asignadas"
             )
 
     # Validar unicidad si cambia el nombre
@@ -184,7 +212,25 @@ async def actualizar_insumo(
 
 
 # Eliminar insumo (eliminación física)
-async def eliminar_insumo(db: AsyncSession, id_insumo: int):
+async def eliminar_insumo(db: AsyncSession, id_insumo: int, current_user = None):
     insumo = await obtener_insumo(db, id_insumo)
+    
+    # VALIDACIÓN: Docente solo puede eliminar sus propios insumos
+    if current_user and current_user.id_usuario != insumo.cmd.id_docente:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo el docente asignado puede eliminar este insumo"
+        )
+    
+    # VALIDACIÓN CRÍTICA: No permitir eliminar si tiene notas asignadas
+    notas_existentes = await db.execute(
+        select(Nota).where(Nota.id_insumo == id_insumo)
+    )
+    if notas_existentes.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se puede eliminar un insumo que tiene notas asignadas"
+        )
+    
     await crud.eliminar(db, insumo)
     return {"detail": "Insumo eliminado correctamente"}
