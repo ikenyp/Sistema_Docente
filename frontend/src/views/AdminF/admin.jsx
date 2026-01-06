@@ -257,6 +257,53 @@ function Admin() {
       <div className="admin-container">
         <h1 className="admin-title">Panel del Administrador</h1>
 
+        <div className="table-container" style={{ marginTop: 8 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gap: 12,
+            }}
+          >
+            <button
+              className="btn-view"
+              onClick={() => navigate("/admin/estudiantes")}
+            >
+              Gestionar Estudiantes
+            </button>
+            <button
+              className="btn-view"
+              onClick={() => navigate("/admin/materias")}
+            >
+              Gestionar Materias
+            </button>
+            <button
+              className="btn-view"
+              onClick={() => navigate("/admin/asignaciones")}
+            >
+              Asignar Docentes a Cursos/Materias
+            </button>
+            <button
+              className="btn-view"
+              onClick={() => navigate("/admin/matriculacion")}
+            >
+              Matricular Estudiantes a Cursos
+            </button>
+            <button
+              className="btn-view"
+              onClick={() => navigate("/admin/lecturas")}
+            >
+              Ver Notas/Asistencia/Comportamiento
+            </button>
+            <button
+              className="btn-view"
+              onClick={() => navigate("/admin/promedios")}
+            >
+              Vista de Promedios
+            </button>
+          </div>
+        </div>
+
         {/* USUARIOS */}
         <div className="docentes-header">
           <h2 className="section-title">Usuarios Registrados</h2>
