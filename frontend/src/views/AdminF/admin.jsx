@@ -151,8 +151,8 @@ function Admin() {
   };
 
   const agregarCurso = async () => {
-    if (!nuevoCurso.nombre || !nuevoCurso.anio_lectivo || !nuevoCurso.id_docente) {
-      alert("Nombre, año lectivo y docente son obligatorios");
+    if (!nuevoCurso.nombre || !nuevoCurso.anio_lectivo) {
+      alert("Nombre y año lectivo son obligatorios");
       return;
     }
     try {
@@ -309,13 +309,6 @@ function Admin() {
             <input type="text" placeholder="Nombre del curso" value={nuevoCurso.nombre} onChange={(e) => setNuevoCurso({ ...nuevoCurso, nombre: e.target.value })} />
             <input type="text" placeholder="Año lectivo" value={nuevoCurso.anio_lectivo} onChange={(e) => setNuevoCurso({ ...nuevoCurso, anio_lectivo: e.target.value })} />
             
-            <select value={nuevoCurso.id_docente} onChange={(e) => setNuevoCurso({ ...nuevoCurso, id_docente: e.target.value })}>
-              <option value="">Selecciona un docente</option>
-              {usuarios.map((u) => (
-                <option key={u.id_usuario} value={u.id_usuario}>{u.nombre} {u.apellido}</option>
-              ))}
-            </select>
-
             <select value={nuevoCurso.id_tutor} onChange={(e) => setNuevoCurso({ ...nuevoCurso, id_tutor: e.target.value })}>
               <option value="">Selecciona un tutor (opcional)</option>
               {usuarios.map((u) => (
