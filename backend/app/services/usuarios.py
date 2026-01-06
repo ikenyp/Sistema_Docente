@@ -1,5 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from email_validator import validate_email, EmailNotValidError
+
 from app.core.security import hash_contrasena
 
 from app.models.usuarios import Usuario
@@ -9,11 +11,28 @@ from app.schemas.usuarios import RolUsuarioEnum, UsuarioCreate, UsuarioUpdate
 
 #  Crear usuario
 async def crear_usuario(db: AsyncSession, data: UsuarioCreate):
+    # Validar formato de email
+    try:
+        validate_email(data.correo)
+    except EmailNotValidError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Correo inválido: {str(e)}"
+        )
+
     if await crud.obtener_por_correo(db, data.correo):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El correo ya está registrado"
         )
+    
+    # Validar rol
+    if data.rol not in [RolUsuarioEnum.DOCENTE, RolUsuarioEnum.ADMINISTRATIVO]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El rol debe ser 'docente' o 'administrativo'"
+        )
+
     rol_norm = (data.rol.value if hasattr(data.rol, "value") else data.rol).lower()
     usuario = Usuario(
         nombre=data.nombre,
@@ -68,6 +87,15 @@ async def actualizar_usuario(
     values = data.model_dump(exclude_unset=True)
 
     if "correo" in values:
+        # Validar formato de email
+        try:
+            validate_email(values["correo"])
+        except EmailNotValidError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Correo inválido: {str(e)}"
+            )
+
         existente = await crud.obtener_por_correo(db, values["correo"])
         if existente and existente.id_usuario != id_usuario:
             raise HTTPException(
@@ -79,6 +107,12 @@ async def actualizar_usuario(
         values["contrasena"] = hash_contrasena(values["contrasena"])
 
     if "rol" in values and values["rol"] is not None:
+        # Validar rol
+        if values["rol"] not in [RolUsuarioEnum.DOCENTE, RolUsuarioEnum.ADMINISTRATIVO]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El rol debe ser 'docente' o 'administrativo'"
+            )
         values["rol"] = (values["rol"].value if hasattr(values["rol"], "value") else values["rol"]).lower()
 
     for key, value in values.items():

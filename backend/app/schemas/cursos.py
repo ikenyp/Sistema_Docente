@@ -22,9 +22,28 @@ class CursoUpdate(BaseModel):
         "from_attributes": True
     }
 
+# Schema para tutor (relación anidada)
+class TutorMinimal(BaseModel):
+    id_usuario: int
+    nombre: str
+    apellido: str
+    correo: str
+
+    model_config = {
+        "from_attributes": True
+    }
+
 # Schema para respuesta
 class CursoResponse(CursoBase):
     id_curso: int
+
+    model_config = {
+        "from_attributes": True
+    }
+
+# Schema para respuesta detallada con tutor
+class CursoResponseDetailed(CursoResponse):
+    tutor: Optional[TutorMinimal] = None
 
     model_config = {
         "from_attributes": True

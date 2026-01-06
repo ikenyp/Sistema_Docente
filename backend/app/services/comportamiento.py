@@ -1,16 +1,50 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.models.comportamiento import Comportamiento
+from app.models.estudiantes import Estudiante
+from app.models.cursos import Curso
 from app.crud import comportamiento as crud
 from app.schemas.comportamiento import (
     ComportamientoCreate,
     ComportamientoUpdate
 )
 
+# Meses válidos
+MESES_VALIDOS = [
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+]
 
 # Crear comportamiento
 async def crear_comportamiento(db: AsyncSession, data: ComportamientoCreate):
+    # Validar que mes sea válido
+    if data.mes.lower() not in MESES_VALIDOS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"El mes debe ser uno de: {', '.join(MESES_VALIDOS)}"
+        )
+
+    # Validar que estudiante exista
+    estudiante = await db.execute(
+        select(Estudiante).where(Estudiante.id_estudiante == data.id_estudiante)
+    )
+    if not estudiante.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="El estudiante no existe"
+        )
+
+    # Validar que curso exista
+    curso = await db.execute(
+        select(Curso).where(Curso.id_curso == data.id_curso)
+    )
+    if not curso.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="El curso no existe"
+        )
 
     # Validar unicidad estudiante + curso + mes
     if await crud.obtener_por_estudiante_curso_mes(
@@ -82,16 +116,53 @@ async def actualizar_comportamiento(
 
     values = data.model_dump(exclude_unset=True)
 
-    # Si cambia el mes → validar unicidad
-    nuevo_mes = values.get("mes", comportamiento.mes)
+    # Validar mes si se actualiza
+    if "mes" in values:
+        if values["mes"].lower() not in MESES_VALIDOS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"El mes debe ser uno de: {', '.join(MESES_VALIDOS)}"
+            )
 
-    if nuevo_mes != comportamiento.mes:
-        if await crud.obtener_por_estudiante_curso_mes(
+    # Validar que estudiante exista si se modifica
+    if "id_estudiante" in values:
+        est = await db.execute(
+            select(Estudiante).where(Estudiante.id_estudiante == values["id_estudiante"])
+        )
+        if not est.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="El estudiante no existe"
+            )
+
+    # Validar que curso exista si se modifica
+    if "id_curso" in values:
+        cur = await db.execute(
+            select(Curso).where(Curso.id_curso == values["id_curso"])
+        )
+        if not cur.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="El curso no existe"
+            )
+
+    # Si cambia el mes, estudiante o curso → validar unicidad
+    nuevo_mes = values.get("mes", comportamiento.mes)
+    nuevo_estudiante = values.get("id_estudiante", comportamiento.id_estudiante)
+    nuevo_curso = values.get("id_curso", comportamiento.id_curso)
+
+    if (
+        nuevo_mes != comportamiento.mes
+        or nuevo_estudiante != comportamiento.id_estudiante
+        or nuevo_curso != comportamiento.id_curso
+    ):
+        existente = await crud.obtener_por_estudiante_curso_mes(
             db,
-            comportamiento.id_estudiante,
-            comportamiento.id_curso,
+            nuevo_estudiante,
+            nuevo_curso,
             nuevo_mes
-        ):
+        )
+        if existente and existente.id_comportamiento != comportamiento.id_comportamiento:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Ya existe un comportamiento para este estudiante, curso y mes"

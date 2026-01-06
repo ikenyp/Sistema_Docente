@@ -8,10 +8,26 @@ from app.schemas.estudiantes import EstudianteCreate, EstudianteUpdate, EstadoEs
 
 #  Crear estudiante
 async def crear_estudiante(db: AsyncSession, data: EstudianteCreate):
+    # Validar que cédula no esté registrada
     if await crud.obtener_por_cedula(db, data.cedula):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La cédula ya está registrada"
+        )
+
+    # Validar que fecha de nacimiento no sea futura
+    if data.fecha_nacimiento > date.today():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La fecha de nacimiento no puede ser futura"
+        )
+
+    # Validar edad mínima (al menos 5 años)
+    edad = (date.today() - data.fecha_nacimiento).days // 365
+    if edad < 5:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El estudiante debe tener al menos 5 años"
         )
 
     estudiante = Estudiante(

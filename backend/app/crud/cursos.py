@@ -11,6 +11,16 @@ async def obtener_por_id(db: AsyncSession, id_curso: int):
     )
     return result.scalar_one_or_none()
 
+# Obtener por nombre y año lectivo (para validar unicidad)
+async def obtener_por_nombre_anio(db: AsyncSession, nombre: str, anio_lectivo: str):
+    result = await db.execute(
+        select(Curso).where(
+            Curso.nombre == nombre,
+            Curso.anio_lectivo == anio_lectivo
+        )
+    )
+    return result.scalar_one_or_none()
+
 #  Listar cursos
 async def listar(db: AsyncSession, nombre: str | None = None, anio_lectivo: str | None = None, tutor_id: int | None = None, offset: int = 0, limit: int = 10):
     query = select(Curso)

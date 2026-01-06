@@ -1,7 +1,7 @@
 """remove_id_docente_from_cursos
 
 Revision ID: a12c92e0b77f
-Revises: eebaa2f0ff3b
+Revises: 60b49a409f2d
 Create Date: 2026-01-05 22:36:30.955216
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'a12c92e0b77f'
-down_revision: Union[str, Sequence[str], None] = 'eebaa2f0ff3b'
+down_revision: Union[str, Sequence[str], None] = '60b49a409f2d'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

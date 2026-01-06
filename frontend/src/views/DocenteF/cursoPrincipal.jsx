@@ -35,6 +35,7 @@ function CursoPrincipal() {
   const [insumosSeleccionado, setInsumosSeleccionado] = useState(null);
   const [estudiantesInsumo, setEstudiantesInsumo] = useState([]);
   const [notasEstudiantes, setNotasEstudiantes] = useState({});
+  const [menuUsuario, setMenuUsuario] = useState(false);
 
   // ====================== CARGAR DATOS ======================
   const cargarDatos = useCallback(async () => {
@@ -187,14 +188,20 @@ function CursoPrincipal() {
 
         <h2 className="titulo-curso">{curso?.nombre}</h2>
 
-        <div className="navbar-user">
-          <span>
-            {datosUsuario?.nombre} {datosUsuario?.apellido}
-          </span>
-          <button onClick={cerrarSesion} className="btn-logout">
-            Salir
-          </button>
+        <div
+          className="navbar-user"
+          onClick={() => setMenuUsuario(!menuUsuario)}
+        >
+          {datosUsuario
+            ? `${datosUsuario.nombre} ${datosUsuario.apellido}`
+            : "Usuario"}
         </div>
+
+        {menuUsuario && (
+          <div className="menu-usuario">
+            <button onClick={cerrarSesion}>Cerrar Sesión</button>
+          </div>
+        )}
       </div>
 
       {/* ====================== CONTENIDO PRINCIPAL ====================== */}
@@ -207,9 +214,6 @@ function CursoPrincipal() {
               Aún no hay materias asignadas a este curso. Las materias
               aparecerán aquí una vez sean añadidas.
             </p>
-            <button className="btn-volver-empty" onClick={() => navigate(-1)}>
-              Volver a mis cursos
-            </button>
           </div>
         ) : (
           <>

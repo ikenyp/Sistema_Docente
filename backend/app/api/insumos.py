@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.models.enums import TipoInsumoEnum
 from app.schemas.insumos import (
     InsumoCreate,
     InsumoUpdate,
@@ -26,6 +27,8 @@ async def crear_insumo(
 async def listar_insumos(
     id_cmd: int | None = Query(None),
     nombre: str | None = Query(None, description="Búsqueda parcial por nombre"),
+    trimestre: int | None = Query(None, ge=1, le=3, description="Filtrar por trimestre (1, 2 o 3)"),
+    tipo_insumo: TipoInsumoEnum | None = Query(None, description="Filtrar por tipo de insumo"),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_session)
@@ -34,6 +37,8 @@ async def listar_insumos(
         db=db,
         id_cmd=id_cmd,
         nombre=nombre,
+        trimestre=trimestre,
+        tipo_insumo=tipo_insumo,
         page=page,
         size=size
     )

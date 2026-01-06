@@ -29,6 +29,23 @@ async def obtener_por_curso_materia(
     return result.scalar_one_or_none()
 
 
+# Obtener por curso, materia y docente (para validar unicidad con 3 columnas)
+async def obtener_por_curso_materia_docente(
+    db: AsyncSession,
+    id_curso: int,
+    id_materia: int,
+    id_docente: int
+):
+    result = await db.execute(
+        select(CursoMateriaDocente).where(
+            CursoMateriaDocente.id_curso == id_curso,
+            CursoMateriaDocente.id_materia == id_materia,
+            CursoMateriaDocente.id_docente == id_docente
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 # Listar asignaciones
 async def listar_cmd(
     db: AsyncSession,
@@ -67,6 +84,9 @@ async def actualizar(db: AsyncSession, cmd: CursoMateriaDocente):
     return cmd
 
 # Eliminar (física)
-async def eliminar(db: AsyncSession, cmd: CursoMateriaDocente):
-    await db.delete(cmd)
+async def eliminar(db: AsyncSession, id_cmd: int):
+    from sqlalchemy import delete
+    await db.execute(
+        delete(CursoMateriaDocente).where(CursoMateriaDocente.id_cmd == id_cmd)
+    )
     await db.commit()

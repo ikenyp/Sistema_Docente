@@ -340,7 +340,7 @@ function Admin() {
                   <td>
                     <button
                       className="btn-view"
-                      onClick={() => navigate(`/curso/${c.id}/notas`)}
+                      onClick={() => navigate(`Notas/notasCurso/`)}
                     >
                       Ver Estudiantes
                     </button>
@@ -417,11 +417,11 @@ function Admin() {
               }
             />
             <div className="modal-buttons">
-              <button className="btn-save" onClick={agregarUsuario}>
-                Guardar
-              </button>
               <button className="btn-cancel" onClick={cerrarAgregarModal}>
                 Cancelar
+              </button>
+              <button className="btn-save" onClick={agregarUsuario}>
+                Guardar
               </button>
             </div>
           </div>
@@ -465,11 +465,11 @@ function Admin() {
             </select>
 
             <div className="modal-buttons">
-              <button className="btn-save" onClick={agregarCurso}>
-                Guardar
-              </button>
               <button className="btn-cancel" onClick={cerrarAgregarCursoModal}>
                 Cancelar
+              </button>
+              <button className="btn-save" onClick={agregarCurso}>
+                Guardar
               </button>
             </div>
           </div>

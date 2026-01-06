@@ -6,8 +6,7 @@ class RolUsuarioEnum(str, enum.Enum):
 
 class EstadoEstudianteEnum(str, enum.Enum):
     matriculado = "matriculado"
-    activo = "activo"
-    inactivo = "inactivo"
+    retirado = "retirado"
     graduado = "graduado"
 
 class EstadoAsistenciaEnum(str, enum.Enum):
@@ -21,3 +20,13 @@ class ValorComportamientoEnum(str, enum.Enum):
     C = "C"
     D = "D"
     E = "E"
+
+class TipoInsumoEnum(str, enum.Enum):
+    actividad = "actividad"
+    proyecto_trimestral = "proyecto_trimestral"
+    examen_trimestral = "examen_trimestral"
+
+class TrimestreEnum(int, enum.Enum):
+    primero = 1
+    segundo = 2
+    tercero = 3

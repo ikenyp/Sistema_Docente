@@ -1,8 +1,11 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from datetime import date
 
 from app.models.notas import Nota
+from app.models.insumos import Insumo
+from app.models.estudiantes import Estudiante
 from app.crud import notas as crud
 from app.schemas.notas import NotaCreate, NotaUpdate
 
@@ -15,6 +18,35 @@ async def crear_nota(db: AsyncSession, data: NotaCreate):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La nota debe estar entre 0 y 10"
+        )
+
+    # Validar que el insumo exista
+    insumo = await db.execute(
+        select(Insumo).where(Insumo.id_insumo == data.id_insumo)
+    )
+    insumo_obj = insumo.scalar_one_or_none()
+    if not insumo_obj:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="El insumo no existe"
+        )
+
+    # Validar que el estudiante exista
+    estudiante = await db.execute(
+        select(Estudiante).where(Estudiante.id_estudiante == data.id_estudiante)
+    )
+    estudiante_obj = estudiante.scalar_one_or_none()
+    if not estudiante_obj:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="El estudiante no existe"
+        )
+
+    # VALIDACIÓN CRÍTICA: Estudiante debe estar en el curso del insumo
+    if estudiante_obj.id_curso_actual != insumo_obj.cmd.id_curso:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El estudiante no está matriculado en el curso del insumo"
         )
 
     # Validar que no exista nota para ese estudiante + insumo
@@ -82,10 +114,52 @@ async def actualizar_nota(
                 detail="La nota debe estar entre 0 y 10"
             )
 
-    # Validar unicidad si cambia estudiante o insumo
+    # Validar que nuevo insumo exista si se modifica
+    if "id_insumo" in values:
+        insumo = await db.execute(
+            select(Insumo).where(Insumo.id_insumo == values["id_insumo"])
+        )
+        if not insumo.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="El insumo no existe"
+            )
+
+    # Validar que nuevo estudiante exista si se modifica
+    if "id_estudiante" in values:
+        est = await db.execute(
+            select(Estudiante).where(Estudiante.id_estudiante == values["id_estudiante"])
+        )
+        if not est.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="El estudiante no existe"
+            )
+
+    # VALIDACIÓN CRÍTICA: Estudiante debe estar en curso del insumo si cambian
     nuevo_estudiante = values.get("id_estudiante", nota.id_estudiante)
     nuevo_insumo = values.get("id_insumo", nota.id_insumo)
+    
+    if "id_estudiante" in values or "id_insumo" in values:
+        # Obtener el insumo actualizado
+        insumo_actual = await db.execute(
+            select(Insumo).where(Insumo.id_insumo == nuevo_insumo)
+        )
+        insumo_obj = insumo_actual.scalar_one_or_none()
+        
+        # Obtener el estudiante actualizado
+        est_actual = await db.execute(
+            select(Estudiante).where(Estudiante.id_estudiante == nuevo_estudiante)
+        )
+        est_obj = est_actual.scalar_one_or_none()
+        
+        if est_obj and insumo_obj and est_obj.id_curso_actual != insumo_obj.cmd.id_curso:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El estudiante no está matriculado en el curso del insumo"
+            )
 
+    # Validar unicidad si cambia estudiante o insumo
     if (
         nuevo_estudiante != nota.id_estudiante
         or nuevo_insumo != nota.id_insumo

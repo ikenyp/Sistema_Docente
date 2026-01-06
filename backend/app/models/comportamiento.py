@@ -17,4 +17,4 @@ class Comportamiento(Base):
     __table_args__ = (UniqueConstraint("id_estudiante", "id_curso", "mes", name="uq_comportamiento"),)
 
     estudiante = relationship("Estudiante", back_populates="comportamientos")
-    curso = relationship("Curso")
+    curso = relationship("Curso", back_populates="comportamientos")

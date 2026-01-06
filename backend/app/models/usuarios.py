@@ -16,3 +16,4 @@ class Usuario(Base):
     activo = Column(Boolean, default=True)
 
     cursos_tutor = relationship("Curso", foreign_keys="Curso.id_tutor", back_populates="tutor")
+    asignaciones_docente = relationship("CursoMateriaDocente", back_populates="docente")

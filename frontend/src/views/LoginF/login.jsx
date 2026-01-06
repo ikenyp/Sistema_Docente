@@ -61,33 +61,40 @@ export default function Login() {
 
   return (
     <div className="login-container">
-      <div className="login-card">
-        <h1 className="login-title">Iniciar Sesión</h1>
+      <div className="login-wrapper">
+        <div className="system-header">
+          <div className="system-icon">🎓</div>
+          <h1 className="system-title">Sistema Inteligente de Gestión Estudiantil</h1>
+        </div>
 
-        <form className="login-form" onSubmit={handleSubmit}>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Correo"
-            className="login-input"
-            required
-          />
+        <div className="login-card">
+          <h2 className="login-title">Iniciar Sesión</h2>
 
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Contraseña"
-            className="login-input"
-            required
-          />
-          {error && <div className="login-error">{error}</div>}
+          <form className="login-form" onSubmit={handleSubmit}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Correo"
+              className="login-input"
+              required
+            />
 
-          <button className="login-button" type="submit" disabled={loading}>
-            {loading ? "Ingresando..." : "Ingresar"}
-          </button>
-        </form>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Contraseña"
+              className="login-input"
+              required
+            />
+            {error && <div className="login-error">{error}</div>}
+
+            <button className="login-button" type="submit" disabled={loading}>
+              {loading ? "Ingresando..." : "Ingresar"}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
