@@ -21,11 +21,10 @@ async def listar_cursos(
     size: int = Query(10, ge=1, le=100),
     nombre: str | None = Query(None, description="Filtrar por nombre del curso"),
     anio_lectivo: str | None = Query(None, description="Filtrar por grado o nivel educativo"),
-    id_docente: int | None = Query(None, description="Filtrar por docente"),
     id_tutor: int | None = Query(None, description="Filtrar por tutor"),
     db: AsyncSession = Depends(get_session)
 ):
-    return await service.listar_cursos(db, page, size, nombre, anio_lectivo, id_docente, id_tutor)
+    return await service.listar_cursos(db, page, size, nombre, anio_lectivo, id_tutor)
 
 # Obtener curso por ID
 @router.get("/{id_curso}", response_model=CursoResponse)

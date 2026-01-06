@@ -15,5 +15,4 @@ class Usuario(Base):
     rol = Column(Enum(RolUsuarioEnum, name="rol_usuario"), nullable=False)
     activo = Column(Boolean, default=True)
 
-    cursos_dictados = relationship("Curso", foreign_keys="Curso.id_docente", back_populates="docente", overlaps="tutor, cursos_tutor")
-    cursos_tutor = relationship("Curso", foreign_keys="Curso.id_tutor", back_populates="tutor", overlaps="docente, cursos_dictados")
+    cursos_tutor = relationship("Curso", foreign_keys="Curso.id_tutor", back_populates="tutor")

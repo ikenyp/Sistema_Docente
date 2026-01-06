@@ -5,7 +5,6 @@ from typing import Optional
 class CursoBase(BaseModel):
     nombre: str = Field(..., max_length=100)
     anio_lectivo: str 
-    id_docente: Optional[int] = None
     id_tutor: Optional[int] = None
 
 
@@ -17,7 +16,6 @@ class CursoCreate(CursoBase):
 class CursoUpdate(BaseModel):
     nombre: Optional[str] = None
     anio_lectivo: Optional[str] = None
-    id_docente: Optional[int] = None
     id_tutor: Optional[int] = None
 
     model_config = {
