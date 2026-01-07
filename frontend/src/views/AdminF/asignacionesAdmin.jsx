@@ -46,7 +46,7 @@ function AsignacionesAdmin() {
       const [lc, lm, ld] = await Promise.all([
         cursosAPI.listar({ size: 100 }),
         materiasAPI.listar({ size: 100 }),
-        usuariosAPI.listar({ rol: "docente", size: 200 }),
+        usuariosAPI.listar({ rol: "docente", size: 100 }),
       ]);
       setCursos(lc || []);
       setMaterias(lm || []);
@@ -230,24 +230,9 @@ function AsignacionesAdmin() {
               <tbody>
                 {data.map((row) => (
                   <tr key={row.id_cmd}>
-                    <td>
-                      {cursos.find((c) => c.id_curso === row.id_curso)
-                        ?.nombre || row.id_curso}
-                    </td>
-                    <td>
-                      {materias.find((m) => m.id_materia === row.id_materia)
-                        ?.nombre || row.id_materia}
-                    </td>
-                    <td>
-                      {
-                        docentes.find((d) => d.id_usuario === row.id_docente)
-                          ?.nombre
-                      }{" "}
-                      {
-                        docentes.find((d) => d.id_usuario === row.id_docente)
-                          ?.apellido
-                      }
-                    </td>
+                    <td>{row.curso?.nombre || (cursos.find((c) => c.id_curso === row.id_curso)?.nombre) || row.id_curso}</td>
+                    <td>{row.materia?.nombre || (materias.find((m) => m.id_materia === row.id_materia)?.nombre) || row.id_materia}</td>
+                    <td>{(row.docente && `${row.docente.nombre} ${row.docente.apellido}`) || (docentes.find((d) => d.id_usuario === row.id_docente) ? `${docentes.find((d) => d.id_usuario === row.id_docente).nombre} ${docentes.find((d) => d.id_usuario === row.id_docente).apellido}` : row.id_docente)}</td>
                     <td>
                       <button
                         className="btn-view"

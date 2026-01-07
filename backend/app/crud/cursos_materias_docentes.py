@@ -1,4 +1,6 @@
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.cursos_materias_docentes import CursoMateriaDocente
@@ -7,7 +9,11 @@ from app.models.cursos_materias_docentes import CursoMateriaDocente
 # Obtener por ID
 async def obtener_por_id(db: AsyncSession, id_cmd: int):
     result = await db.execute(
-        select(CursoMateriaDocente).where(
+        select(CursoMateriaDocente).options(
+            joinedload(CursoMateriaDocente.curso),
+            joinedload(CursoMateriaDocente.materia),
+            joinedload(CursoMateriaDocente.docente),
+        ).where(
             CursoMateriaDocente.id_cmd == id_cmd
         )
     )
@@ -55,7 +61,11 @@ async def listar_cmd(
     page: int = 1,
     size: int = 10
 ):
-    query = select(CursoMateriaDocente)
+    query = select(CursoMateriaDocente).options(
+        joinedload(CursoMateriaDocente.curso),
+        joinedload(CursoMateriaDocente.materia),
+        joinedload(CursoMateriaDocente.docente),
+    )
 
     if id_curso is not None:
         query = query.where(CursoMateriaDocente.id_curso == id_curso)

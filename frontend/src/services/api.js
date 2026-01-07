@@ -68,11 +68,26 @@ const apiCall = async (endpoint, method = "GET", body = null) => {
         return null;
       }
 
-      // Intentar obtener mensaje de error
+      // Intentar obtener mensaje de error y normalizarlo a string
       let errorMessage = `HTTP ${response.status}`;
       try {
         const error = await response.json();
-        errorMessage = error.detail || errorMessage;
+        if (error) {
+          if (typeof error === "string") {
+            errorMessage = error;
+          } else if (typeof error === "object") {
+            // si existe 'detail', preferirlo
+            if (error.detail !== undefined) {
+              errorMessage =
+                typeof error.detail === "string"
+                  ? error.detail
+                  : JSON.stringify(error.detail);
+            } else {
+              // serializar el objeto/array completo
+              errorMessage = JSON.stringify(error);
+            }
+          }
+        }
       } catch (e) {
         // Si no hay JSON, usar el status
       }
@@ -87,8 +102,14 @@ const apiCall = async (endpoint, method = "GET", body = null) => {
 
     return await response.json();
   } catch (error) {
+    // Normalizar re-lanzamiento para garantizar un Error con mensaje legible
     console.error("API Error:", error);
-    throw error;
+    if (error instanceof Error) throw error;
+    try {
+      throw new Error(JSON.stringify(error));
+    } catch (e) {
+      throw new Error(String(error));
+    }
   }
 };
 

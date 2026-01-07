@@ -23,10 +23,16 @@ function MatriculacionAdmin() {
     setCargando(true);
     try {
       const lista = await estudiantesAPI.buscar({
-        estado: "ACTIVO",
-        size: 200,
+        // normalizar estado y limitar tamaño máximo a 100
+        estado: "matriculado",
+        size: 100,
       });
-      setEstudiantes((lista || []).filter((x) => !x.id_curso_actual));
+      // Mostrar todos los estudiantes con estado 'matriculado'.
+      // Si se quiere sólo los sin curso, filtrar por !id_curso_actual en la UI.
+      setEstudiantes(lista || []);
+    } catch (e) {
+      console.error("Error al cargar estudiantes:", e);
+      alert(e.message || "Error al cargar estudiantes");
     } finally {
       setCargando(false);
     }

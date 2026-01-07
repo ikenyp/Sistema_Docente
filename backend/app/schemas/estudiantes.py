@@ -6,8 +6,7 @@ from datetime import date
 # ENUM 
 class EstadoEstudiante(str, Enum):
     matriculado = "matriculado"
-    activo = "activo"
-    inactivo = "inactivo"
+    retirado = "retirado"
     graduado = "graduado"
 
 # Schema Base

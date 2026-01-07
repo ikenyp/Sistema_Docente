@@ -51,12 +51,12 @@ async def crear_cmd(db: AsyncSession, data: CMDCreate):
         )
 
     # Validar que no exista ya curso + materia + docente
-    if await crud.obtener_por_curso_materia_docente(
-        db, data.id_curso, data.id_materia, data.id_docente
-    ):
+    # Validar que no exista ya una asignación para ese curso + materia
+    existente_cm = await crud.obtener_por_curso_materia(db, data.id_curso, data.id_materia)
+    if existente_cm:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Esta asignación curso–materia–docente ya existe"
+            detail="Ya existe un docente asignado para esta materia en el curso"
         )
 
     cmd = CursoMateriaDocente(
@@ -65,7 +65,9 @@ async def crear_cmd(db: AsyncSession, data: CMDCreate):
         id_docente=data.id_docente
     )
 
-    return await crud.crear(db, cmd)
+    created = await crud.crear(db, cmd)
+    # Return the created object with related entities loaded
+    return await crud.obtener_por_id(db, created.id_cmd)
 
 
 # Listar asignaciones
@@ -155,26 +157,27 @@ async def actualizar_cmd(
                 detail="El usuario no tiene rol de docente"
             )
 
-    # Validar unicidad curso + materia + docente si se modifican
+    # Validar unicidad por curso + materia (solo un docente por materia en un curso)
     if "id_curso" in values or "id_materia" in values or "id_docente" in values:
         id_curso = values.get("id_curso", cmd.id_curso)
         id_materia = values.get("id_materia", cmd.id_materia)
-        id_docente = values.get("id_docente", cmd.id_docente)
 
-        existente = await crud.obtener_por_curso_materia_docente(
-            db, id_curso, id_materia, id_docente
+        existente = await crud.obtener_por_curso_materia(
+            db, id_curso, id_materia
         )
 
         if existente and existente.id_cmd != cmd.id_cmd:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Ya existe esta asignación curso–materia–docente"
+                detail="Ya existe un docente asignado para esta materia en el curso"
             )
 
     for key, value in values.items():
         setattr(cmd, key, value)
 
-    return await crud.actualizar(db, cmd)
+    await crud.actualizar(db, cmd)
+    # Return updated object with relations
+    return await crud.obtener_por_id(db, cmd.id_cmd)
 
 
 # Eliminar asignación (eliminación física)

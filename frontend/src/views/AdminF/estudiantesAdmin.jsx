@@ -30,7 +30,7 @@ function EstudiantesAdmin() {
     apellido: "",
     cedula: "",
     fecha_nacimiento: "",
-    estado: "ACTIVO",
+    estado: "matriculado",
     id_curso_actual: "",
   });
 
@@ -85,6 +85,17 @@ function EstudiantesAdmin() {
     }
   };
 
+  // Normalizar valores de estado (mapear legacy a los actuales)
+  const normalizeEstado = (v) => {
+    if (!v && v !== "") return "matriculado";
+    const s = String(v).toLowerCase();
+    const map = {
+      activo: "matriculado",
+      inactivo: "retirado",
+    };
+    return map[s] || s;
+  };
+
   useEffect(() => {
     cargarCursos();
   }, []);
@@ -113,7 +124,7 @@ function EstudiantesAdmin() {
       apellido: "",
       cedula: "",
       fecha_nacimiento: "",
-      estado: "ACTIVO",
+      estado: "matriculado",
       id_curso_actual: "",
     });
     setModalOpen(true);
@@ -126,7 +137,7 @@ function EstudiantesAdmin() {
       apellido: est.apellido,
       cedula: est.cedula,
       fecha_nacimiento: est.fecha_nacimiento?.slice(0, 10) || "",
-      estado: est.estado,
+      estado: normalizeEstado(est.estado),
       id_curso_actual: est.id_curso_actual || "",
     });
     setModalOpen(true);
@@ -140,22 +151,15 @@ function EstudiantesAdmin() {
         return;
       }
 
-      // Mapear estado a los valores que espera el backend
-      const estadoMap = {
-        ACTIVO: "activo",
-        INACTIVO: "inactivo",
-        matriculado: "matriculado",
-        activo: "activo",
-        inactivo: "inactivo",
-        graduado: "graduado",
-      };
+      // Force 'matriculado' when creating; normalize estado when editing
+      const estadoValue = editando ? normalizeEstado(form.estado) : "matriculado";
 
       const payload = {
         nombre: form.nombre,
         apellido: form.apellido,
         cedula: String(form.cedula || ""),
         fecha_nacimiento: form.fecha_nacimiento || undefined,
-        estado: estadoMap[form.estado] || String(form.estado).toLowerCase(),
+        estado: estadoValue,
         id_curso_actual: form.id_curso_actual
           ? Number(form.id_curso_actual)
           : null,
@@ -170,13 +174,13 @@ function EstudiantesAdmin() {
 
       let res;
       if (editando) {
-        res = await fetch(`http://localhost:8000/api/estudiantes/${editando.id_estudiante}/`, {
+        res = await fetch(`http://localhost:8000/api/estudiantes/${editando.id_estudiante}`, {
           method: "PUT",
           headers,
           body: JSON.stringify(payload),
         });
       } else {
-        res = await fetch("http://localhost:8000/api/estudiantes/", {
+        res = await fetch("http://localhost:8000/api/estudiantes", {
           method: "POST",
           headers,
           body: JSON.stringify(payload),
@@ -200,7 +204,7 @@ function EstudiantesAdmin() {
   };
 
   const eliminar = async (est) => {
-    if (!window.confirm("¿Eliminar este estudiante? Debe estar INACTIVO."))
+    if (!window.confirm("¿Eliminar este estudiante? Debe estar retirado."))
       return;
     try {
       await estudiantesAPI.eliminar(est.id_estudiante);
@@ -271,8 +275,9 @@ function EstudiantesAdmin() {
             onChange={(e) => setFiltros({ ...filtros, estado: e.target.value })}
           >
             <option value="">Todos</option>
-            <option value="ACTIVO">Activo</option>
-            <option value="INACTIVO">Inactivo</option>
+            <option value="matriculado">Matriculado</option>
+            <option value="retirado">Retirado</option>
+            <option value="graduado">Graduado</option>
           </select>
           <select
             value={filtros.id_curso}
@@ -396,13 +401,19 @@ function EstudiantesAdmin() {
                 setForm({ ...form, fecha_nacimiento: e.target.value })
               }
             />
-            <select
-              value={form.estado}
-              onChange={(e) => setForm({ ...form, estado: e.target.value })}
-            >
-              <option value="ACTIVO">Activo</option>
-              <option value="INACTIVO">Inactivo</option>
-            </select>
+            {editando ? (
+              <select
+                value={form.estado}
+                onChange={(e) => setForm({ ...form, estado: e.target.value })}
+              >
+                <option value="matriculado">Matriculado</option>
+                <option value="retirado">Retirado</option>
+                <option value="graduado">Graduado</option>
+              </select>
+            ) : (
+              // show fixed value for creation (no selector)
+              <input type="hidden" value="matriculado" />
+            )}
             <select
               value={form.id_curso_actual}
               onChange={(e) =>

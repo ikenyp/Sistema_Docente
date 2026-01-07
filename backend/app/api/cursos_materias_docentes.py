@@ -5,7 +5,8 @@ from app.core.database import get_session
 from app.schemas.cursos_materias_docentes import (
     CMDCreate,
     CMDUpdate,
-    CMDResponse
+    CMDResponse,
+    CMDResponseDetailed,
 )
 from app.services import cursos_materias_docentes as service
 
@@ -14,7 +15,7 @@ router = APIRouter(
 )
 
 
-@router.post("/", response_model=CMDResponse)
+@router.post("/", response_model=CMDResponseDetailed)
 async def crear_cmd(
     data: CMDCreate,
     db: AsyncSession = Depends(get_session)
@@ -22,7 +23,7 @@ async def crear_cmd(
     return await service.crear_cmd(db, data)
 
 
-@router.get("/", response_model=list[CMDResponse])
+@router.get("/", response_model=list[CMDResponseDetailed])
 async def listar_cmd(
     id_curso: int | None = Query(None),
     id_materia: int | None = Query(None),
@@ -41,7 +42,7 @@ async def listar_cmd(
     )
 
 
-@router.get("/{id_cmd}", response_model=CMDResponse)
+@router.get("/{id_cmd}", response_model=CMDResponseDetailed)
 async def obtener_cmd(
     id_cmd: int,
     db: AsyncSession = Depends(get_session)
@@ -49,7 +50,7 @@ async def obtener_cmd(
     return await service.obtener_cmd(db, id_cmd)
 
 
-@router.put("/{id_cmd}", response_model=CMDResponse)
+@router.put("/{id_cmd}", response_model=CMDResponseDetailed)
 async def actualizar_cmd(
     id_cmd: int,
     data: CMDUpdate,
