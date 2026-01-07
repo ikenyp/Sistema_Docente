@@ -5,6 +5,8 @@ import "../../styles/admin.css";
 function Admin() {
   const navigate = useNavigate();
 
+  const [datosUsuario, setDatosUsuario] = useState(null);
+  
   // ====== Estados ======
   const [usuarios, setUsuarios] = useState([]);
   const [cursos, setCursos] = useState([]);
@@ -38,10 +40,15 @@ function Admin() {
   const [cargandoUsuarios, setCargandoUsuarios] = useState(true);
   const [errorUsuarios, setErrorUsuarios] = useState(false);
 
+
+  
   // ====== Traer usuarios ======
   useEffect(() => {
     const fetchUsuarios = async () => {
       try {
+      const usuarioJSON = localStorage.getItem("usuario");
+      const usuario = usuarioJSON ? JSON.parse(usuarioJSON) : null;
+      if (usuario) setDatosUsuario(usuario);
         const token = localStorage.getItem("token");
         const headers = {
           "Content-Type": "application/json",
@@ -233,26 +240,32 @@ function Admin() {
   };
 
   // ====== Cerrar sesión ======
-  const cerrarSesion = () => navigate("/");
+  const cerrarSesion = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
+    navigate("/");
+  };
 
   // ====== JSX ======
   return (
-    <div className="admin-page">
+      <div className="admin-page">
       {/* NAVBAR */}
-      <div className="navbar-admin">
-        <div className="menu-icon">☰</div>
-        <div
-          className="navbar-user"
-          onClick={() => setMenuUsuario(!menuUsuario)}
-        >
-          Keny Elan Nieto Plua
-        </div>
-        {menuUsuario && (
-          <div className="menu-usuario">
-            <button onClick={cerrarSesion}>Cerrar Sesión</button>
-          </div>
-        )}
-      </div>
+            <div className="navbar-admin">
+            <div className="menu-icon">☰</div>
+
+            <div
+              onClick={() => setMenuUsuario(!menuUsuario)}
+            >
+              {datosUsuario
+                ? `${datosUsuario.nombre} ${datosUsuario.apellido}`
+                : "Administrador"}
+            </div>
+            {menuUsuario && (
+              <div className="menu-usuario">
+                <button onClick={cerrarSesion}>Cerrar Sesión</button>
+              </div>
+            )}
+            </div>
 
       <div className="admin-container">
         <h1 className="admin-title">Panel del Administrador</h1>
@@ -374,7 +387,8 @@ function Admin() {
           <table>
             <thead>
               <tr>
-                <th>Curso</th>
+                <th>Curso</th>    
+                <th>Año Lectivo</th>
                 <th>Estudiantes</th>
                 <th>Acción</th>
               </tr>
@@ -383,6 +397,7 @@ function Admin() {
               {cursos.map((c) => (
                 <tr key={c.id}>
                   <td>{c.nombre}</td>
+                  <td>{c.anio_lectivo}</td>
                   <td>{c.estudiantes}</td>
                   <td>
                     <button

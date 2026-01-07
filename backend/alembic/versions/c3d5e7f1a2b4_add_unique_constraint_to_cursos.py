@@ -20,6 +20,18 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
+    # Eliminar filas duplicadas (mantener la de menor id) antes de crear el constraint
+    op.execute(
+        """
+        WITH duplicates AS (
+            SELECT id_curso, ROW_NUMBER() OVER (PARTITION BY nombre, anio_lectivo ORDER BY id_curso) AS rn
+            FROM cursos
+        )
+        DELETE FROM cursos
+        WHERE id_curso IN (SELECT id_curso FROM duplicates WHERE rn > 1);
+        """
+    )
+
     # Agregar constraint único para nombre + anio_lectivo
     op.create_unique_constraint('uq_curso_nombre_anio', 'cursos', ['nombre', 'anio_lectivo'])
 

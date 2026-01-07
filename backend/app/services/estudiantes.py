@@ -5,6 +5,9 @@ from datetime import date
 from app.models.estudiantes import Estudiante
 from app.crud import estudiantes as crud
 from app.schemas.estudiantes import EstudianteCreate, EstudianteUpdate, EstadoEstudiante
+from sqlalchemy.exc import IntegrityError
+from fastapi import HTTPException, status
+import logging
 
 #  Crear estudiante
 async def crear_estudiante(db: AsyncSession, data: EstudianteCreate):
@@ -39,7 +42,16 @@ async def crear_estudiante(db: AsyncSession, data: EstudianteCreate):
         id_curso_actual=data.id_curso_actual
     )
 
-    return await crud.crear(db, estudiante)
+    try:
+        return await crud.crear(db, estudiante)
+    except IntegrityError as ie:
+        logging.error("IntegrityError creando estudiante: %s", ie)
+        detail = str(ie.orig) if hasattr(ie, 'orig') else str(ie)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error de integridad de datos: {detail}")
+    except Exception as e:
+        logging.error("Error inesperado creando estudiante: %s", e)
+        logging.error(e, exc_info=True)
+        raise
 
 
 #  Listar estudiantes

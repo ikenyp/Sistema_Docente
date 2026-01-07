@@ -45,7 +45,22 @@ const apiCall = async (endpoint, method = "GET", body = null) => {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+    // Construir URL final asegurando que se conserve el prefijo API_BASE_URL
+    // y que no perdamos la parte "/api" al usar el constructor URL con
+    // endpoints que empiezan con '/'.
+    const base = API_BASE_URL.replace(/\/$/, "");
+    // separar path y query
+    const [pathPart, queryPart] = endpoint.split("?");
+    const path = pathPart.startsWith("/") ? pathPart : `/${pathPart}`;
+    // agregar slash final si el último segmento no es numérico
+    const segments = path.split("/").filter(Boolean);
+    const last = segments.length ? segments[segments.length - 1] : null;
+    const normalizedPath = last && !/^\d+$/.test(last) && !path.endsWith("/") ? `${path}/` : path;
+    const finalUrl = `${base}${normalizedPath}${queryPart ? `?${queryPart}` : ""}`;
+
+    // Log de depuración para verificar URL y configuración
+    console.debug("API CALL", method, finalUrl, config);
+    const response = await fetch(finalUrl, config);
 
     if (!response.ok) {
       // Manejar respuestas vacías (204) y otras respuestas sin contenido

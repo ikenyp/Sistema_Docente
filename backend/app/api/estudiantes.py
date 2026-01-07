@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
+import logging
+import traceback
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Query
 
@@ -20,7 +22,16 @@ async def crear_estudiante(
     data: EstudianteCreate,
     db: AsyncSession = Depends(get_session)
 ):
-    return await service.crear_estudiante(db, data)
+    try:
+        return await service.crear_estudiante(db, data)
+    except HTTPException:
+        # re-raise HTTPExceptions from service to keep their status/detail
+        raise
+    except Exception as e:
+        logging.error("Error en crear_estudiante: %s", e)
+        logging.error(traceback.format_exc())
+        # Return a controlled HTTP error so middleware can add CORS headers
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno del servidor")
 
 
 @router.get("/", response_model=list[EstudianteResponse])

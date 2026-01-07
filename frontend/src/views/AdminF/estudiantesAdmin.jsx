@@ -6,6 +6,7 @@ import { estudiantesAPI, cursosAPI } from "../../services/api";
 function EstudiantesAdmin() {
   const navigate = useNavigate();
   const [menuUsuario, setMenuUsuario] = useState(false);
+  const [datosUsuario, setDatosUsuario] = useState(null);
 
   const [filtros, setFiltros] = useState({
     nombre: "",
@@ -68,8 +69,30 @@ function EstudiantesAdmin() {
     }
   };
 
+  // Formatea valores para evitar mostrar [object Object]
+  const formatValue = (v) => {
+    if (v === null || v === undefined) return "";
+    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return String(v);
+    try {
+      if (Array.isArray(v)) return v.map((x) => (typeof x === 'object' ? JSON.stringify(x) : String(x))).join(', ');
+      if (typeof v === 'object') {
+        if (v.nombre || v.apellido) return `${v.nombre || ''} ${v.apellido || ''}`.trim();
+        return JSON.stringify(v);
+      }
+      return String(v);
+    } catch (e) {
+      return String(v);
+    }
+  };
+
   useEffect(() => {
     cargarCursos();
+  }, []);
+
+  useEffect(() => {
+    const usuarioJSON = localStorage.getItem("usuario");
+    const usuario = usuarioJSON ? JSON.parse(usuarioJSON) : null;
+    if (usuario) setDatosUsuario(usuario);
   }, []);
 
   useEffect(() => {
@@ -111,19 +134,63 @@ function EstudiantesAdmin() {
 
   const guardar = async () => {
     try {
+      // Validaciones básicas antes de enviar
+      if (!form.fecha_nacimiento && !editando) {
+        alert("La fecha de nacimiento es obligatoria");
+        return;
+      }
+
+      // Mapear estado a los valores que espera el backend
+      const estadoMap = {
+        ACTIVO: "activo",
+        INACTIVO: "inactivo",
+        matriculado: "matriculado",
+        activo: "activo",
+        inactivo: "inactivo",
+        graduado: "graduado",
+      };
+
       const payload = {
-        ...form,
+        nombre: form.nombre,
+        apellido: form.apellido,
+        cedula: String(form.cedula || ""),
+        fecha_nacimiento: form.fecha_nacimiento || undefined,
+        estado: estadoMap[form.estado] || String(form.estado).toLowerCase(),
         id_curso_actual: form.id_curso_actual
           ? Number(form.id_curso_actual)
           : null,
-        fecha_nacimiento: form.fecha_nacimiento
-          ? form.fecha_nacimiento
-          : undefined,
       };
+      console.debug("Estudiantes payload:", payload);
+      // Enviar con fetch incluyendo headers (token) al estilo de agregarUsuario
+      const token = localStorage.getItem("token");
+      const headers = {
+        "Content-Type": "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      let res;
       if (editando) {
-        await estudiantesAPI.actualizar(editando.id_estudiante, payload);
+        res = await fetch(`http://localhost:8000/api/estudiantes/${editando.id_estudiante}/`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify(payload),
+        });
       } else {
-        await estudiantesAPI.crear(payload);
+        res = await fetch("http://localhost:8000/api/estudiantes/", {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        const mensaje = errorData?.detail
+          ? typeof errorData.detail === "string"
+            ? errorData.detail
+            : JSON.stringify(errorData.detail)
+          : `Error HTTP ${res.status}`;
+        throw new Error(mensaje);
       }
       setModalOpen(false);
       cargar();
@@ -143,7 +210,11 @@ function EstudiantesAdmin() {
     }
   };
 
-  const cerrarSesion = () => navigate("/");
+  const cerrarSesion = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
+    navigate("/");
+  };
 
   return (
     <div className="admin-page">
@@ -155,7 +226,9 @@ function EstudiantesAdmin() {
           className="navbar-user"
           onClick={() => setMenuUsuario(!menuUsuario)}
         >
-          Admin
+          {datosUsuario
+            ? `${datosUsuario.nombre} ${datosUsuario.apellido}`
+            : "Admin"}
         </div>
         {menuUsuario && (
           <div className="menu-usuario">
@@ -239,13 +312,15 @@ function EstudiantesAdmin() {
               <tbody>
                 {data.map((est) => (
                   <tr key={est.id_estudiante}>
-                    <td>{est.nombre}</td>
-                    <td>{est.apellido}</td>
-                    <td>{est.cedula}</td>
-                    <td>{est.estado}</td>
+                    <td>{formatValue(est.nombre)}</td>
+                    <td>{formatValue(est.apellido)}</td>
+                    <td>{formatValue(est.cedula)}</td>
+                    <td>{formatValue(est.estado)}</td>
                     <td>
-                      {cursos.find((c) => c.id_curso === est.id_curso_actual)
-                        ?.nombre || "-"}
+                      {formatValue(
+                        cursos.find((c) => c.id_curso === est.id_curso_actual)
+                          ?.nombre || "-"
+                      )}
                     </td>
                     <td>
                       <button

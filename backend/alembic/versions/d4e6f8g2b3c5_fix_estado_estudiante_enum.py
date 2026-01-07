@@ -27,17 +27,19 @@ def upgrade() -> None:
     # Primero, verificar si existen valores antiguos
     from sqlalchemy import text
     conn = op.get_bind()
-    
-    # Intentar actualizar solo si existen registros con valores antiguos
+
+    # Ejecutar dentro de un savepoint (nested transaction) para que
+    # cualquier error sea retrocedido sin abortar la transacción externa.
     try:
-        result = conn.execute(text("SELECT COUNT(*) FROM estudiantes WHERE estado = 'activo' OR estado = 'inactivo'"))
-        count = result.scalar()
-        
-        if count > 0:
-            # Solo actualizar si hay registros con valores antiguos
-            op.execute("UPDATE estudiantes SET estado = 'matriculado' WHERE estado IN ('activo', 'inactivo')")
+        with conn.begin_nested():
+            result = conn.execute(text("SELECT COUNT(*) FROM estudiantes WHERE estado IN ('activo','inactivo')"))
+            count = result.scalar()
+
+            if count and count > 0:
+                # Usar la misma conexión para actualizar
+                conn.execute(text("UPDATE estudiantes SET estado = 'matriculado' WHERE estado IN ('activo','inactivo')"))
     except Exception:
-        # Si falla, probablemente el enum ya está correcto
+        # Si falla, revertimos solo el savepoint y seguimos; no aborta todo el upgrade
         pass
 
 
