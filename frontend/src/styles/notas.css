@@ -43,6 +43,15 @@
   border: none;
   background: none;
   cursor: pointer;
+  width: 100%;
+  text-align: left;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.menu-usuario button:hover {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
 }
 
 .input-nota {

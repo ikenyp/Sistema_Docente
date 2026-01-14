@@ -12,6 +12,7 @@ import {
 function LecturasAdmin() {
   const navigate = useNavigate();
   const [menuUsuario, setMenuUsuario] = useState(false);
+  const [datosUsuario, setDatosUsuario] = useState(null);
 
   const [cursos, setCursos] = useState([]);
   const [cursoSel, setCursoSel] = useState("");
@@ -27,6 +28,7 @@ function LecturasAdmin() {
       setCursos((await cursosAPI.listar({ size: 100 })) || []);
     } catch {}
   };
+
   const cargarEstudiantes = async (id_curso) => {
     try {
       setEstudiantes(
@@ -39,11 +41,20 @@ function LecturasAdmin() {
   };
 
   useEffect(() => {
-    cargarCursos();
+    const usuarioJSON = localStorage.getItem("usuario");
+    const usuario = usuarioJSON ? JSON.parse(usuarioJSON) : null;
+    if (usuario) setDatosUsuario(usuario);
   }, []);
+
+  useEffect(() => {
+    cargarCursos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     cargarEstudiantes(cursoSel);
     setEstSel("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursoSel]);
 
   const cargarDatos = async () => {
@@ -67,6 +78,7 @@ function LecturasAdmin() {
       setAsistencias([]);
       setComportamientos([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estSel]);
 
   const cerrarSesion = () => navigate("/");
@@ -74,14 +86,20 @@ function LecturasAdmin() {
   return (
     <div className="admin-page">
       <div className="navbar-admin">
-        <div className="menu-icon" onClick={() => navigate(-1)}>
-          ←
+        <div
+          className="menu-icon"
+          onClick={() => navigate(-1)}
+          title="Volver atrás"
+        >
+          ← Volver
         </div>
         <div
           className="navbar-user"
           onClick={() => setMenuUsuario(!menuUsuario)}
         >
-          Admin
+          {datosUsuario
+            ? `${datosUsuario.nombre} ${datosUsuario.apellido}`
+            : "Admin"}
         </div>
         {menuUsuario && (
           <div className="menu-usuario">

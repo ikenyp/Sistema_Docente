@@ -72,11 +72,20 @@ function EstudiantesAdmin() {
   // Formatea valores para evitar mostrar [object Object]
   const formatValue = (v) => {
     if (v === null || v === undefined) return "";
-    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return String(v);
+    if (
+      typeof v === "string" ||
+      typeof v === "number" ||
+      typeof v === "boolean"
+    )
+      return String(v);
     try {
-      if (Array.isArray(v)) return v.map((x) => (typeof x === 'object' ? JSON.stringify(x) : String(x))).join(', ');
-      if (typeof v === 'object') {
-        if (v.nombre || v.apellido) return `${v.nombre || ''} ${v.apellido || ''}`.trim();
+      if (Array.isArray(v))
+        return v
+          .map((x) => (typeof x === "object" ? JSON.stringify(x) : String(x)))
+          .join(", ");
+      if (typeof v === "object") {
+        if (v.nombre || v.apellido)
+          return `${v.nombre || ""} ${v.apellido || ""}`.trim();
         return JSON.stringify(v);
       }
       return String(v);
@@ -152,7 +161,9 @@ function EstudiantesAdmin() {
       }
 
       // Force 'matriculado' when creating; normalize estado when editing
-      const estadoValue = editando ? normalizeEstado(form.estado) : "matriculado";
+      const estadoValue = editando
+        ? normalizeEstado(form.estado)
+        : "matriculado";
 
       const payload = {
         nombre: form.nombre,
@@ -174,11 +185,14 @@ function EstudiantesAdmin() {
 
       let res;
       if (editando) {
-        res = await fetch(`http://localhost:8000/api/estudiantes/${editando.id_estudiante}`, {
-          method: "PUT",
-          headers,
-          body: JSON.stringify(payload),
-        });
+        res = await fetch(
+          `http://localhost:8000/api/estudiantes/${editando.id_estudiante}`,
+          {
+            method: "PUT",
+            headers,
+            body: JSON.stringify(payload),
+          }
+        );
       } else {
         res = await fetch("http://localhost:8000/api/estudiantes", {
           method: "POST",
@@ -223,8 +237,12 @@ function EstudiantesAdmin() {
   return (
     <div className="admin-page">
       <div className="navbar-admin">
-        <div className="menu-icon" onClick={() => navigate(-1)}>
-          ←
+        <div
+          className="menu-icon"
+          onClick={() => navigate(-1)}
+          title="Volver atrás"
+        >
+          ← Volver
         </div>
         <div
           className="navbar-user"

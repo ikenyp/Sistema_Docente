@@ -122,7 +122,38 @@ async def actualizar_usuario(
 
 #  Eliminar usuario
 async def eliminar_usuario(db: AsyncSession, id_usuario: int):
+    from app.models.cursos_materias_docentes import CursoMateriaDocente
+    from app.models.cursos import Curso
+    from sqlalchemy import select
+    
     usuario = await obtener_usuario(db, id_usuario)
+    
+    # Verificar si tiene asignaciones como docente
+    stmt_asignaciones = select(CursoMateriaDocente).where(
+        CursoMateriaDocente.id_docente == id_usuario
+    )
+    result_asignaciones = await db.execute(stmt_asignaciones)
+    asignaciones = result_asignaciones.scalars().all()
+    
+    if asignaciones:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No se puede eliminar el usuario porque tiene {len(asignaciones)} asignación(es) de curso/materia. Elimine primero sus asignaciones."
+        )
+    
+    # Verificar si es tutor de algún curso
+    stmt_cursos = select(Curso).where(
+        Curso.id_tutor == id_usuario
+    )
+    result_cursos = await db.execute(stmt_cursos)
+    cursos_tutor = result_cursos.scalars().all()
+    
+    if cursos_tutor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No se puede eliminar el usuario porque es tutor de {len(cursos_tutor)} curso(s). Reasigne el tutor primero."
+        )
+    
     usuario.activo = False
     await crud.actualizar(db, usuario)
     return None #status 204

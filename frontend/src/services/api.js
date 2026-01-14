@@ -55,8 +55,11 @@ const apiCall = async (endpoint, method = "GET", body = null) => {
     // agregar slash final si el último segmento no es numérico
     const segments = path.split("/").filter(Boolean);
     const last = segments.length ? segments[segments.length - 1] : null;
-    const normalizedPath = last && !/^\d+$/.test(last) && !path.endsWith("/") ? `${path}/` : path;
-    const finalUrl = `${base}${normalizedPath}${queryPart ? `?${queryPart}` : ""}`;
+    const normalizedPath =
+      last && !/^\d+$/.test(last) && !path.endsWith("/") ? `${path}/` : path;
+    const finalUrl = `${base}${normalizedPath}${
+      queryPart ? `?${queryPart}` : ""
+    }`;
 
     // Log de depuración para verificar URL y configuración
     console.debug("API CALL", method, finalUrl, config);
@@ -183,6 +186,8 @@ export const notasAPI = {
   crear: (data) => apiCall("/notas", "POST", data),
 
   actualizar: (id_nota, data) => apiCall(`/notas/${id_nota}`, "PUT", data),
+
+  eliminar: (id_nota) => apiCall(`/notas/${id_nota}`, "DELETE"),
 
   obtener: (id_nota) => apiCall(`/notas/${id_nota}`),
 };

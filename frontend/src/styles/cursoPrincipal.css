@@ -17,7 +17,7 @@
 }
 
 .btn-volver {
-  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
   padding: 8px 15px;
@@ -83,7 +83,9 @@
 }
 
 .menu-usuario button:hover {
-  background: #f2f2f2;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 6px;
 }
 
 .btn-logout {
@@ -392,6 +394,7 @@
 .tabla-notas table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .tabla-notas thead {
@@ -558,7 +561,7 @@
   border-radius: 10px;
   background: linear-gradient(135deg, #ffffff 0%, #f7f9fc 100%);
   font-size: 14px;
-  color: #1f2937;
+  color: #000000;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
   transition: all 0.2s ease;
 }
@@ -579,6 +582,32 @@
     calc(100% - 8px) calc(50% - 3px);
   background-size: 6px 6px, 6px 6px;
   background-repeat: no-repeat;
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+.form-grid select option {
+  padding: 12px;
+  background: #ffffff;
+  color: #000000;
+  font-size: 14px;
+  border-radius: 8px;
+  margin: 2px 4px;
+}
+
+.form-grid select option:first-child {
+  border-radius: 8px 8px 0 0;
+}
+
+.form-grid select option:last-child {
+  border-radius: 0 0 8px 8px;
+}
+
+.form-grid select option:hover,
+.form-grid select option:checked {
+  background: #e8eaf6;
+  color: #000000;
+  font-weight: 500;
 }
 
 .btn-primary {

@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { usuariosAPI, cursosAPI } from "../../services/api";
 import "../../styles/admin.css";
 
 function Admin() {
   const navigate = useNavigate();
 
   const [datosUsuario, setDatosUsuario] = useState(null);
-  
+
   // ====== Estados ======
   const [usuarios, setUsuarios] = useState([]);
   const [cursos, setCursos] = useState([]);
 
-  // Modal roles
-  const [modalOpen, setModalOpen] = useState(false);
-  const [accion, setAccion] = useState("");
-  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
+  // Modal editar usuario
+  const [modalEditarOpen, setModalEditarOpen] = useState(false);
+  const [usuarioEditar, setUsuarioEditar] = useState(null);
 
   // Modal añadir usuario
   const [modalAgregarOpen, setModalAgregarOpen] = useState(false);
@@ -40,28 +40,15 @@ function Admin() {
   const [cargandoUsuarios, setCargandoUsuarios] = useState(true);
   const [errorUsuarios, setErrorUsuarios] = useState(false);
 
-
-  
   // ====== Traer usuarios ======
   useEffect(() => {
     const fetchUsuarios = async () => {
       try {
-      const usuarioJSON = localStorage.getItem("usuario");
-      const usuario = usuarioJSON ? JSON.parse(usuarioJSON) : null;
-      if (usuario) setDatosUsuario(usuario);
-        const token = localStorage.getItem("token");
-        const headers = {
-          "Content-Type": "application/json",
-        };
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
+        const usuarioJSON = localStorage.getItem("usuario");
+        const usuario = usuarioJSON ? JSON.parse(usuarioJSON) : null;
+        if (usuario) setDatosUsuario(usuario);
 
-        const res = await fetch("http://localhost:8000/api/usuarios", {
-          headers,
-        });
-        if (!res.ok) throw new Error("Error al traer los usuarios");
-        const data = await res.json();
+        const data = await usuariosAPI.listar();
         setUsuarios(data);
         setCargandoUsuarios(false);
       } catch (error) {
@@ -77,19 +64,7 @@ function Admin() {
   useEffect(() => {
     const fetchCursos = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const headers = {
-          "Content-Type": "application/json",
-        };
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-
-        const res = await fetch("http://localhost:8000/api/cursos", {
-          headers,
-        });
-        if (!res.ok) throw new Error("Error al traer cursos");
-        const data = await res.json();
+        const data = await cursosAPI.listar();
         setCursos(data);
       } catch (error) {
         console.error(error);
@@ -98,45 +73,81 @@ function Admin() {
     fetchCursos();
   }, []);
 
-  // ====== Modal asignar/quitar tutor ======
-  const abrirModal = (usuario, tipo) => {
-    setUsuarioSeleccionado(usuario);
-    setAccion(tipo);
-    setModalOpen(true);
+  // ====== Modal editar usuario ======
+  const abrirEditarModal = (usuario) => {
+    setUsuarioEditar({
+      id_usuario: usuario.id_usuario,
+      nombre: usuario.nombre,
+      apellido: usuario.apellido,
+      correo: usuario.correo,
+      rol: usuario.rol,
+      contrasena: "",
+    });
+    setModalEditarOpen(true);
   };
 
-  const confirmarAccion = async () => {
+  const cerrarEditarModal = () => {
+    setModalEditarOpen(false);
+    setUsuarioEditar(null);
+  };
+
+  const editarUsuario = async () => {
+    if (
+      !usuarioEditar.nombre ||
+      !usuarioEditar.apellido ||
+      !usuarioEditar.correo
+    ) {
+      alert("Nombre, apellido y correo son obligatorios");
+      return;
+    }
     try {
-      const token = localStorage.getItem("token");
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+      const body = {
+        nombre: usuarioEditar.nombre,
+        apellido: usuarioEditar.apellido,
+        correo: usuarioEditar.correo,
+        rol: usuarioEditar.rol,
       };
 
-      const res = await fetch(
-        `http://localhost:8000/api/usuarios/${usuarioSeleccionado.id_usuario}`,
-        {
-          method: "PUT",
-          headers,
-          body: JSON.stringify({
-            rol: accion === "asignar" ? "tutor" : "docente",
-          }),
-        }
+      // Solo incluir contraseña si se ingresó una nueva
+      if (usuarioEditar.contrasena) {
+        body.contrasena = usuarioEditar.contrasena;
+      }
+
+      const usuarioActualizado = await usuariosAPI.actualizar(
+        usuarioEditar.id_usuario,
+        body
       );
-
-      if (!res.ok) throw new Error("Error al actualizar el rol");
-
       setUsuarios((prev) =>
         prev.map((u) =>
-          u.id_usuario === usuarioSeleccionado.id_usuario
-            ? { ...u, rol: accion === "asignar" ? "tutor" : "docente" }
-            : u
+          u.id_usuario === usuarioEditar.id_usuario ? usuarioActualizado : u
         )
       );
-      setModalOpen(false);
+      cerrarEditarModal();
     } catch (error) {
       console.error(error);
-      alert("No se pudo actualizar el rol");
+      alert("No se pudo editar el usuario: " + error.message);
+    }
+  };
+
+  // ====== Eliminar usuario ======
+  const eliminarUsuario = async (usuario) => {
+    if (
+      !window.confirm(
+        `¿Estás seguro de eliminar a ${usuario.nombre} ${usuario.apellido}?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await usuariosAPI.eliminar(usuario.id_usuario);
+      setUsuarios((prev) =>
+        prev.filter((u) => u.id_usuario !== usuario.id_usuario)
+      );
+      alert("Usuario eliminado exitosamente");
+    } catch (error) {
+      console.error(error);
+      alert(error.message);
     }
   };
 
@@ -164,29 +175,7 @@ function Admin() {
       return;
     }
     try {
-      const token = localStorage.getItem("token");
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      };
-
-      const res = await fetch("http://localhost:8000/api/usuarios", {
-        method: "POST",
-        headers,
-        body: JSON.stringify(nuevoUsuario),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        const mensaje = errorData.detail
-          ? typeof errorData.detail === "string"
-            ? errorData.detail
-            : JSON.stringify(errorData.detail)
-          : "Error al agregar usuario";
-        throw new Error(mensaje);
-      }
-
-      const nuevo = await res.json();
+      const nuevo = await usuariosAPI.crear(nuevoUsuario);
       setUsuarios((prev) => [...prev, nuevo]);
       cerrarAgregarModal();
     } catch (error) {
@@ -213,24 +202,11 @@ function Admin() {
       return;
     }
     try {
-      const token = localStorage.getItem("token");
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      };
-
-      const res = await fetch("http://localhost:8000/api/cursos", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          nombre: nuevoCurso.nombre,
-          anio_lectivo: nuevoCurso.anio_lectivo,
-          id_tutor: nuevoCurso.id_tutor ? parseInt(nuevoCurso.id_tutor) : null,
-        }),
+      const curso = await cursosAPI.crear({
+        nombre: nuevoCurso.nombre,
+        anio_lectivo: nuevoCurso.anio_lectivo,
+        id_tutor: nuevoCurso.id_tutor ? parseInt(nuevoCurso.id_tutor) : null,
       });
-
-      if (!res.ok) throw new Error("Error al agregar curso");
-      const curso = await res.json();
       setCursos((prev) => [...prev, curso]);
       cerrarAgregarCursoModal();
     } catch (error) {
@@ -248,24 +224,27 @@ function Admin() {
 
   // ====== JSX ======
   return (
-      <div className="admin-page">
+    <div className="admin-page">
       {/* NAVBAR */}
-            <div className="navbar-admin">
-            <div className="menu-icon">☰</div>
+      <div className="navbar-admin">
+        <div className="menu-icon">
+          <span style={{ cursor: "pointer", fontSize: "20px" }}>☰</span>
+        </div>
 
-            <div
-              onClick={() => setMenuUsuario(!menuUsuario)}
-            >
-              {datosUsuario
-                ? `${datosUsuario.nombre} ${datosUsuario.apellido}`
-                : "Administrador"}
-            </div>
-            {menuUsuario && (
-              <div className="menu-usuario">
-                <button onClick={cerrarSesion}>Cerrar Sesión</button>
-              </div>
-            )}
-            </div>
+        <div
+          className="navbar-user"
+          onClick={() => setMenuUsuario(!menuUsuario)}
+        >
+          {datosUsuario
+            ? `${datosUsuario.nombre} ${datosUsuario.apellido}`
+            : "Administrador"}
+        </div>
+        {menuUsuario && (
+          <div className="menu-usuario">
+            <button onClick={cerrarSesion}>Cerrar Sesión</button>
+          </div>
+        )}
+      </div>
 
       <div className="admin-container">
         <h1 className="admin-title">Panel del Administrador</h1>
@@ -274,8 +253,8 @@ function Admin() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-              gap: 12,
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: 16,
             }}
           >
             <button
@@ -337,8 +316,8 @@ function Admin() {
             <table>
               <thead>
                 <tr>
-                  <th>Nombre</th>
-                  <th>Apellido</th>
+                  <th>Nombres</th>
+                  <th>Apellidos</th>
                   <th>Correo</th>
                   <th>Rol</th>
                   <th>Acción</th>
@@ -352,21 +331,19 @@ function Admin() {
                     <td>{u.correo}</td>
                     <td>{u.rol}</td>
                     <td>
-                      {u.rol === "tutor" ? (
-                        <button
-                          className="btn-danger"
-                          onClick={() => abrirModal(u, "quitar")}
-                        >
-                          Quitar Tutor
-                        </button>
-                      ) : (
-                        <button
-                          className="btn-success"
-                          onClick={() => abrirModal(u, "asignar")}
-                        >
-                          Asignar Tutor
-                        </button>
-                      )}
+                      <button
+                        className="btn-view"
+                        onClick={() => abrirEditarModal(u)}
+                        style={{ marginRight: "8px" }}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        className="btn-danger"
+                        onClick={() => eliminarUsuario(u)}
+                      >
+                        Eliminar
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -387,7 +364,7 @@ function Admin() {
           <table>
             <thead>
               <tr>
-                <th>Curso</th>    
+                <th>Curso</th>
                 <th>Año Lectivo</th>
                 <th>Estudiantes</th>
                 <th>Acción</th>
@@ -414,27 +391,62 @@ function Admin() {
         </div>
       </div>
 
-      {/* MODAL TUTOR */}
-      {modalOpen && (
+      {/* MODAL EDITAR USUARIO */}
+      {modalEditarOpen && usuarioEditar && (
         <div className="modal">
           <div className="modal-content">
-            <h3>
-              {accion === "asignar"
-                ? "Asignar rol de Tutor"
-                : "Quitar rol de Tutor"}
-            </h3>
-            <p>{`¿Deseas ${
-              accion === "asignar" ? "asignar" : "quitar"
-            } el rol de tutor a ${usuarioSeleccionado.nombre}?`}</p>
+            <h3>Editar Usuario</h3>
+            <input
+              type="text"
+              placeholder="Nombre"
+              value={usuarioEditar.nombre}
+              onChange={(e) =>
+                setUsuarioEditar({ ...usuarioEditar, nombre: e.target.value })
+              }
+            />
+            <input
+              type="text"
+              placeholder="Apellido"
+              value={usuarioEditar.apellido}
+              onChange={(e) =>
+                setUsuarioEditar({ ...usuarioEditar, apellido: e.target.value })
+              }
+            />
+            <input
+              type="email"
+              placeholder="Correo"
+              value={usuarioEditar.correo}
+              onChange={(e) =>
+                setUsuarioEditar({ ...usuarioEditar, correo: e.target.value })
+              }
+            />
+            <input
+              type="password"
+              placeholder="Nueva Contraseña (dejar vacío para mantener)"
+              value={usuarioEditar.contrasena}
+              onChange={(e) =>
+                setUsuarioEditar({
+                  ...usuarioEditar,
+                  contrasena: e.target.value,
+                })
+              }
+            />
+            <select
+              value={usuarioEditar.rol}
+              onChange={(e) =>
+                setUsuarioEditar({ ...usuarioEditar, rol: e.target.value })
+              }
+            >
+              <option value="docente">Docente</option>
+              <option value="tutor">Tutor</option>
+              <option value="admin">Administrador</option>
+            </select>
             <div className="modal-buttons">
-              <button className="btn-success" onClick={confirmarAccion}>
-                Confirmar
-              </button>
-              <button
-                className="btn-danger"
-                onClick={() => setModalOpen(false)}
-              >
+              <button className="btn-cancel" onClick={cerrarEditarModal}>
                 Cancelar
+              </button>
+              <button className="btn-save" onClick={editarUsuario}>
+                Guardar
               </button>
             </div>
           </div>

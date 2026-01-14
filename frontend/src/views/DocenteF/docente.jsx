@@ -90,7 +90,8 @@ function Docente() {
 
       {/* ====================== CONTENIDO ====================== */}
       <div className="docente-container">
-        <h1 className="docente-title">Mis Cursos</h1>
+        <h1 className="panel-title">Panel de Gestión Docente</h1>
+        <h2 className="docente-title">Mis Cursos</h2>
 
         {/* MENSAJE DE CARGA/ERROR */}
         {cargando && <p>Cargando cursos...</p>}

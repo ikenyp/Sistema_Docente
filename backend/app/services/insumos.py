@@ -39,17 +39,10 @@ async def crear_insumo(db: AsyncSession, data: InsumoCreate, current_user = None
         )
 
     # Validar trimestre
-    if data.trimestre not in [1, 2, 3]:
+    if data.id_trimestre not in [1, 2, 3]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El trimestre debe ser 1, 2 o 3"
-        )
-
-    # Validar que fecha no sea futura
-    if data.fecha_creacion and data.fecha_creacion > date.today():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La fecha de creación no puede ser futura"
         )
 
     # Validar que no exista el insumo en el mismo CMD
@@ -64,14 +57,14 @@ async def crear_insumo(db: AsyncSession, data: InsumoCreate, current_user = None
         existente = await crud.obtener_por_cmd_trimestre_tipo(
             db, 
             data.id_cmd, 
-            data.trimestre, 
+            data.id_trimestre, 
             data.tipo_insumo
         )
         if existente:
             tipo_texto = "proyecto trimestral" if data.tipo_insumo == TipoInsumoEnum.proyecto_trimestral else "examen trimestral"
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Ya existe un {tipo_texto} para el trimestre {data.trimestre} en esta asignación"
+                detail=f"Ya existe un {tipo_texto} para el trimestre {data.id_trimestre} en esta asignación"
             )
 
     insumo = Insumo(
@@ -80,7 +73,7 @@ async def crear_insumo(db: AsyncSession, data: InsumoCreate, current_user = None
         descripcion=data.descripcion,
         ponderacion=data.ponderacion,
         tipo_insumo=data.tipo_insumo,
-        trimestre=data.trimestre,
+        id_trimestre=data.id_trimestre,
         fecha_creacion=date.today()
     )
 
@@ -153,8 +146,8 @@ async def actualizar_insumo(
             )
 
     # Validar trimestre si se actualiza
-    if "trimestre" in values:
-        if values["trimestre"] not in [1, 2, 3]:
+    if "id_trimestre" in values:
+        if values["id_trimestre"] not in [1, 2, 3]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El trimestre debe ser 1, 2 o 3"
@@ -186,11 +179,11 @@ async def actualizar_insumo(
 
     # Validar que no se duplique proyecto/examen si se cambia tipo o trimestre
     tipo_actualizado = values.get("tipo_insumo", insumo.tipo_insumo)
-    trimestre_actualizado = values.get("trimestre", insumo.trimestre)
+    trimestre_actualizado = values.get("id_trimestre", insumo.trimestre)
     
     if tipo_actualizado in [TipoInsumoEnum.proyecto_trimestral, TipoInsumoEnum.examen_trimestral]:
         # Solo validar si cambió el tipo o el trimestre
-        if "tipo_insumo" in values or "trimestre" in values:
+        if "tipo_insumo" in values or "id_trimestre" in values:
             existente = await crud.obtener_por_cmd_trimestre_tipo(
                 db,
                 insumo.id_cmd,

@@ -6,6 +6,7 @@ import { cursosAPI, estudiantesAPI, promediosAPI } from "../../services/api";
 function PromediosAdmin() {
   const navigate = useNavigate();
   const [menuUsuario, setMenuUsuario] = useState(false);
+  const [datosUsuario, setDatosUsuario] = useState(null);
 
   const [cursos, setCursos] = useState([]);
   const [cursoSel, setCursoSel] = useState("");
@@ -16,6 +17,12 @@ function PromediosAdmin() {
   const [trimestre, setTrimestre] = useState("1");
   const [modo, setModo] = useState("trimestral"); // trimestral | final
   const [resultado, setResultado] = useState(null);
+
+  useEffect(() => {
+    const usuarioJSON = localStorage.getItem("usuario");
+    const usuario = usuarioJSON ? JSON.parse(usuarioJSON) : null;
+    if (usuario) setDatosUsuario(usuario);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -70,14 +77,20 @@ function PromediosAdmin() {
   return (
     <div className="admin-page">
       <div className="navbar-admin">
-        <div className="menu-icon" onClick={() => navigate(-1)}>
-          ←
+        <div
+          className="menu-icon"
+          onClick={() => navigate(-1)}
+          title="Volver atrás"
+        >
+          ← Volver
         </div>
         <div
           className="navbar-user"
           onClick={() => setMenuUsuario(!menuUsuario)}
         >
-          Admin
+          {datosUsuario
+            ? `${datosUsuario.nombre} ${datosUsuario.apellido}`
+            : "Admin"}
         </div>
         {menuUsuario && (
           <div className="menu-usuario">

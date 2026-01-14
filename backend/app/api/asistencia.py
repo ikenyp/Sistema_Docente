@@ -13,11 +13,12 @@ from app.services import asistencia as service
 from app.auth.dependencies import get_current_user, require_role
 from app.models.usuarios import Usuario
 
+#Ruta
 router = APIRouter(
     tags=["Asistencia"]
 )
 
-
+#Crear Asistencia
 @router.post("/", response_model=AsistenciaResponse)
 async def crear_asistencia(
     data: AsistenciaCreate,
@@ -27,6 +28,7 @@ async def crear_asistencia(
     return await service.crear_asistencia(db, data)
 
 
+#Listar Asistencias
 @router.get("/", response_model=list[AsistenciaResponse])
 async def listar_asistencias(
     id_cmd: int | None = Query(None),
@@ -49,6 +51,7 @@ async def listar_asistencias(
     )
 
 
+#Obtener asistencia
 @router.get("/{id_asistencia}", response_model=AsistenciaResponse)
 async def obtener_asistencia(
     id_asistencia: int,
@@ -58,6 +61,7 @@ async def obtener_asistencia(
     return await service.obtener_asistencia(db, id_asistencia)
 
 
+#Actualizar asistencia
 @router.put("/{id_asistencia}", response_model=AsistenciaResponse)
 async def actualizar_asistencia(
     id_asistencia: int,
@@ -73,6 +77,8 @@ async def actualizar_asistencia(
         )
     return await service.actualizar_asistencia(db, id_asistencia, data)
 
+
+#Eliminar
 @router.delete("/{id_asistencia}", status_code=200)
 async def eliminar_asistencia(
     id_asistencia: int,

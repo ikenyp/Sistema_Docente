@@ -6,6 +6,7 @@ import { materiasAPI } from "../../services/api";
 function MateriasAdmin() {
   const navigate = useNavigate();
   const [menuUsuario, setMenuUsuario] = useState(false);
+  const [datosUsuario, setDatosUsuario] = useState(null);
 
   const [filtros, setFiltros] = useState({ nombre: "", page: 1, size: 10 });
   const [data, setData] = useState([]);
@@ -38,6 +39,12 @@ function MateriasAdmin() {
       setCargando(false);
     }
   };
+
+  useEffect(() => {
+    const usuarioJSON = localStorage.getItem("usuario");
+    const usuario = usuarioJSON ? JSON.parse(usuarioJSON) : null;
+    if (usuario) setDatosUsuario(usuario);
+  }, []);
 
   useEffect(() => {
     cargar(); // eslint-disable-next-line
@@ -86,14 +93,20 @@ function MateriasAdmin() {
   return (
     <div className="admin-page">
       <div className="navbar-admin">
-        <div className="menu-icon" onClick={() => navigate(-1)}>
-          ←
+        <div
+          className="menu-icon"
+          onClick={() => navigate(-1)}
+          title="Volver atrás"
+        >
+          ← Volver
         </div>
         <div
           className="navbar-user"
           onClick={() => setMenuUsuario(!menuUsuario)}
         >
-          Admin
+          {datosUsuario
+            ? `${datosUsuario.nombre} ${datosUsuario.apellido}`
+            : "Admin"}
         </div>
         {menuUsuario && (
           <div className="menu-usuario">

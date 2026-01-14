@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from datetime import date
 
 from app.models.notas import Nota
@@ -22,7 +23,7 @@ async def crear_nota(db: AsyncSession, data: NotaCreate):
 
     # Validar que el insumo exista
     insumo = await db.execute(
-        select(Insumo).where(Insumo.id_insumo == data.id_insumo)
+        select(Insumo).options(selectinload(Insumo.cmd)).where(Insumo.id_insumo == data.id_insumo)
     )
     insumo_obj = insumo.scalar_one_or_none()
     if not insumo_obj:
@@ -152,7 +153,7 @@ async def actualizar_nota(
     if "id_estudiante" in values or "id_insumo" in values:
         # Obtener el insumo actualizado
         insumo_actual = await db.execute(
-            select(Insumo).where(Insumo.id_insumo == nuevo_insumo)
+            select(Insumo).options(selectinload(Insumo.cmd)).where(Insumo.id_insumo == nuevo_insumo)
         )
         insumo_obj = insumo_actual.scalar_one_or_none()
         

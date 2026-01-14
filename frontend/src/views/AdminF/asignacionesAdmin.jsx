@@ -11,6 +11,7 @@ import {
 function AsignacionesAdmin() {
   const navigate = useNavigate();
   const [menuUsuario, setMenuUsuario] = useState(false);
+  const [datosUsuario, setDatosUsuario] = useState(null);
 
   const [filtros, setFiltros] = useState({
     id_curso: "",
@@ -40,6 +41,12 @@ function AsignacionesAdmin() {
     () => data.length === filtros.size,
     [data, filtros.size]
   );
+
+  useEffect(() => {
+    const usuarioJSON = localStorage.getItem("usuario");
+    const usuario = usuarioJSON ? JSON.parse(usuarioJSON) : null;
+    if (usuario) setDatosUsuario(usuario);
+  }, []);
 
   const cargarCatalogos = async () => {
     try {
@@ -132,14 +139,20 @@ function AsignacionesAdmin() {
   return (
     <div className="admin-page">
       <div className="navbar-admin">
-        <div className="menu-icon" onClick={() => navigate(-1)}>
-          ←
+        <div
+          className="menu-icon"
+          onClick={() => navigate(-1)}
+          title="Volver atrás"
+        >
+          ← Volver
         </div>
         <div
           className="navbar-user"
           onClick={() => setMenuUsuario(!menuUsuario)}
         >
-          Admin
+          {datosUsuario
+            ? `${datosUsuario.nombre} ${datosUsuario.apellido}`
+            : "Admin"}
         </div>
         {menuUsuario && (
           <div className="menu-usuario">
@@ -230,9 +243,33 @@ function AsignacionesAdmin() {
               <tbody>
                 {data.map((row) => (
                   <tr key={row.id_cmd}>
-                    <td>{row.curso?.nombre || (cursos.find((c) => c.id_curso === row.id_curso)?.nombre) || row.id_curso}</td>
-                    <td>{row.materia?.nombre || (materias.find((m) => m.id_materia === row.id_materia)?.nombre) || row.id_materia}</td>
-                    <td>{(row.docente && `${row.docente.nombre} ${row.docente.apellido}`) || (docentes.find((d) => d.id_usuario === row.id_docente) ? `${docentes.find((d) => d.id_usuario === row.id_docente).nombre} ${docentes.find((d) => d.id_usuario === row.id_docente).apellido}` : row.id_docente)}</td>
+                    <td>
+                      {row.curso?.nombre ||
+                        cursos.find((c) => c.id_curso === row.id_curso)
+                          ?.nombre ||
+                        row.id_curso}
+                    </td>
+                    <td>
+                      {row.materia?.nombre ||
+                        materias.find((m) => m.id_materia === row.id_materia)
+                          ?.nombre ||
+                        row.id_materia}
+                    </td>
+                    <td>
+                      {(row.docente &&
+                        `${row.docente.nombre} ${row.docente.apellido}`) ||
+                        (docentes.find((d) => d.id_usuario === row.id_docente)
+                          ? `${
+                              docentes.find(
+                                (d) => d.id_usuario === row.id_docente
+                              ).nombre
+                            } ${
+                              docentes.find(
+                                (d) => d.id_usuario === row.id_docente
+                              ).apellido
+                            }`
+                          : row.id_docente)}
+                    </td>
                     <td>
                       <button
                         className="btn-view"

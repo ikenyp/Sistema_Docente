@@ -6,6 +6,7 @@ import { cursosAPI, estudiantesAPI } from "../../services/api";
 function MatriculacionAdmin() {
   const navigate = useNavigate();
   const [menuUsuario, setMenuUsuario] = useState(false);
+  const [datosUsuario, setDatosUsuario] = useState(null);
 
   const [cursoSel, setCursoSel] = useState("");
   const [cursos, setCursos] = useState([]);
@@ -39,6 +40,12 @@ function MatriculacionAdmin() {
   };
 
   useEffect(() => {
+    const usuarioJSON = localStorage.getItem("usuario");
+    const usuario = usuarioJSON ? JSON.parse(usuarioJSON) : null;
+    if (usuario) setDatosUsuario(usuario);
+  }, []);
+
+  useEffect(() => {
     cargarCursos();
     cargarEstudiantes();
   }, []);
@@ -63,14 +70,20 @@ function MatriculacionAdmin() {
   return (
     <div className="admin-page">
       <div className="navbar-admin">
-        <div className="menu-icon" onClick={() => navigate(-1)}>
-          ←
+        <div
+          className="menu-icon"
+          onClick={() => navigate(-1)}
+          title="Volver atrás"
+        >
+          ← Volver
         </div>
         <div
           className="navbar-user"
           onClick={() => setMenuUsuario(!menuUsuario)}
         >
-          Admin
+          {datosUsuario
+            ? `${datosUsuario.nombre} ${datosUsuario.apellido}`
+            : "Admin"}
         </div>
         {menuUsuario && (
           <div className="menu-usuario">

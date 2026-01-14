@@ -49,6 +49,8 @@ function CursoPrincipal() {
     nombre: "",
     descripcion: "",
     ponderacion: "",
+    tipo_insumo: "quiz",
+    id_trimestre: "1",
   });
   const [cargandoInsumo, setCargandoInsumo] = useState(false);
 
@@ -251,10 +253,18 @@ function CursoPrincipal() {
         nombre: nuevoInsumo.nombre,
         descripcion: nuevoInsumo.descripcion || null,
         ponderacion: parseFloat(nuevoInsumo.ponderacion),
+        tipo_insumo: nuevoInsumo.tipo_insumo,
+        id_trimestre: parseInt(nuevoInsumo.id_trimestre),
       };
 
       await insumosAPI.crear(data);
-      setNuevoInsumo({ nombre: "", descripcion: "", ponderacion: "" });
+      setNuevoInsumo({
+        nombre: "",
+        descripcion: "",
+        ponderacion: "",
+        tipo_insumo: "quiz",
+        id_trimestre: "1",
+      });
       await cargarInsumos(materiaSeleccionada.id_cmd);
     } catch (err) {
       alert("Error al crear insumo: " + err.message);
@@ -297,31 +307,64 @@ function CursoPrincipal() {
   };
 
   const guardarNota = async (id_estudiante, calificacion) => {
+    console.log("guardarNota llamada:", { id_estudiante, calificacion });
+
     if (
       calificacion === "" ||
       calificacion === null ||
       calificacion === undefined
-    )
+    ) {
+      alert("Por favor ingrese una calificación");
       return;
+    }
+
+    const notaNum = parseFloat(calificacion);
+    if (isNaN(notaNum) || notaNum < 0 || notaNum > 10) {
+      alert("La calificación debe ser un número entre 0 y 10");
+      return;
+    }
 
     try {
       const nota = notasEstudiantes[id_estudiante];
 
       if (nota) {
         await notasAPI.actualizar(nota.id_nota, {
-          calificacion: parseFloat(calificacion),
+          calificacion: notaNum,
         });
       } else {
         await notasAPI.crear({
           id_insumo: insumosSeleccionado.id_insumo,
           id_estudiante: id_estudiante,
-          calificacion: parseFloat(calificacion),
+          calificacion: notaNum,
         });
       }
 
       await abrirInsumosNotas(insumosSeleccionado);
+      alert("Nota guardada correctamente");
     } catch (err) {
-      alert("Error al guardar nota: " + err.message);
+      console.error("Error al guardar nota:", err);
+      alert("Error al guardar nota: " + (err.message || err));
+    }
+  };
+
+  const eliminarNota = async (id_estudiante) => {
+    const nota = notasEstudiantes[id_estudiante];
+    if (!nota) {
+      alert("No hay nota para eliminar");
+      return;
+    }
+
+    if (!window.confirm("¿Está seguro de eliminar esta nota?")) {
+      return;
+    }
+
+    try {
+      await notasAPI.eliminar(nota.id_nota);
+      await abrirInsumosNotas(insumosSeleccionado);
+      alert("Nota eliminada correctamente");
+    } catch (err) {
+      console.error("Error al eliminar nota:", err);
+      alert("Error al eliminar nota: " + (err.message || err));
     }
   };
 
@@ -623,7 +666,7 @@ function CursoPrincipal() {
             <div className="empty-icon">📚</div>
             <h2>No hay materias asignadas</h2>
             <p>
-              Aún no hay materias asignadas a este curso. Las materias
+              Aún no cuentas con materias asignadas a este curso. Las materias
               aparecerán aquí una vez sean añadidas.
             </p>
           </div>
@@ -724,6 +767,33 @@ function CursoPrincipal() {
                       })
                     }
                   />
+                  <select
+                    value={nuevoInsumo.tipo_insumo}
+                    onChange={(e) =>
+                      setNuevoInsumo({
+                        ...nuevoInsumo,
+                        tipo_insumo: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="quiz">Tipo de Insumo</option>
+                    <option value="actividad">Actividad</option>
+                    <option value="proyecto">Proyecto</option>
+                    <option value="examen">Examen</option>
+                  </select>
+                  <select
+                    value={nuevoInsumo.id_trimestre}
+                    onChange={(e) =>
+                      setNuevoInsumo({
+                        ...nuevoInsumo,
+                        id_trimestre: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="1">Trimestre 1</option>
+                    <option value="2">Trimestre 2</option>
+                    <option value="3">Trimestre 3</option>
+                  </select>
                   <button
                     onClick={agregarInsumo}
                     disabled={cargandoInsumo}
@@ -1331,9 +1401,9 @@ function CursoPrincipal() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Estudiante</th>
-                      <th>Nota</th>
-                      <th>Acción</th>
+                      <th style={{ width: "50%" }}>Estudiante</th>
+                      <th style={{ width: "20%" }}>Nota</th>
+                      <th style={{ width: "30%" }}>Acción</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1357,7 +1427,7 @@ function CursoPrincipal() {
                             id={`nota-${estudiante.id_estudiante}`}
                           />
                         </td>
-                        <td>
+                        <td style={{ whiteSpace: "nowrap" }}>
                           <button
                             className="btn-guardar-nota"
                             onClick={() => {
@@ -1370,8 +1440,22 @@ function CursoPrincipal() {
                               );
                             }}
                           >
-                            Guardar
+                            💾Guardar
                           </button>
+                          {notasEstudiantes[estudiante.id_estudiante] && (
+                            <button
+                              className="btn-guardar-nota btn-danger"
+                              onClick={() =>
+                                eliminarNota(estudiante.id_estudiante)
+                              }
+                              style={{
+                                marginLeft: "5px",
+                                backgroundColor: "#dc3545",
+                              }}
+                            >
+                              🗑️ Eliminar
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
