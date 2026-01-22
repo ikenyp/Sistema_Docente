@@ -4,6 +4,14 @@
   min-height: 100vh;
 }
 
+/* Contenedor Principal del Curso */
+.curso-principal-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #ffffff;
+}
+
 /* Navbar del Curso */
 .navbar-curso {
   display: flex;
@@ -14,6 +22,13 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.navbar-brand {
+  font-size: 18px;
+  font-weight: bold;
+  color: white;
 }
 
 .btn-volver {
@@ -50,18 +65,19 @@
   color: #ffffff;
   cursor: pointer;
   transition: color 0.2s ease, transform 0.2s ease, text-shadow 0.2s ease;
+  position: relative;
 }
 
 .navbar-user:hover {
-  color: #000000;
+  color: #ffffff;
   transform: translateY(-2px);
   text-shadow: 0px 0px 6px rgba(147, 197, 253, 0.8);
 }
 
 .menu-usuario {
   position: absolute;
-  top: 50px;
-  right: 10px;
+  top: 60px;
+  right: 0;
   background: white;
   border-radius: 10px;
   color: rgb(0, 0, 0);
@@ -208,6 +224,8 @@
   padding: 15px;
   border-radius: 8px;
   border: 2px dashed #4a75b5;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .agregar-insumo input {
@@ -251,9 +269,40 @@
 
 /* Lista de Insumos */
 .insumos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.trimestre-section {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  border-left: 5px solid #667eea;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.trimestre-title {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 1.2rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trimestre-insumos {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 15px;
+}
+
+.no-insumos-trimestre {
+  color: #999;
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
 }
 
 .insumo-card {
@@ -291,6 +340,19 @@
   display: block;
   color: rgba(255, 255, 255, 0.8);
   margin-top: 8px;
+}
+
+.insumo-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.insumo-meta small {
+  font-size: 12px;
 }
 
 .insumo-actions {
@@ -486,22 +548,26 @@
 }
 
 /* Tabs */
-.tabs-curso {
+.tabs-curso,
+.tabs-container {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
-  margin: 20px 0 10px 0;
+  margin: 25px 0 20px 0;
+  padding: 0 5px;
 }
 
 .tab-button {
   border: 2px solid #667eea;
   background: white;
   color: #4a4a4a;
-  padding: 10px 14px;
+  padding: 12px 18px;
   border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
   transition: all 0.2s ease;
+  white-space: nowrap;
+  font-size: 14px;
 }
 
 .tab-button:hover {
@@ -515,22 +581,44 @@
   box-shadow: 0 6px 14px rgba(102, 126, 234, 0.35);
 }
 
+/* Contenido de Tabs */
+.tabs-content {
+  width: 100%;
+  margin-top: 10px;
+  height: 1200px;
+  display: block;
+  max-width: 100%;
+}
+
 /* Paneles y formularios */
 .panel-card {
   background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-  padding: 20px;
+  padding: 25px;
   border-radius: 12px;
   border-left: 5px solid #4a75b5;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   margin-bottom: 20px;
+  width: 100% !important;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  gap: 10px;
+  margin-bottom: 20px;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 20px;
+  color: #333;
 }
 
 .panel-sub {
@@ -541,10 +629,11 @@
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 20px;
+  width: 100%;
 }
 
 .form-grid input,
@@ -671,6 +760,7 @@
 .table-container {
   overflow-x: auto;
   margin-top: 10px;
+  width: 100%;
 }
 
 .table-container table {
@@ -843,4 +933,13 @@
 .trimestre-list li {
   padding: 6px 0;
   border-bottom: 1px solid #e5e7eb;
+}
+
+/* Visibilidad de tabs */
+.tab-pane {
+  display: none;
+}
+
+.tab-pane.active {
+  display: block;
 }

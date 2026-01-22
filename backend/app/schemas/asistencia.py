@@ -8,6 +8,7 @@ class EstadoAsistencia(str, Enum):
     presente = "presente"
     ausente = "ausente"
     justificado = "justificado"
+    atraso = "atraso"
 
 # Schema Base
 class AsistenciaBase(BaseModel):

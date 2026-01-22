@@ -18,6 +18,7 @@ function LecturasAdmin() {
   const [cursoSel, setCursoSel] = useState("");
   const [estudiantes, setEstudiantes] = useState([]);
   const [estSel, setEstSel] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [notas, setNotas] = useState([]);
   const [asistencias, setAsistencias] = useState([]);
@@ -34,7 +35,7 @@ function LecturasAdmin() {
       setEstudiantes(
         (await estudiantesAPI.buscar({
           id_curso: id_curso || undefined,
-          size: 200,
+          size: 99,
         })) || []
       );
     } catch {}
@@ -54,26 +55,30 @@ function LecturasAdmin() {
   useEffect(() => {
     cargarEstudiantes(cursoSel);
     setEstSel("");
+    setSearchTerm("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursoSel]);
 
-  const cargarDatos = async () => {
-    const filtrosBase = estSel ? { id_estudiante: Number(estSel) } : {};
-    try {
-      const [ln, la, lc] = await Promise.all([
-        notasAPI.listar({ ...filtrosBase, size: 200 }),
-        asistenciaAPI.listar({ ...filtrosBase, size: 200 }),
-        comportamientoAPI.listar({ ...filtrosBase, size: 200 }),
-      ]);
-      setNotas(ln || []);
-      setAsistencias(la || []);
-      setComportamientos(lc || []);
-    } catch {}
-  };
+  const estudiantesFiltrados = estudiantes.filter((e) =>
+    `${e.nombre} ${e.apellido}`.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   useEffect(() => {
-    if (estSel) cargarDatos();
-    else {
+    if (estSel) {
+      const filtrosBase = { id_estudiante: Number(estSel) };
+      (async () => {
+        try {
+          const [ln, la, lc] = await Promise.all([
+            notasAPI.listar({ ...filtrosBase, size: 100 }),
+            asistenciaAPI.listar({ ...filtrosBase, size: 100 }),
+            comportamientoAPI.listar({ ...filtrosBase, size: 100 }),
+          ]);
+          setNotas(ln || []);
+          setAsistencias(la || []);
+          setComportamientos(lc || []);
+        } catch {}
+      })();
+    } else {
       setNotas([]);
       setAsistencias([]);
       setComportamientos([]);
@@ -86,13 +91,12 @@ function LecturasAdmin() {
   return (
     <div className="admin-page">
       <div className="navbar-admin">
-        <div
-          className="menu-icon"
-          onClick={() => navigate(-1)}
-          title="Volver atrás"
-        >
+        <button className="btn-volver" onClick={() => navigate("/admin")}>
           ← Volver
-        </div>
+        </button>
+
+        <h1 className="titulo-admin">📚 Sistema Docente</h1>
+
         <div
           className="navbar-user"
           onClick={() => setMenuUsuario(!menuUsuario)}
@@ -131,14 +135,54 @@ function LecturasAdmin() {
               </option>
             ))}
           </select>
-          <select value={estSel} onChange={(e) => setEstSel(e.target.value)}>
-            <option value="">Seleccione Estudiante</option>
-            {estudiantes.map((e) => (
-              <option key={e.id_estudiante} value={e.id_estudiante}>
-                {e.nombre} {e.apellido}
-              </option>
-            ))}
-          </select>
+          {cursoSel ? (
+            <div style={{ position: "relative" }}>
+              <input
+                type="text"
+                placeholder="Buscar estudiante..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ width: "100%" }}
+              />
+              {estudiantesFiltrados.length > 0 && (
+                <ul
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    right: 0,
+                    background: "white",
+                    border: "1px solid #ccc",
+                    maxHeight: "200px",
+                    overflowY: "auto",
+                    zIndex: 1000,
+                    listStyle: "none",
+                    padding: 0,
+                    margin: 0,
+                  }}
+                >
+                  {estudiantesFiltrados.map((e) => (
+                    <li
+                      key={e.id_estudiante}
+                      onClick={() => {
+                        setEstSel(e.id_estudiante);
+                        setSearchTerm(`${e.nombre} ${e.apellido}`);
+                      }}
+                      style={{
+                        padding: "8px",
+                        cursor: "pointer",
+                        borderBottom: "1px solid #eee",
+                      }}
+                    >
+                      {e.nombre} {e.apellido}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : (
+            <div>Seleccione un curso para buscar estudiantes</div>
+          )}
         </div>
 
         <div className="table-container">

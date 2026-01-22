@@ -14,6 +14,7 @@ class EstadoEstudianteEnum(str, enum.Enum):
 class EstadoAsistenciaEnum(str, enum.Enum):
     presente = "presente"
     ausente = "ausente"
+    justificado = "justificado"
     atraso = "atraso"
 
 class ValorComportamientoEnum(str, enum.Enum):

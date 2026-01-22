@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+import re
 
 from app.models.comportamiento import Comportamiento
 from app.models.estudiantes import Estudiante
@@ -11,19 +12,13 @@ from app.schemas.comportamiento import (
     ComportamientoUpdate
 )
 
-# Meses válidos
-MESES_VALIDOS = [
-    "enero", "febrero", "marzo", "abril", "mayo", "junio",
-    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
-]
-
 # Crear comportamiento
 async def crear_comportamiento(db: AsyncSession, data: ComportamientoCreate):
-    # Validar que mes sea válido
-    if data.mes.lower() not in MESES_VALIDOS:
+    # Validar que mes tenga formato YYYY-MM
+    if not re.match(r'^\d{4}-(0[1-9]|1[0-2])$', data.mes):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"El mes debe ser uno de: {', '.join(MESES_VALIDOS)}"
+            detail="El mes debe tener formato YYYY-MM (ejemplo: 2026-01)"
         )
 
     # Validar que estudiante exista
@@ -116,12 +111,13 @@ async def actualizar_comportamiento(
 
     values = data.model_dump(exclude_unset=True)
 
-    # Validar mes si se actualiza
+    # Validar mes si se actualiza (formato YYYY-MM)
     if "mes" in values:
-        if values["mes"].lower() not in MESES_VALIDOS:
+        import re
+        if not re.match(r'^\d{4}-(0[1-9]|1[0-2])$', values["mes"]):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"El mes debe ser uno de: {', '.join(MESES_VALIDOS)}"
+                detail="El mes debe estar en formato YYYY-MM"
             )
 
     # Validar que estudiante exista si se modifica

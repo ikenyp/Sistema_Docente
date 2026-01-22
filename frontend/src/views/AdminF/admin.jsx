@@ -227,9 +227,7 @@ function Admin() {
     <div className="admin-page">
       {/* NAVBAR */}
       <div className="navbar-admin">
-        <div className="menu-icon">
-          <span style={{ cursor: "pointer", fontSize: "20px" }}>☰</span>
-        </div>
+        <h1 className="titulo-admin">📚 Sistema Docente</h1>
 
         <div
           className="navbar-user"
@@ -253,8 +251,10 @@ function Admin() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gridTemplateColumns: "repeat(3, 1fr)",
               gap: 16,
+              maxWidth: "900px",
+              margin: "0 auto",
             }}
           >
             <button
@@ -275,12 +275,22 @@ function Admin() {
             >
               Asignar Docentes a Cursos/Materias
             </button>
-            <button
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, 1fr)",
+              gap: 16,
+              maxWidth: "600px",
+              margin: "16px auto 0",
+            }}
+          >
+            {/* <button
               className="btn-view"
               onClick={() => navigate("/admin/matriculacion")}
             >
               Matricular Estudiantes a Cursos
-            </button>
+            </button> */}
             <button
               className="btn-view"
               onClick={() => navigate("/admin/lecturas")}

@@ -70,13 +70,12 @@ function MatriculacionAdmin() {
   return (
     <div className="admin-page">
       <div className="navbar-admin">
-        <div
-          className="menu-icon"
-          onClick={() => navigate(-1)}
-          title="Volver atrás"
-        >
+        <button className="btn-volver" onClick={() => navigate("/admin")}>
           ← Volver
-        </div>
+        </button>
+
+        <h1 className="titulo-admin">📚 Sistema Docente</h1>
+
         <div
           className="navbar-user"
           onClick={() => setMenuUsuario(!menuUsuario)}

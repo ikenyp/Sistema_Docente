@@ -18,9 +18,6 @@ class Insumo(Base):
 
     __table_args__ = (
         UniqueConstraint("id_cmd", "nombre", name="uq_insumo_curso"),
-        # Restricción para garantizar solo un proyecto por trimestre por curso-materia
-        UniqueConstraint("id_cmd", "id_trimestre", "tipo_insumo", 
-                        name="uq_proyecto_examen_por_trimestre"),
     )
 
     cmd = relationship("CursoMateriaDocente", back_populates="insumos")
