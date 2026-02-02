@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../styles/docente.css";
-import { cursosAPI } from "../../services/api";
+import { cmdAPI } from "../../services/api";
 
 function Docente() {
   const navigate = useNavigate();
@@ -29,13 +29,27 @@ function Docente() {
       const usuario = JSON.parse(usuarioJSON);
       setDatosUsuario(usuario);
 
-      // Obtener cursos del docente (tutor)
-      console.log("Cargando cursos para tutor:", usuario.id_usuario);
-      const cursosData = await cursosAPI.obtenerCursosPorDocente(
-        usuario.id_usuario
-      );
-      console.log("Cursos obtenidos:", cursosData);
-      setCursos(cursosData || []);
+      // Obtener cursos en los que el docente está asignado
+      const asignaciones = await cmdAPI.listarPorDocente(usuario.id_usuario);
+
+      // Deduplicar cursos (un docente puede tener varias materias en el mismo curso)
+      const cursosUnicos = [];
+      const vistos = new Set();
+
+      (asignaciones || []).forEach((asig) => {
+        const curso =
+          asig?.curso ||
+          (asig?.id_curso
+            ? { id_curso: asig.id_curso, nombre: "Curso", anio_lectivo: "" }
+            : null);
+
+        if (curso && curso.id_curso && !vistos.has(curso.id_curso)) {
+          vistos.add(curso.id_curso);
+          cursosUnicos.push(curso);
+        }
+      });
+
+      setCursos(cursosUnicos);
     } catch (err) {
       console.error("Error al cargar cursos:", err);
       // Si el error es 404, significa que no hay cursos, no es un error real

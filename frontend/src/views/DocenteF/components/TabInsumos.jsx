@@ -42,7 +42,7 @@ export const TabInsumos = ({
         nombre: "",
         descripcion: "",
         ponderacion: "",
-        tipo_insumo: "quiz",
+        tipo_insumo: "actividad",
         id_trimestre: "1",
       });
       await cargarInsumos(materiaSeleccionada.id_cmd);
@@ -192,10 +192,9 @@ export const TabInsumos = ({
               })
             }
           >
-            <option value="quiz">Tipo de Insumo</option>
             <option value="actividad">Actividad</option>
-            <option value="proyecto">Proyecto</option>
-            <option value="examen">Examen</option>
+            <option value="proyecto_trimestral">Proyecto trimestral</option>
+            <option value="examen_trimestral">Examen trimestral</option>
           </select>
           <select
             value={nuevoInsumo.id_trimestre}

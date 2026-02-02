@@ -9,7 +9,10 @@ class Insumo(Base):
 
     id_insumo = Column(Integer, primary_key=True, index=True)
     id_cmd = Column(Integer, ForeignKey("cursos_materias_docentes.id_cmd", ondelete="CASCADE"), nullable=False)
+    # Campo nuevo ligado a la tabla trimestres
     id_trimestre = Column(Integer, ForeignKey("trimestres.id_trimestre", ondelete="CASCADE"), nullable=False)
+    # Campo legado utilizado por migraciones anteriores; mantenerlo para compatibilidad
+    trimestre_legacy = Column("trimestre", Integer, nullable=True)
     nombre = Column(String(150), nullable=False)
     descripcion = Column(Text, nullable=True)
     fecha_creacion = Column(Date, nullable=False)

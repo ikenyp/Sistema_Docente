@@ -131,10 +131,14 @@ export const cursosAPI = {
 
 // ==================== CURSOS-MATERIAS-DOCENTES ====================
 export const cmdAPI = {
-  // Obtener materias/insumos de un docente en un curso
-  listarPorDocente: (id_curso, id_docente) =>
+  // Listar asignaciones con filtros opcionales
+  listar: (filters = {}) =>
+    apiCall(`/cursos-materias-docentes${buildQuery(filters)}`),
+
+  // Obtener asignaciones de un docente (opcionalmente filtrar por curso)
+  listarPorDocente: (id_docente, id_curso) =>
     apiCall(
-      `/cursos-materias-docentes?id_curso=${id_curso}&id_docente=${id_docente}`
+      `/cursos-materias-docentes${buildQuery({ id_docente, id_curso })}`
     ),
 
   obtener: (id_cmd) => apiCall(`/cursos-materias-docentes/${id_cmd}`),

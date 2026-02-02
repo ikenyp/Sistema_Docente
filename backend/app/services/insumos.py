@@ -5,10 +5,62 @@ from datetime import date
 
 from app.models.insumos import Insumo
 from app.models.cursos_materias_docentes import CursoMateriaDocente
+from app.models.cursos import Curso
+from app.models.trimestres import Trimestre
 from app.models.enums import TipoInsumoEnum
 from app.models.notas import Nota
 from app.crud import insumos as crud
 from app.schemas.insumos import InsumoCreate, InsumoUpdate
+
+
+async def _resolver_trimestre_id(db: AsyncSession, id_curso: int, id_trimestre_input: int) -> int:
+    """Acepta ID real o número (1-3).
+    Si se pasa número y no existe el trimestre, lo crea con fechas por defecto.
+    """
+    # Intentar primero como ID real
+    res = await db.execute(select(Trimestre).where(Trimestre.id_trimestre == id_trimestre_input))
+    tri = res.scalar_one_or_none()
+    if tri:
+        return tri.id_trimestre
+
+    # Si viene como número de trimestre (1-3), buscar por curso y número
+    if id_trimestre_input in (1, 2, 3):
+        res = await db.execute(
+            select(Trimestre).where(
+                Trimestre.id_curso == id_curso,
+                Trimestre.numero_trimestre == id_trimestre_input,
+            )
+        )
+        tri = res.scalar_one_or_none()
+        if tri:
+            return tri.id_trimestre
+
+        # Crear automáticamente si no existe
+        curso_res = await db.execute(select(Curso).where(Curso.id_curso == id_curso))
+        curso_obj = curso_res.scalar_one_or_none()
+        anio_lectivo = curso_obj.anio_lectivo if curso_obj else ""
+
+        from datetime import timedelta
+        hoy = date.today()
+        fecha_inicio = hoy
+        fecha_fin = hoy + timedelta(days=90)
+
+        nuevo = Trimestre(
+            id_curso=id_curso,
+            numero_trimestre=id_trimestre_input,
+            anio_lectivo=anio_lectivo,
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin,
+        )
+        db.add(nuevo)
+        await db.commit()
+        await db.refresh(nuevo)
+        return nuevo.id_trimestre
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="El trimestre indicado no es válido",
+    )
 
 
 # Crear insumo
@@ -38,12 +90,8 @@ async def crear_insumo(db: AsyncSession, data: InsumoCreate, current_user = None
             detail="La ponderación debe estar entre 1 y 10"
         )
 
-    # Validar trimestre
-    if data.id_trimestre not in [1, 2, 3]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El trimestre debe ser 1, 2 o 3"
-        )
+    # Resolver id_trimestre real (acepta ID real o número 1-3 del curso)
+    trimestre_id = await _resolver_trimestre_id(db, cmd_obj.id_curso, data.id_trimestre)
 
     # Validar que no exista el insumo en el mismo CMD
     if await crud.obtener_por_cmd_nombre(db, data.id_cmd, data.nombre):
@@ -73,7 +121,9 @@ async def crear_insumo(db: AsyncSession, data: InsumoCreate, current_user = None
         descripcion=data.descripcion,
         ponderacion=data.ponderacion,
         tipo_insumo=data.tipo_insumo,
-        id_trimestre=data.id_trimestre,
+        id_trimestre=trimestre_id,
+        # Guardamos el número para compatibilidad con esquemas viejos
+        trimestre_legacy=data.id_trimestre if data.id_trimestre in (1, 2, 3) else None,
         fecha_creacion=date.today()
     )
 
