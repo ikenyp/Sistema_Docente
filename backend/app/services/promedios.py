@@ -20,6 +20,7 @@ from app.models.enums import TipoInsumoEnum
 from app.models.trimestres import Trimestre
 from app.models.estudiantes import Estudiante
 from app.models.cursos_materias_docentes import CursoMateriaDocente
+from app.models.cursos import Curso
 
 
 # Ponderaciones constantes
@@ -30,6 +31,7 @@ PONDERACION_EXAMEN = Decimal("0.70")  # 70%
 
 async def calcular_promedio_trimestral(
     db: AsyncSession,
+    id_contexto: int,
     id_estudiante: int,
     id_curso: int,
     numero_trimestre: int,
@@ -64,12 +66,25 @@ async def calcular_promedio_trimestral(
             detail="Estudiante no encontrado"
         )
 
+    # Validar que el curso exista en el contexto actual
+    curso = await db.execute(
+        select(Curso).where(Curso.id_curso == id_curso, Curso.id_contexto == id_contexto)
+    )
+    if not curso.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Curso no encontrado en el contexto actual"
+        )
+
     # Obtener el trimestre
     trimestre = await db.execute(
-        select(Trimestre).where(
+        select(Trimestre)
+        .join(Curso, Curso.id_curso == Trimestre.id_curso)
+        .where(
             Trimestre.id_curso == id_curso,
             Trimestre.numero_trimestre == numero_trimestre,
-            Trimestre.anio_lectivo == anio_lectivo
+            Trimestre.anio_lectivo == anio_lectivo,
+            Curso.id_contexto == id_contexto,
         )
     )
     trimestre_obj = trimestre.scalar_one_or_none()
@@ -81,10 +96,14 @@ async def calcular_promedio_trimestral(
 
     # Obtener todos los insumos del trimestre para el curso
     insumos = await db.execute(
-        select(Insumo).where(
+        select(Insumo)
+        .join(CursoMateriaDocente, CursoMateriaDocente.id_cmd == Insumo.id_cmd)
+        .join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
+        .where(
             Insumo.id_trimestre == trimestre_obj.id_trimestre,
-            CursoMateriaDocente.id_curso == id_curso
-        ).join(CursoMateriaDocente)
+            CursoMateriaDocente.id_curso == id_curso,
+            Curso.id_contexto == id_contexto,
+        )
     )
     insumos_list = insumos.scalars().all()
 
@@ -193,6 +212,7 @@ async def calcular_promedio_trimestral(
 
 async def calcular_promedio_final(
     db: AsyncSession,
+    id_contexto: int,
     id_estudiante: int,
     id_curso: int,
     anio_lectivo: str
@@ -230,6 +250,7 @@ async def calcular_promedio_final(
     for num_trimestre in [1, 2, 3]:
         promedio_trimestral = await calcular_promedio_trimestral(
             db,
+            id_contexto,
             id_estudiante,
             id_curso,
             num_trimestre,
@@ -257,6 +278,7 @@ async def calcular_promedio_final(
 
 async def obtener_promedios_curso(
     db: AsyncSession,
+    id_contexto: int,
     id_curso: int,
     numero_trimestre: int | None = None,
     anio_lectivo: str | None = None
@@ -274,6 +296,16 @@ async def obtener_promedios_curso(
         Lista con promedios de todos los estudiantes
     """
     # Obtener todos los estudiantes del curso
+    # Validar que el curso exista en el contexto actual
+    curso = await db.execute(
+        select(Curso).where(Curso.id_curso == id_curso, Curso.id_contexto == id_contexto)
+    )
+    if not curso.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Curso no encontrado en el contexto actual"
+        )
+
     estudiantes = await db.execute(
         select(Estudiante).where(Estudiante.id_curso_actual == id_curso)
     )
@@ -286,6 +318,7 @@ async def obtener_promedios_curso(
         for estudiante in estudiantes_list:
             promedio = await calcular_promedio_trimestral(
                 db,
+                id_contexto,
                 estudiante.id_estudiante,
                 id_curso,
                 numero_trimestre,
@@ -298,7 +331,9 @@ async def obtener_promedios_curso(
         if not anio_lectivo:
             # Buscar el año lectivo más reciente
             trimestre = await db.execute(
-                select(Trimestre).where(Trimestre.id_curso == id_curso)
+                select(Trimestre)
+                .join(Curso, Curso.id_curso == Trimestre.id_curso)
+                .where(Trimestre.id_curso == id_curso, Curso.id_contexto == id_contexto)
                 .order_by(Trimestre.anio_lectivo.desc())
                 .limit(1)
             )
@@ -310,6 +345,7 @@ async def obtener_promedios_curso(
             for estudiante in estudiantes_list:
                 promedio = await calcular_promedio_final(
                     db,
+                    id_contexto,
                     estudiante.id_estudiante,
                     id_curso,
                     anio_lectivo

@@ -7,12 +7,14 @@ from datetime import date
 from app.models.notas import Nota
 from app.models.insumos import Insumo
 from app.models.estudiantes import Estudiante
+from app.models.cursos_materias_docentes import CursoMateriaDocente
+from app.models.cursos import Curso
 from app.crud import notas as crud
 from app.schemas.notas import NotaCreate, NotaUpdate
 
 
 # Crear nota
-async def crear_nota(db: AsyncSession, data: NotaCreate):
+async def crear_nota(db: AsyncSession, data: NotaCreate, id_contexto: int):
 
     # Validar rango de nota (0 - 10)
     if not 0 <= data.calificacion <= 10:
@@ -23,7 +25,11 @@ async def crear_nota(db: AsyncSession, data: NotaCreate):
 
     # Validar que el insumo exista
     insumo = await db.execute(
-        select(Insumo).options(selectinload(Insumo.cmd)).where(Insumo.id_insumo == data.id_insumo)
+        select(Insumo)
+        .options(selectinload(Insumo.cmd))
+        .join(CursoMateriaDocente, CursoMateriaDocente.id_cmd == Insumo.id_cmd)
+        .join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
+        .where(Insumo.id_insumo == data.id_insumo, Curso.id_contexto == id_contexto)
     )
     insumo_obj = insumo.scalar_one_or_none()
     if not insumo_obj:
@@ -54,7 +60,8 @@ async def crear_nota(db: AsyncSession, data: NotaCreate):
     if await crud.obtener_por_estudiante_insumo(
         db,
         id_estudiante=data.id_estudiante,
-        id_insumo=data.id_insumo
+        id_insumo=data.id_insumo,
+        id_contexto=id_contexto,
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -74,6 +81,7 @@ async def crear_nota(db: AsyncSession, data: NotaCreate):
 # Listar notas
 async def listar_notas(
     db: AsyncSession,
+    id_contexto: int,
     id_estudiante: int | None = None,
     id_insumo: int | None = None,
     page: int = 1,
@@ -86,6 +94,7 @@ async def listar_notas(
 
     return await crud.listar_notas(
         db=db,
+        id_contexto=id_contexto,
         id_estudiante=id_estudiante,
         id_insumo=id_insumo,
         page=page,
@@ -94,8 +103,8 @@ async def listar_notas(
 
 
 # Obtener nota por ID
-async def obtener_nota(db: AsyncSession, id_nota: int):
-    nota = await crud.obtener_por_id(db, id_nota)
+async def obtener_nota(db: AsyncSession, id_nota: int, id_contexto: int):
+    nota = await crud.obtener_por_id(db, id_nota, id_contexto)
 
     if not nota:
         raise HTTPException(
@@ -110,9 +119,10 @@ async def obtener_nota(db: AsyncSession, id_nota: int):
 async def actualizar_nota(
     db: AsyncSession,
     id_nota: int,
-    data: NotaUpdate
+    data: NotaUpdate,
+    id_contexto: int,
 ):
-    nota = await obtener_nota(db, id_nota)
+    nota = await obtener_nota(db, id_nota, id_contexto)
 
     values = data.model_dump(exclude_unset=True)
 
@@ -127,7 +137,10 @@ async def actualizar_nota(
     # Validar que nuevo insumo exista si se modifica
     if "id_insumo" in values:
         insumo = await db.execute(
-            select(Insumo).where(Insumo.id_insumo == values["id_insumo"])
+            select(Insumo)
+            .join(CursoMateriaDocente, CursoMateriaDocente.id_cmd == Insumo.id_cmd)
+            .join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
+            .where(Insumo.id_insumo == values["id_insumo"], Curso.id_contexto == id_contexto)
         )
         if not insumo.scalar_one_or_none():
             raise HTTPException(
@@ -153,7 +166,11 @@ async def actualizar_nota(
     if "id_estudiante" in values or "id_insumo" in values:
         # Obtener el insumo actualizado
         insumo_actual = await db.execute(
-            select(Insumo).options(selectinload(Insumo.cmd)).where(Insumo.id_insumo == nuevo_insumo)
+            select(Insumo)
+            .options(selectinload(Insumo.cmd))
+            .join(CursoMateriaDocente, CursoMateriaDocente.id_cmd == Insumo.id_cmd)
+            .join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
+            .where(Insumo.id_insumo == nuevo_insumo, Curso.id_contexto == id_contexto)
         )
         insumo_obj = insumo_actual.scalar_one_or_none()
         
@@ -177,7 +194,8 @@ async def actualizar_nota(
         if await crud.obtener_por_estudiante_insumo(
             db,
             id_estudiante=nuevo_estudiante,
-            id_insumo=nuevo_insumo
+            id_insumo=nuevo_insumo,
+            id_contexto=id_contexto,
         ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -196,8 +214,8 @@ async def actualizar_nota(
 
 
 # Eliminar nota (eliminación física)
-async def eliminar_nota(db: AsyncSession, id_nota: int):
-    nota = await obtener_nota(db, id_nota)
+async def eliminar_nota(db: AsyncSession, id_nota: int, id_contexto: int):
+    nota = await obtener_nota(db, id_nota, id_contexto)
     await crud.eliminar(db, nota)
     return {"detail": "Nota eliminada correctamente"}
 

@@ -1,10 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.auth.dependencies import get_current_user, require_role
+from app.core.app_mode import resolve_app_mode
 from app.core.database import get_session
-from app.services.auth import autenticar_usuario
+from app.services.auth import (
+    autenticar_usuario,
+    confirmar_recuperacion_contrasena,
+    registrar_docente_personal,
+    solicitar_recuperacion_contrasena,
+)
+from app.schemas.auth import (
+    ConfirmacionRecuperacionContrasena,
+    RegistroDocentePersonal,
+    SolicitudRecuperacionContrasena,
+)
 from app.schemas.usuarios import RolUsuarioEnum, UsuarioResponse
 from app.crud import usuarios as crud
 
@@ -25,8 +36,34 @@ async def login(
     return {
         "access_token": token["access_token"],
         "token_type": token.get("token_type", "bearer"),
-        "role": user.rol  # ← rol incluido
+        "role": user.rol.value if hasattr(user.rol, "value") else user.rol
     }
+
+
+@router.post("/register-personal", response_model=UsuarioResponse, status_code=status.HTTP_201_CREATED)
+async def register_personal(
+    data: RegistroDocentePersonal,
+    request: Request,
+    db: AsyncSession = Depends(get_session)
+):
+    app_mode = resolve_app_mode(request)
+    return await registrar_docente_personal(db, data, app_mode)
+
+
+@router.post("/password-reset/request")
+async def password_reset_request(
+    data: SolicitudRecuperacionContrasena,
+    db: AsyncSession = Depends(get_session)
+):
+    return await solicitar_recuperacion_contrasena(db, data)
+
+
+@router.post("/password-reset/confirm", response_model=UsuarioResponse)
+async def password_reset_confirm(
+    data: ConfirmacionRecuperacionContrasena,
+    db: AsyncSession = Depends(get_session)
+):
+    return await confirmar_recuperacion_contrasena(db, data)
 
 # Ruta protegida que devuelve el usuario actual
 @router.get("/me", response_model=UsuarioResponse)

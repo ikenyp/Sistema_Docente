@@ -3,18 +3,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.cursos import Curso
 
 #  Obtener por ID
-async def obtener_por_id(db: AsyncSession, id_curso: int):
+async def obtener_por_id(db: AsyncSession, id_curso: int, id_contexto: int | None = None):
+    condiciones = [Curso.id_curso == id_curso]
+    if id_contexto is not None:
+        condiciones.append(Curso.id_contexto == id_contexto)
+
     result = await db.execute(
         select(Curso).where(
-            Curso.id_curso == id_curso,
+            *condiciones,
         )
     )
     return result.scalar_one_or_none()
 
 # Obtener por nombre y año lectivo (para validar unicidad)
-async def obtener_por_nombre_anio(db: AsyncSession, nombre: str, anio_lectivo: str):
+async def obtener_por_nombre_anio(db: AsyncSession, nombre: str, anio_lectivo: str, id_contexto: int):
     result = await db.execute(
         select(Curso).where(
+            Curso.id_contexto == id_contexto,
             Curso.nombre == nombre,
             Curso.anio_lectivo == anio_lectivo
         )
@@ -22,8 +27,16 @@ async def obtener_por_nombre_anio(db: AsyncSession, nombre: str, anio_lectivo: s
     return result.scalar_one_or_none()
 
 #  Listar cursos
-async def listar(db: AsyncSession, nombre: str | None = None, anio_lectivo: str | None = None, tutor_id: int | None = None, offset: int = 0, limit: int = 10):
-    query = select(Curso)
+async def listar(
+    db: AsyncSession,
+    id_contexto: int,
+    nombre: str | None = None,
+    anio_lectivo: str | None = None,
+    tutor_id: int | None = None,
+    offset: int = 0,
+    limit: int = 10,
+):
+    query = select(Curso).where(Curso.id_contexto == id_contexto)
     
     if nombre:
         query = query.where(Curso.nombre.ilike(f"%{nombre}%"))

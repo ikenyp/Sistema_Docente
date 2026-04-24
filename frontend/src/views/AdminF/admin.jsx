@@ -115,12 +115,12 @@ function Admin() {
 
       const usuarioActualizado = await usuariosAPI.actualizar(
         usuarioEditar.id_usuario,
-        body
+        body,
       );
       setUsuarios((prev) =>
         prev.map((u) =>
-          u.id_usuario === usuarioEditar.id_usuario ? usuarioActualizado : u
-        )
+          u.id_usuario === usuarioEditar.id_usuario ? usuarioActualizado : u,
+        ),
       );
       cerrarEditarModal();
     } catch (error) {
@@ -133,7 +133,7 @@ function Admin() {
   const eliminarUsuario = async (usuario) => {
     if (
       !window.confirm(
-        `¿Estás seguro de eliminar a ${usuario.nombre} ${usuario.apellido}?`
+        `¿Estás seguro de eliminar a ${usuario.nombre} ${usuario.apellido}?`,
       )
     ) {
       return;
@@ -142,7 +142,7 @@ function Admin() {
     try {
       await usuariosAPI.eliminar(usuario.id_usuario);
       setUsuarios((prev) =>
-        prev.filter((u) => u.id_usuario !== usuario.id_usuario)
+        prev.filter((u) => u.id_usuario !== usuario.id_usuario),
       );
       alert("Usuario eliminado exitosamente");
     } catch (error) {
@@ -248,15 +248,7 @@ function Admin() {
         <h1 className="admin-title">Panel del Administrador</h1>
 
         <div className="table-container" style={{ marginTop: 8 }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 16,
-              maxWidth: "900px",
-              margin: "0 auto",
-            }}
-          >
+          <div className="dashboard-grid dashboard-grid-3">
             <button
               className="btn-view"
               onClick={() => navigate("/admin/estudiantes")}
@@ -276,15 +268,7 @@ function Admin() {
               Asignar Docentes a Cursos/Materias
             </button>
           </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, 1fr)",
-              gap: 16,
-              maxWidth: "600px",
-              margin: "16px auto 0",
-            }}
-          >
+          <div className="dashboard-grid dashboard-grid-2">
             {/* <button
               className="btn-view"
               onClick={() => navigate("/admin/matriculacion")}

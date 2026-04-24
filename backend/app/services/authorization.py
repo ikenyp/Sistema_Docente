@@ -14,7 +14,8 @@ from app.schemas.usuarios import RolUsuarioEnum
 async def validar_docente_puede_editar_curso(
     db: AsyncSession,
     id_curso: int,
-    id_docente: int
+    id_docente: int,
+    id_contexto: int | None = None,
 ):
     """
     Valida que un docente sea el tutor del curso.
@@ -27,9 +28,11 @@ async def validar_docente_puede_editar_curso(
     Raises:
         HTTPException: Si el docente no es tutor del curso
     """
-    curso = await db.execute(
-        select(Curso).where(Curso.id_curso == id_curso)
-    )
+    query = select(Curso).where(Curso.id_curso == id_curso)
+    if id_contexto is not None:
+        query = query.where(Curso.id_contexto == id_contexto)
+
+    curso = await db.execute(query)
     curso_obj = curso.scalar_one_or_none()
     
     if not curso_obj:

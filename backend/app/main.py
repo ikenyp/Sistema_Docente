@@ -41,6 +41,11 @@ app.add_middleware(
 def root():
     return {"mensaje": "API funcionando correctamente"}
 
+
+@app.get("/app-config")
+def app_config():
+    return {"app_mode": settings.APP_MODE}
+
 # Registrar todos los routers
 app.include_router(auth_routes, prefix="/auth", tags=["Authentication"])
 app.include_router(usuarios.router, prefix="/api/usuarios", tags=["Usuarios"])

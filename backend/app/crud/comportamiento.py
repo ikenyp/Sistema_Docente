@@ -2,14 +2,18 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.comportamiento import Comportamiento
+from app.models.cursos import Curso
 
 
 # Obtener por ID
-async def obtener_por_id(db: AsyncSession, id_comportamiento: int):
+async def obtener_por_id(db: AsyncSession, id_comportamiento: int, id_contexto: int | None = None):
+    query = select(Comportamiento).where(
+        Comportamiento.id_comportamiento == id_comportamiento
+    )
+    if id_contexto is not None:
+        query = query.join(Curso, Curso.id_curso == Comportamiento.id_curso).where(Curso.id_contexto == id_contexto)
     result = await db.execute(
-        select(Comportamiento).where(
-            Comportamiento.id_comportamiento == id_comportamiento
-        )
+        query
     )
     return result.scalar_one_or_none()
 
@@ -19,14 +23,18 @@ async def obtener_por_estudiante_curso_mes(
     db: AsyncSession,
     id_estudiante: int,
     id_curso: int,
-    mes: str
+    mes: str,
+    id_contexto: int | None = None,
 ):
+    query = select(Comportamiento).where(
+        Comportamiento.id_estudiante == id_estudiante,
+        Comportamiento.id_curso == id_curso,
+        Comportamiento.mes == mes
+    )
+    if id_contexto is not None:
+        query = query.join(Curso, Curso.id_curso == Comportamiento.id_curso).where(Curso.id_contexto == id_contexto)
     result = await db.execute(
-        select(Comportamiento).where(
-            Comportamiento.id_estudiante == id_estudiante,
-            Comportamiento.id_curso == id_curso,
-            Comportamiento.mes == mes
-        )
+        query
     )
     return result.scalar_one_or_none()
 
@@ -34,13 +42,18 @@ async def obtener_por_estudiante_curso_mes(
 # Listar comportamientos
 async def listar_comportamientos(
     db: AsyncSession,
+    id_contexto: int,
     id_estudiante: int | None = None,
     id_curso: int | None = None,
     mes: str | None = None,
     page: int = 1,
     size: int = 10
 ):
-    query = select(Comportamiento)
+    query = (
+        select(Comportamiento)
+        .join(Curso, Curso.id_curso == Comportamiento.id_curso)
+        .where(Curso.id_contexto == id_contexto)
+    )
 
     if id_estudiante:
         query = query.where(Comportamiento.id_estudiante == id_estudiante)

@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.core.context_manager import resolve_contexto_id
 from app.schemas.asistencia import (
     AsistenciaCreate,
     AsistenciaUpdate,
@@ -22,10 +23,12 @@ router = APIRouter(
 @router.post("/", response_model=AsistenciaResponse)
 async def crear_asistencia(
     data: AsistenciaCreate,
+    request: Request,
     current_user: Usuario = Depends(require_role(RolUsuarioEnum.docente)),
     db: AsyncSession = Depends(get_session)
 ):
-    return await service.crear_asistencia(db, data)
+    id_contexto = await resolve_contexto_id(db, current_user, request)
+    return await service.crear_asistencia(db, data, id_contexto)
 
 
 #Listar Asistencias
@@ -37,11 +40,14 @@ async def listar_asistencias(
     estado: EstadoAsistencia | None = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
+    request: Request = None,
     current_user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
 ):
+    id_contexto = await resolve_contexto_id(db, current_user, request)
     return await service.listar_asistencias(
         db=db,
+        id_contexto=id_contexto,
         id_cmd=id_cmd,
         id_estudiante=id_estudiante,
         fecha=fecha,
@@ -55,10 +61,12 @@ async def listar_asistencias(
 @router.get("/{id_asistencia}", response_model=AsistenciaResponse)
 async def obtener_asistencia(
     id_asistencia: int,
+    request: Request,
     current_user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
 ):
-    return await service.obtener_asistencia(db, id_asistencia)
+    id_contexto = await resolve_contexto_id(db, current_user, request)
+    return await service.obtener_asistencia(db, id_asistencia, id_contexto)
 
 
 #Actualizar asistencia
@@ -66,6 +74,7 @@ async def obtener_asistencia(
 async def actualizar_asistencia(
     id_asistencia: int,
     data: AsistenciaUpdate,
+    request: Request,
     current_user: Usuario = Depends(require_role(RolUsuarioEnum.docente)),
     db: AsyncSession = Depends(get_session)
 ):
@@ -75,13 +84,15 @@ async def actualizar_asistencia(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Los administradores no pueden modificar asistencia"
         )
-    return await service.actualizar_asistencia(db, id_asistencia, data)
+    id_contexto = await resolve_contexto_id(db, current_user, request)
+    return await service.actualizar_asistencia(db, id_asistencia, data, id_contexto)
 
 
 #Eliminar
 @router.delete("/{id_asistencia}", status_code=200)
 async def eliminar_asistencia(
     id_asistencia: int,
+    request: Request,
     current_user: Usuario = Depends(require_role(RolUsuarioEnum.docente)),
     db: AsyncSession = Depends(get_session)
 ):
@@ -91,5 +102,6 @@ async def eliminar_asistencia(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Los administradores no pueden eliminar asistencia"
         )
-    return await service.eliminar_asistencia(db, id_asistencia)
+    id_contexto = await resolve_contexto_id(db, current_user, request)
+    return await service.eliminar_asistencia(db, id_asistencia, id_contexto)
 

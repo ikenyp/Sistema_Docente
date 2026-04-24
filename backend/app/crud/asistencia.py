@@ -2,15 +2,24 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.asistencia import Asistencia
+from app.models.cursos_materias_docentes import CursoMateriaDocente
+from app.models.cursos import Curso
 from app.schemas.asistencia import EstadoAsistencia
 
 
 # Obtener por ID
-async def obtener_por_id(db: AsyncSession, id_asistencia: int):
-    result = await db.execute(
-        select(Asistencia).where(
-            Asistencia.id_asistencia == id_asistencia
+async def obtener_por_id(db: AsyncSession, id_asistencia: int, id_contexto: int | None = None):
+    query = select(Asistencia).where(
+        Asistencia.id_asistencia == id_asistencia
+    )
+    if id_contexto is not None:
+        query = (
+            query.join(CursoMateriaDocente, CursoMateriaDocente.id_cmd == Asistencia.id_cmd)
+            .join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
+            .where(Curso.id_contexto == id_contexto)
         )
+    result = await db.execute(
+        query
     )
     return result.scalar_one_or_none()
 
@@ -18,6 +27,7 @@ async def obtener_por_id(db: AsyncSession, id_asistencia: int):
 # Listar asistencias
 async def listar_asistencias(
     db: AsyncSession,
+    id_contexto: int,
     id_cmd: int | None = None,
     id_estudiante: int | None = None,
     fecha: str | None = None,
@@ -25,7 +35,12 @@ async def listar_asistencias(
     page: int = 1,
     size: int = 10
 ):
-    query = select(Asistencia)
+    query = (
+        select(Asistencia)
+        .join(CursoMateriaDocente, CursoMateriaDocente.id_cmd == Asistencia.id_cmd)
+        .join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
+        .where(Curso.id_contexto == id_contexto)
+    )
 
     if id_cmd:
         query = query.where(Asistencia.id_cmd == id_cmd)

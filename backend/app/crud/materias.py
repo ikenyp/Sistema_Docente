@@ -5,20 +5,25 @@ from app.models.materias import Materia
 
 
 # Obtener por ID
-async def obtener_por_id(db: AsyncSession, id_materia: int):
+async def obtener_por_id(db: AsyncSession, id_materia: int, id_contexto: int | None = None):
+    condiciones = [
+        Materia.id_materia == id_materia,
+        Materia.eliminado == False,
+    ]
+    if id_contexto is not None:
+        condiciones.append(Materia.id_contexto == id_contexto)
+
     result = await db.execute(
-        select(Materia).where(
-            Materia.id_materia == id_materia,
-            Materia.eliminado == False
-        )
+        select(Materia).where(*condiciones)
     )
     return result.scalar_one_or_none()
 
 
 # Obtener por nombre
-async def obtener_por_nombre(db: AsyncSession, nombre: str):
+async def obtener_por_nombre(db: AsyncSession, nombre: str, id_contexto: int):
     result = await db.execute(
         select(Materia).where(
+            Materia.id_contexto == id_contexto,
             Materia.nombre == nombre,
             Materia.eliminado == False
         )
@@ -29,11 +34,15 @@ async def obtener_por_nombre(db: AsyncSession, nombre: str):
 # Listar materias
 async def listar_materias(
     db: AsyncSession,
+    id_contexto: int,
     nombre: str | None = None,
     page: int = 1,
     size: int = 10
 ):
-    query = select(Materia).where(Materia.eliminado == False)
+    query = select(Materia).where(
+        Materia.eliminado == False,
+        Materia.id_contexto == id_contexto,
+    )
 
     if nombre:
         query = query.where(Materia.nombre.ilike(f"%{nombre}%"))

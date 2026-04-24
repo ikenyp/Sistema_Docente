@@ -19,6 +19,20 @@ def crear_access_token(data: dict, expires_delta: int | None = None):
     )
 
 
+def crear_token_recuperacion(data: dict, expires_delta: int | None = 30):
+    to_encode = data.copy()
+
+    expire = datetime.utcnow() + timedelta(minutes=expires_delta or 30)
+
+    to_encode.update({"exp": expire, "purpose": "password_reset"})
+
+    return jwt.encode(
+        to_encode,
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM
+    )
+
+
 def verificar_token(token: str):
     try:
         payload = jwt.decode(
@@ -29,3 +43,10 @@ def verificar_token(token: str):
         return payload
     except JWTError:
         return None
+
+
+def verificar_token_recuperacion(token: str):
+    payload = verificar_token(token)
+    if not payload or payload.get("purpose") != "password_reset":
+        return None
+    return payload

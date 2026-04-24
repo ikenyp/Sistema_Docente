@@ -110,7 +110,7 @@ function CursoPrincipal() {
       { id: "promedios", label: "Promedios" },
       { id: "busqueda", label: "Búsqueda estudiantes" },
     ],
-    []
+    [],
   );
 
   // ====================== CARGA BASE ======================
@@ -167,7 +167,7 @@ function CursoPrincipal() {
               console.error("No se pudo obtener nombre de materia", id, err);
               return { id, nombre: `Materia ${id}` };
             }
-          })
+          }),
         );
 
         const nuevos = respuestas.reduce((acc, item) => {
@@ -180,7 +180,7 @@ function CursoPrincipal() {
         console.error("Error cargando nombres de materias", err);
       }
     },
-    [materiaNombres]
+    [materiaNombres],
   );
 
   const cargarDatos = useCallback(async () => {
@@ -373,7 +373,7 @@ function CursoPrincipal() {
       if (asistenciaEditando) {
         await asistenciaAPI.actualizar(
           asistenciaEditando.id_asistencia,
-          payload
+          payload,
         );
       } else {
         await asistenciaAPI.crear(payload);
@@ -436,7 +436,7 @@ function CursoPrincipal() {
       if (comportamientoEditando) {
         await comportamientoAPI.actualizar(
           comportamientoEditando.id_comportamiento,
-          payload
+          payload,
         );
       } else {
         await comportamientoAPI.crear(payload);
@@ -497,7 +497,7 @@ function CursoPrincipal() {
         setCargandoNotasIndividual(false);
       }
     },
-    [insumosMateria, materiaSeleccionada]
+    [insumosMateria, materiaSeleccionada],
   );
 
   useEffect(() => {
@@ -541,12 +541,12 @@ function CursoPrincipal() {
         parseInt(estudiantePromedio, 10),
         parseInt(id_curso, 10),
         parseInt(trimestreSeleccionado, 10),
-        cursoDetalle.anio_lectivo
+        cursoDetalle.anio_lectivo,
       );
       setPromedioTrimestre(data);
     } catch (err) {
       setErrorPromedios(
-        err.message || "No se pudo calcular el promedio trimestral"
+        err.message || "No se pudo calcular el promedio trimestral",
       );
     } finally {
       setLoadingPromedios(false);
@@ -564,7 +564,7 @@ function CursoPrincipal() {
       const data = await promediosAPI.obtenerFinal(
         parseInt(estudiantePromedio, 10),
         parseInt(id_curso, 10),
-        cursoDetalle.anio_lectivo
+        cursoDetalle.anio_lectivo,
       );
       setPromedioFinal(data);
     } catch (err) {
@@ -617,8 +617,8 @@ function CursoPrincipal() {
           ← Volver
         </button>
 
-        <h2 className="titulo-curso">
-          {cursoDetalle?.nombre || curso?.nombre}
+        <h2 className="navbar-title navbar-title-curso">
+          Panel de Gestión Docente
         </h2>
 
         <div
@@ -673,7 +673,7 @@ function CursoPrincipal() {
                 value={materiaSeleccionada?.id_cmd || ""}
                 onChange={async (e) => {
                   const selected = materiasCurso.find(
-                    (m) => m.id_cmd === parseInt(e.target.value, 10)
+                    (m) => m.id_cmd === parseInt(e.target.value, 10),
                   );
                   setMateriaSeleccionada(selected);
                   await cargarInsumos(selected.id_cmd);
@@ -757,7 +757,9 @@ function CursoPrincipal() {
                       Selecciona tipo de insumo
                     </option>
                     <option value="actividad">Actividad</option>
-                    <option value="proyecto_trimestral">Proyecto trimestral</option>
+                    <option value="proyecto_trimestral">
+                      Proyecto trimestral
+                    </option>
                     <option value="examen_trimestral">Examen trimestral</option>
                   </select>
                   <select
@@ -899,7 +901,7 @@ function CursoPrincipal() {
                     <tbody>
                       {asistencias.map((item) => {
                         const estudiante = estudiantesCurso.find(
-                          (e) => e.id_estudiante === item.id_estudiante
+                          (e) => e.id_estudiante === item.id_estudiante,
                         );
                         return (
                           <tr key={item.id_asistencia}>
@@ -1042,7 +1044,7 @@ function CursoPrincipal() {
                     <tbody>
                       {comportamientos.map((item) => {
                         const estudiante = estudiantesCurso.find(
-                          (e) => e.id_estudiante === item.id_estudiante
+                          (e) => e.id_estudiante === item.id_estudiante,
                         );
                         return (
                           <tr key={item.id_comportamiento}>
@@ -1148,7 +1150,7 @@ function CursoPrincipal() {
                                 className="btn-guardar-nota"
                                 onClick={() => {
                                   const input = document.getElementById(
-                                    `nota-ind-${registro.insumo.id_insumo}`
+                                    `nota-ind-${registro.insumo.id_insumo}`,
                                   );
                                   guardarNotaIndividual(registro, input.value);
                                 }}
@@ -1414,11 +1416,11 @@ function CursoPrincipal() {
                             className="btn-guardar-nota"
                             onClick={() => {
                               const input = document.getElementById(
-                                `nota-${estudiante.id_estudiante}`
+                                `nota-${estudiante.id_estudiante}`,
                               );
                               guardarNota(
                                 estudiante.id_estudiante,
-                                input.value
+                                input.value,
                               );
                             }}
                           >

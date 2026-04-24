@@ -5,16 +5,19 @@ from datetime import date
 
 from app.models.asistencia import Asistencia
 from app.models.cursos_materias_docentes import CursoMateriaDocente
+from app.models.cursos import Curso
 from app.models.estudiantes import Estudiante
 from app.crud import asistencia as crud
 from app.schemas.asistencia import AsistenciaCreate, AsistenciaUpdate, EstadoAsistencia
 
 
 # Crear asistencia
-async def crear_asistencia(db: AsyncSession, data: AsistenciaCreate):
+async def crear_asistencia(db: AsyncSession, data: AsistenciaCreate, id_contexto: int):
     # Validar que CMD exista
     cmd = await db.execute(
-        select(CursoMateriaDocente).where(CursoMateriaDocente.id_cmd == data.id_cmd)
+        select(CursoMateriaDocente)
+        .join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
+        .where(CursoMateriaDocente.id_cmd == data.id_cmd, Curso.id_contexto == id_contexto)
     )
     cmd_obj = cmd.scalar_one_or_none()
     if not cmd_obj:
@@ -83,6 +86,7 @@ async def crear_asistencia(db: AsyncSession, data: AsistenciaCreate):
 # Listar asistencias
 async def listar_asistencias(
     db: AsyncSession,
+    id_contexto: int,
     id_cmd: int | None,
     id_estudiante: int | None,
     fecha,
@@ -98,6 +102,7 @@ async def listar_asistencias(
 
     return await crud.listar_asistencias(
         db=db,
+        id_contexto=id_contexto,
         id_cmd=id_cmd,
         id_estudiante=id_estudiante,
         fecha=fecha,
@@ -108,8 +113,8 @@ async def listar_asistencias(
 
 
 # Obtener asistencia
-async def obtener_asistencia(db: AsyncSession, id_asistencia: int):
-    asistencia = await crud.obtener_por_id(db, id_asistencia)
+async def obtener_asistencia(db: AsyncSession, id_asistencia: int, id_contexto: int):
+    asistencia = await crud.obtener_por_id(db, id_asistencia, id_contexto)
 
     if not asistencia:
         raise HTTPException(
@@ -124,9 +129,10 @@ async def obtener_asistencia(db: AsyncSession, id_asistencia: int):
 async def actualizar_asistencia(
     db: AsyncSession,
     id_asistencia: int,
-    data: AsistenciaUpdate
+    data: AsistenciaUpdate,
+    id_contexto: int,
 ):
-    asistencia = await obtener_asistencia(db, id_asistencia)
+    asistencia = await obtener_asistencia(db, id_asistencia, id_contexto)
 
     values = data.model_dump(exclude_unset=True)
 
@@ -149,7 +155,9 @@ async def actualizar_asistencia(
     # Validar que CMD exista si se modifica
     if "id_cmd" in values:
         cmd = await db.execute(
-            select(CursoMateriaDocente).where(CursoMateriaDocente.id_cmd == values["id_cmd"])
+            select(CursoMateriaDocente)
+            .join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
+            .where(CursoMateriaDocente.id_cmd == values["id_cmd"], Curso.id_contexto == id_contexto)
         )
         if not cmd.scalar_one_or_none():
             raise HTTPException(
@@ -174,7 +182,9 @@ async def actualizar_asistencia(
         nuevo_est = values.get("id_estudiante", asistencia.id_estudiante)
         
         cmd_obj = await db.execute(
-            select(CursoMateriaDocente).where(CursoMateriaDocente.id_cmd == nuevo_cmd)
+            select(CursoMateriaDocente)
+            .join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
+            .where(CursoMateriaDocente.id_cmd == nuevo_cmd, Curso.id_contexto == id_contexto)
         )
         cmd_actual = cmd_obj.scalar_one_or_none()
         
@@ -215,8 +225,8 @@ async def actualizar_asistencia(
     return await crud.actualizar(db, asistencia)
 
 # Eliminar asistencia
-async def eliminar_asistencia(db: AsyncSession, id_asistencia: int):
-    asistencia = await obtener_asistencia(db, id_asistencia)
+async def eliminar_asistencia(db: AsyncSession, id_asistencia: int, id_contexto: int):
+    asistencia = await obtener_asistencia(db, id_asistencia, id_contexto)
 
     await crud.eliminar(db, asistencia)
 

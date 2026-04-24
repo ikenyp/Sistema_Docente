@@ -13,7 +13,7 @@ from app.schemas.comportamiento import (
 )
 
 # Crear comportamiento
-async def crear_comportamiento(db: AsyncSession, data: ComportamientoCreate):
+async def crear_comportamiento(db: AsyncSession, data: ComportamientoCreate, id_contexto: int):
     # Validar que mes tenga formato YYYY-MM
     if not re.match(r'^\d{4}-(0[1-9]|1[0-2])$', data.mes):
         raise HTTPException(
@@ -33,7 +33,7 @@ async def crear_comportamiento(db: AsyncSession, data: ComportamientoCreate):
 
     # Validar que curso exista
     curso = await db.execute(
-        select(Curso).where(Curso.id_curso == data.id_curso)
+        select(Curso).where(Curso.id_curso == data.id_curso, Curso.id_contexto == id_contexto)
     )
     if not curso.scalar_one_or_none():
         raise HTTPException(
@@ -46,7 +46,8 @@ async def crear_comportamiento(db: AsyncSession, data: ComportamientoCreate):
         db,
         data.id_estudiante,
         data.id_curso,
-        data.mes
+        data.mes,
+        id_contexto=id_contexto,
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -67,6 +68,7 @@ async def crear_comportamiento(db: AsyncSession, data: ComportamientoCreate):
 # Listar comportamientos
 async def listar_comportamientos(
     db: AsyncSession,
+    id_contexto: int,
     id_estudiante: int | None,
     id_curso: int | None,
     mes: str | None,
@@ -80,6 +82,7 @@ async def listar_comportamientos(
 
     return await crud.listar_comportamientos(
         db=db,
+        id_contexto=id_contexto,
         id_estudiante=id_estudiante,
         id_curso=id_curso,
         mes=mes,
@@ -89,8 +92,8 @@ async def listar_comportamientos(
 
 
 # Obtener comportamiento
-async def obtener_comportamiento(db: AsyncSession, id_comportamiento: int):
-    comportamiento = await crud.obtener_por_id(db, id_comportamiento)
+async def obtener_comportamiento(db: AsyncSession, id_comportamiento: int, id_contexto: int):
+    comportamiento = await crud.obtener_por_id(db, id_comportamiento, id_contexto)
 
     if not comportamiento:
         raise HTTPException(
@@ -105,9 +108,10 @@ async def obtener_comportamiento(db: AsyncSession, id_comportamiento: int):
 async def actualizar_comportamiento(
     db: AsyncSession,
     id_comportamiento: int,
-    data: ComportamientoUpdate
+    data: ComportamientoUpdate,
+    id_contexto: int,
 ):
-    comportamiento = await obtener_comportamiento(db, id_comportamiento)
+    comportamiento = await obtener_comportamiento(db, id_comportamiento, id_contexto)
 
     values = data.model_dump(exclude_unset=True)
 
@@ -134,7 +138,7 @@ async def actualizar_comportamiento(
     # Validar que curso exista si se modifica
     if "id_curso" in values:
         cur = await db.execute(
-            select(Curso).where(Curso.id_curso == values["id_curso"])
+            select(Curso).where(Curso.id_curso == values["id_curso"], Curso.id_contexto == id_contexto)
         )
         if not cur.scalar_one_or_none():
             raise HTTPException(
@@ -156,7 +160,8 @@ async def actualizar_comportamiento(
             db,
             nuevo_estudiante,
             nuevo_curso,
-            nuevo_mes
+            nuevo_mes,
+            id_contexto=id_contexto,
         )
         if existente and existente.id_comportamiento != comportamiento.id_comportamiento:
             raise HTTPException(
@@ -171,7 +176,7 @@ async def actualizar_comportamiento(
 
 
 # Eliminar comportamiento (físico)
-async def eliminar_comportamiento(db: AsyncSession, id_comportamiento: int):
-    comportamiento = await obtener_comportamiento(db, id_comportamiento)
+async def eliminar_comportamiento(db: AsyncSession, id_comportamiento: int, id_contexto: int):
+    comportamiento = await obtener_comportamiento(db, id_comportamiento, id_contexto)
     await crud.eliminar(db, comportamiento)
     return {"detail": "Comportamiento eliminado correctamente"}

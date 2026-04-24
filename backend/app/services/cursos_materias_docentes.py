@@ -12,10 +12,13 @@ from app.schemas.cursos_materias_docentes import CMDCreate, CMDUpdate
 
 
 # Crear asignación Curso–Materia–Docente
-async def crear_cmd(db: AsyncSession, data: CMDCreate):
+async def crear_cmd(db: AsyncSession, data: CMDCreate, id_contexto: int):
     # Validar que el curso exista
     curso = await db.execute(
-        select(Curso).where(Curso.id_curso == data.id_curso)
+        select(Curso).where(
+            Curso.id_curso == data.id_curso,
+            Curso.id_contexto == id_contexto,
+        )
     )
     if not curso.scalar_one_or_none():
         raise HTTPException(
@@ -25,7 +28,11 @@ async def crear_cmd(db: AsyncSession, data: CMDCreate):
 
     # Validar que la materia exista
     materia = await db.execute(
-        select(Materia).where(Materia.id_materia == data.id_materia)
+        select(Materia).where(
+            Materia.id_materia == data.id_materia,
+            Materia.id_contexto == id_contexto,
+            Materia.eliminado == False,
+        )
     )
     if not materia.scalar_one_or_none():
         raise HTTPException(
@@ -67,7 +74,7 @@ async def crear_cmd(db: AsyncSession, data: CMDCreate):
 
     created = await crud.crear(db, cmd)
     # Return the created object with related entities loaded
-    return await crud.obtener_por_id(db, created.id_cmd)
+    return await crud.obtener_por_id(db, created.id_cmd, id_contexto)
 
 
 # Listar asignaciones
@@ -76,6 +83,7 @@ async def listar_cmd(
     id_curso: int | None,
     id_materia: int | None,
     id_docente: int | None,
+    id_contexto: int,
     page: int,
     size: int
 ):
@@ -89,14 +97,15 @@ async def listar_cmd(
         id_curso=id_curso,
         id_materia=id_materia,
         id_docente=id_docente,
+        id_contexto=id_contexto,
         page=page,
         size=size
     )
 
 
 # Obtener asignación
-async def obtener_cmd(db: AsyncSession, id_cmd: int):
-    cmd = await crud.obtener_por_id(db, id_cmd)
+async def obtener_cmd(db: AsyncSession, id_cmd: int, id_contexto: int | None = None):
+    cmd = await crud.obtener_por_id(db, id_cmd, id_contexto)
 
     if not cmd:
         raise HTTPException(
@@ -111,16 +120,20 @@ async def obtener_cmd(db: AsyncSession, id_cmd: int):
 async def actualizar_cmd(
     db: AsyncSession,
     id_cmd: int,
-    data: CMDUpdate
+    data: CMDUpdate,
+    id_contexto: int,
 ):
-    cmd = await obtener_cmd(db, id_cmd)
+    cmd = await obtener_cmd(db, id_cmd, id_contexto)
 
     values = data.model_dump(exclude_unset=True)
 
     # Validar que el nuevo curso exista si se modifica
     if "id_curso" in values:
         curso = await db.execute(
-            select(Curso).where(Curso.id_curso == values["id_curso"])
+            select(Curso).where(
+                Curso.id_curso == values["id_curso"],
+                Curso.id_contexto == id_contexto,
+            )
         )
         if not curso.scalar_one_or_none():
             raise HTTPException(
@@ -131,7 +144,11 @@ async def actualizar_cmd(
     # Validar que la nueva materia exista si se modifica
     if "id_materia" in values:
         materia = await db.execute(
-            select(Materia).where(Materia.id_materia == values["id_materia"])
+            select(Materia).where(
+                Materia.id_materia == values["id_materia"],
+                Materia.id_contexto == id_contexto,
+                Materia.eliminado == False,
+            )
         )
         if not materia.scalar_one_or_none():
             raise HTTPException(
@@ -177,10 +194,10 @@ async def actualizar_cmd(
 
     await crud.actualizar(db, cmd)
     # Return updated object with relations
-    return await crud.obtener_por_id(db, cmd.id_cmd)
+    return await crud.obtener_por_id(db, cmd.id_cmd, id_contexto)
 
 
 # Eliminar asignación (eliminación física)
-async def eliminar_cmd(db: AsyncSession, id_cmd: int):
-    cmd = await obtener_cmd(db, id_cmd)
+async def eliminar_cmd(db: AsyncSession, id_cmd: int, id_contexto: int):
+    cmd = await obtener_cmd(db, id_cmd, id_contexto)
     await crud.eliminar(db, id_cmd)

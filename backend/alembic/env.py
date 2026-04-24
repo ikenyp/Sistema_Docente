@@ -16,6 +16,7 @@ from app.models.insumos import Insumo
 from app.models.notas import Nota
 from app.models.asistencia import Asistencia
 from app.models.comportamiento import Comportamiento
+from app.models.contextos import Contexto
 
 
 # this is the Alembic Config object, which provides

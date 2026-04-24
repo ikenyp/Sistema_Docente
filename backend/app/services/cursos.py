@@ -9,7 +9,7 @@ from app.schemas.cursos import CursoCreate, CursoUpdate
 from app.crud import cursos as crud
 
 # Crear curso
-async def crear_curso(db: AsyncSession, data: CursoCreate):
+async def crear_curso(db: AsyncSession, data: CursoCreate, id_contexto: int):
     # Validar que el tutor exista y sea DOCENTE (solo si se proporciona)
     if data.id_tutor is not None:
         tutor = await db.execute(
@@ -45,7 +45,7 @@ async def crear_curso(db: AsyncSession, data: CursoCreate):
         #     )
 
     # Validar que no exista curso con mismo nombre y año lectivo
-    existente = await crud.obtener_por_nombre_anio(db, data.nombre, data.anio_lectivo)
+    existente = await crud.obtener_por_nombre_anio(db, data.nombre, data.anio_lectivo, id_contexto)
     if existente:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -55,21 +55,30 @@ async def crear_curso(db: AsyncSession, data: CursoCreate):
     curso = Curso(
         nombre=data.nombre,
         anio_lectivo=data.anio_lectivo,
+        id_contexto=id_contexto,
         id_tutor=data.id_tutor
     )
     return await crud.crear(db, curso)
 
 # Listar cursos con paginación
-async def listar_cursos(db: AsyncSession, page: int = 1, size: int = 10, nombre: str | None = None, anio_lectivo: str | None = None, tutor_id: int | None = None):
+async def listar_cursos(
+    db: AsyncSession,
+    id_contexto: int,
+    page: int = 1,
+    size: int = 10,
+    nombre: str | None = None,
+    anio_lectivo: str | None = None,
+    tutor_id: int | None = None,
+):
     if page < 1: page = 1
     if size < 1 or size > 100: size = 10
     offset = (page - 1) * size
-    return await crud.listar(db, nombre, anio_lectivo, tutor_id, offset, size)
+    return await crud.listar(db, id_contexto, nombre, anio_lectivo, tutor_id, offset, size)
 
 
 # Obtener curso
-async def obtener_curso(db: AsyncSession, id_curso: int):
-    curso = await crud.obtener_por_id(db, id_curso)
+async def obtener_curso(db: AsyncSession, id_curso: int, id_contexto: int | None = None):
+    curso = await crud.obtener_por_id(db, id_curso, id_contexto)
     if not curso:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -78,8 +87,8 @@ async def obtener_curso(db: AsyncSession, id_curso: int):
     return curso
 
 # Actualizar curso
-async def actualizar_curso(db: AsyncSession, id_curso: int, data: CursoUpdate):
-    curso = await obtener_curso(db, id_curso)
+async def actualizar_curso(db: AsyncSession, id_curso: int, data: CursoUpdate, id_contexto: int):
+    curso = await obtener_curso(db, id_curso, id_contexto)
     values = data.model_dump(exclude_unset=True)
 
     # Validar que el nuevo tutor exista y sea DOCENTE si se modifica (solo si no es None)
@@ -120,7 +129,7 @@ async def actualizar_curso(db: AsyncSession, id_curso: int, data: CursoUpdate):
         nombre = values.get("nombre", curso.nombre)
         anio = values.get("anio_lectivo", curso.anio_lectivo)
         
-        existente = await crud.obtener_por_nombre_anio(db, nombre, anio)
+        existente = await crud.obtener_por_nombre_anio(db, nombre, anio, id_contexto)
         if existente and existente.id_curso != curso.id_curso:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -131,7 +140,6 @@ async def actualizar_curso(db: AsyncSession, id_curso: int, data: CursoUpdate):
         setattr(curso, key, value)
     return await crud.actualizar(db, curso)
 
-# Eliminar curso
-async def eliminar_curso(db: AsyncSession, id_curso: int):
-    curso = await obtener_curso(db, id_curso)
+async def eliminar_curso(db: AsyncSession, id_curso: int, id_contexto: int):
+    curso = await obtener_curso(db, id_curso, id_contexto)
     return await crud.eliminar(db, curso)

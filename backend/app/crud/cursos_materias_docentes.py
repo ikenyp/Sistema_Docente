@@ -4,19 +4,23 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.cursos_materias_docentes import CursoMateriaDocente
+from app.models.cursos import Curso
 
 
 # Obtener por ID
-async def obtener_por_id(db: AsyncSession, id_cmd: int):
-    result = await db.execute(
-        select(CursoMateriaDocente).options(
+async def obtener_por_id(db: AsyncSession, id_cmd: int, id_contexto: int | None = None):
+    query = select(CursoMateriaDocente).options(
             joinedload(CursoMateriaDocente.curso),
             joinedload(CursoMateriaDocente.materia),
             joinedload(CursoMateriaDocente.docente),
-        ).where(
+        ).join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso).where(
             CursoMateriaDocente.id_cmd == id_cmd
         )
-    )
+
+    if id_contexto is not None:
+        query = query.where(Curso.id_contexto == id_contexto)
+
+    result = await db.execute(query)
     return result.scalar_one_or_none()
 
 
@@ -58,6 +62,7 @@ async def listar_cmd(
     id_curso: int | None = None,
     id_materia: int | None = None,
     id_docente: int | None = None,
+    id_contexto: int | None = None,
     page: int = 1,
     size: int = 10
 ):
@@ -65,7 +70,7 @@ async def listar_cmd(
         joinedload(CursoMateriaDocente.curso),
         joinedload(CursoMateriaDocente.materia),
         joinedload(CursoMateriaDocente.docente),
-    )
+    ).join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
 
     if id_curso is not None:
         query = query.where(CursoMateriaDocente.id_curso == id_curso)
@@ -73,6 +78,8 @@ async def listar_cmd(
         query = query.where(CursoMateriaDocente.id_materia == id_materia)
     if id_docente is not None:
         query = query.where(CursoMateriaDocente.id_docente == id_docente)
+    if id_contexto is not None:
+        query = query.where(Curso.id_contexto == id_contexto)
 
     query = query.offset((page - 1) * size).limit(size)
     result = await db.execute(query)

@@ -7,15 +7,16 @@ from app.schemas.materias import MateriaCreate, MateriaUpdate
 
 
 # Crear materia
-async def crear_materia(db: AsyncSession, data: MateriaCreate):
-    if await crud.obtener_por_nombre(db, data.nombre):
+async def crear_materia(db: AsyncSession, data: MateriaCreate, id_contexto: int):
+    if await crud.obtener_por_nombre(db, data.nombre, id_contexto):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La materia ya existe"
         )
 
     materia = Materia(
-        nombre=data.nombre
+        nombre=data.nombre,
+        id_contexto=id_contexto,
     )
 
     return await crud.crear(db, materia)
@@ -24,6 +25,7 @@ async def crear_materia(db: AsyncSession, data: MateriaCreate):
 # Listar materias
 async def listar_materias(
     db: AsyncSession,
+    id_contexto: int,
     nombre: str | None,
     page: int,
     size: int
@@ -35,6 +37,7 @@ async def listar_materias(
 
     return await crud.listar_materias(
         db=db,
+        id_contexto=id_contexto,
         nombre=nombre,
         page=page,
         size=size
@@ -44,9 +47,10 @@ async def listar_materias(
 # Obtener materia
 async def obtener_materia(
     db: AsyncSession,
-    id_materia: int
+    id_materia: int,
+    id_contexto: int | None = None,
 ):
-    materia = await crud.obtener_por_id(db, id_materia)
+    materia = await crud.obtener_por_id(db, id_materia, id_contexto)
 
     if not materia:
         raise HTTPException(
@@ -61,9 +65,10 @@ async def obtener_materia(
 async def actualizar_materia(
     db: AsyncSession,
     id_materia: int,
-    data: MateriaUpdate
+    data: MateriaUpdate,
+    id_contexto: int,
 ):
-    materia = await obtener_materia(db, id_materia)
+    materia = await obtener_materia(db, id_materia, id_contexto)
 
     values = data.model_dump(exclude_unset=True)
 
@@ -76,9 +81,10 @@ async def actualizar_materia(
 # Eliminar materia (eliminación lógica)
 async def eliminar_materia(
     db: AsyncSession,
-    id_materia: int
+    id_materia: int,
+    id_contexto: int,
 ):
-    materia = await obtener_materia(db, id_materia)
+    materia = await obtener_materia(db, id_materia, id_contexto)
 
     # Si tiene relaciones futuras, aquí irían validaciones
     materia.eliminado = True

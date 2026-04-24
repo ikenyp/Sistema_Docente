@@ -2,12 +2,15 @@
 Endpoints para obtener promedios de estudiantes
 """
 
-from fastapi import APIRouter, Depends, Query, Path
+from fastapi import APIRouter, Depends, Query, Path, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.core.context_manager import resolve_contexto_id
+from app.auth.dependencies import get_current_user
 from app.services import promedios as service
 from app.schemas.promedios import PromedioTrimestral, PromedioFinal, PromediosCurso
+from app.models.usuarios import Usuario
 
 router = APIRouter(
     prefix="/promedios",
@@ -26,6 +29,8 @@ async def obtener_promedio_trimestral(
     id_curso: int = Path(..., gt=0, description="ID del curso"),
     numero_trimestre: int = Path(..., ge=1, le=3, description="Número de trimestre (1, 2 o 3)"),
     anio_lectivo: str = Query(..., description="Año lectivo (ej: 2025-2026)"),
+    request: Request = None,
+    current_user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -39,8 +44,10 @@ async def obtener_promedio_trimestral(
     **Fórmula:**
     Promedio Trimestral = (Actividades × 0.10) + (Proyecto × 0.20) + (Examen × 0.70)
     """
+    id_contexto = await resolve_contexto_id(db, current_user, request)
     return await service.calcular_promedio_trimestral(
         db=db,
+        id_contexto=id_contexto,
         id_estudiante=id_estudiante,
         id_curso=id_curso,
         numero_trimestre=numero_trimestre,
@@ -57,6 +64,8 @@ async def obtener_promedio_final(
     id_estudiante: int = Path(..., gt=0, description="ID del estudiante"),
     id_curso: int = Path(..., gt=0, description="ID del curso"),
     anio_lectivo: str = Query(..., description="Año lectivo (ej: 2025-2026)"),
+    request: Request = None,
+    current_user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -67,8 +76,10 @@ async def obtener_promedio_final(
     
     Incluye desglose de promedios por trimestre.
     """
+    id_contexto = await resolve_contexto_id(db, current_user, request)
     return await service.calcular_promedio_final(
         db=db,
+        id_contexto=id_contexto,
         id_estudiante=id_estudiante,
         id_curso=id_curso,
         anio_lectivo=anio_lectivo
@@ -83,6 +94,8 @@ async def obtener_promedios_curso(
     id_curso: int = Path(..., gt=0, description="ID del curso"),
     numero_trimestre: int | None = Query(None, ge=1, le=3, description="Filtrar por trimestre (opcional)"),
     anio_lectivo: str | None = Query(None, description="Año lectivo (requerido si se especifica trimestre)"),
+    request: Request = None,
+    current_user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
 ):
     """
@@ -94,8 +107,10 @@ async def obtener_promedios_curso(
     
     Si no se especifica trimestre, retorna promedios finales del año.
     """
+    id_contexto = await resolve_contexto_id(db, current_user, request)
     promedios = await service.obtener_promedios_curso(
         db=db,
+        id_contexto=id_contexto,
         id_curso=id_curso,
         numero_trimestre=numero_trimestre,
         anio_lectivo=anio_lectivo

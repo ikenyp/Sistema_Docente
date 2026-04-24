@@ -2,13 +2,22 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.insumos import Insumo
+from app.models.cursos_materias_docentes import CursoMateriaDocente
+from app.models.cursos import Curso
 from app.models.enums import TipoInsumoEnum
 
 
 # Obtener por ID
-async def obtener_por_id(db: AsyncSession, id_insumo: int):
+async def obtener_por_id(db: AsyncSession, id_insumo: int, id_contexto: int | None = None):
+    query = select(Insumo).where(Insumo.id_insumo == id_insumo)
+    if id_contexto is not None:
+        query = (
+            query.join(CursoMateriaDocente, CursoMateriaDocente.id_cmd == Insumo.id_cmd)
+            .join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
+            .where(Curso.id_contexto == id_contexto)
+        )
     result = await db.execute(
-        select(Insumo).where(Insumo.id_insumo == id_insumo)
+        query
     )
     return result.scalar_one_or_none()
 
@@ -17,13 +26,21 @@ async def obtener_por_id(db: AsyncSession, id_insumo: int):
 async def obtener_por_cmd_nombre(
     db: AsyncSession,
     id_cmd: int,
-    nombre: str
+    nombre: str,
+    id_contexto: int | None = None,
 ):
-    result = await db.execute(
-        select(Insumo).where(
-            Insumo.id_cmd == id_cmd,
-            Insumo.nombre == nombre
+    query = select(Insumo).where(
+        Insumo.id_cmd == id_cmd,
+        Insumo.nombre == nombre
+    )
+    if id_contexto is not None:
+        query = (
+            query.join(CursoMateriaDocente, CursoMateriaDocente.id_cmd == Insumo.id_cmd)
+            .join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
+            .where(Curso.id_contexto == id_contexto)
         )
+    result = await db.execute(
+        query
     )
     return result.scalar_one_or_none()
 
@@ -34,7 +51,8 @@ async def obtener_por_cmd_trimestre_tipo(
     id_cmd: int,
     trimestre: int,
     tipo_insumo: TipoInsumoEnum,
-    id_insumo_excluir: int | None = None
+    id_insumo_excluir: int | None = None,
+    id_contexto: int | None = None,
 ):
     """
     Verifica si ya existe un insumo del mismo tipo en el mismo trimestre.
@@ -42,9 +60,16 @@ async def obtener_por_cmd_trimestre_tipo(
     """
     query = select(Insumo).where(
         Insumo.id_cmd == id_cmd,
-        Insumo.trimestre == trimestre,
+        Insumo.id_trimestre == trimestre,
         Insumo.tipo_insumo == tipo_insumo
     )
+
+    if id_contexto is not None:
+        query = (
+            query.join(CursoMateriaDocente, CursoMateriaDocente.id_cmd == Insumo.id_cmd)
+            .join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
+            .where(Curso.id_contexto == id_contexto)
+        )
     
     # Si estamos actualizando, excluir el insumo actual
     if id_insumo_excluir:
@@ -57,6 +82,7 @@ async def obtener_por_cmd_trimestre_tipo(
 # Listar insumos
 async def listar_insumos(
     db: AsyncSession,
+    id_contexto: int,
     id_cmd: int | None = None,
     nombre: str | None = None,
     trimestre: int | None = None,
@@ -64,14 +90,19 @@ async def listar_insumos(
     page: int = 1,
     size: int = 10
 ):
-    query = select(Insumo)
+    query = (
+        select(Insumo)
+        .join(CursoMateriaDocente, CursoMateriaDocente.id_cmd == Insumo.id_cmd)
+        .join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
+        .where(Curso.id_contexto == id_contexto)
+    )
 
     if id_cmd is not None:
         query = query.where(Insumo.id_cmd == id_cmd)
     if nombre:
         query = query.where(Insumo.nombre.ilike(f"%{nombre}%"))
     if trimestre is not None:
-        query = query.where(Insumo.trimestre == trimestre)
+        query = query.where(Insumo.trimestre_legacy == trimestre)
     if tipo_insumo is not None:
         query = query.where(Insumo.tipo_insumo == tipo_insumo)
 

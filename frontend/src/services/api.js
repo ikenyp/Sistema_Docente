@@ -6,10 +6,14 @@ const getToken = () => {
   return localStorage.getItem("token");
 };
 
+const getAppMode = () => {
+  return (localStorage.getItem("app_mode") || "institucional").toLowerCase();
+};
+
 // Construir querystring desde un objeto de filtros
 const buildQuery = (params = {}) => {
   const entries = Object.entries(params).filter(
-    ([, value]) => value !== undefined && value !== null && value !== ""
+    ([, value]) => value !== undefined && value !== null && value !== "",
   );
 
   if (entries.length === 0) return "";
@@ -17,7 +21,7 @@ const buildQuery = (params = {}) => {
   const query = entries
     .map(
       ([key, value]) =>
-        `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`
+        `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`,
     )
     .join("&");
 
@@ -29,6 +33,7 @@ const apiCall = async (endpoint, method = "GET", body = null) => {
   const token = getToken();
   const headers = {
     "Content-Type": "application/json",
+    "X-App-Mode": getAppMode(),
   };
 
   if (token) {
@@ -137,9 +142,7 @@ export const cmdAPI = {
 
   // Obtener asignaciones de un docente (opcionalmente filtrar por curso)
   listarPorDocente: (id_docente, id_curso) =>
-    apiCall(
-      `/cursos-materias-docentes${buildQuery({ id_docente, id_curso })}`
-    ),
+    apiCall(`/cursos-materias-docentes${buildQuery({ id_docente, id_curso })}`),
 
   obtener: (id_cmd) => apiCall(`/cursos-materias-docentes/${id_cmd}`),
 };
@@ -235,18 +238,18 @@ export const promediosAPI = {
     id_estudiante,
     id_curso,
     numero_trimestre,
-    anio_lectivo
+    anio_lectivo,
   ) =>
     apiCall(
       `/promedios/trimestre/${id_estudiante}/${id_curso}/${numero_trimestre}?anio_lectivo=${encodeURIComponent(
-        anio_lectivo
-      )}`
+        anio_lectivo,
+      )}`,
     ),
   obtenerFinal: (id_estudiante, id_curso, anio_lectivo) =>
     apiCall(
       `/promedios/final/${id_estudiante}/${id_curso}?anio_lectivo=${encodeURIComponent(
-        anio_lectivo
-      )}`
+        anio_lectivo,
+      )}`,
     ),
 };
 
