@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.cursos import Curso
 
@@ -9,7 +10,12 @@ async def obtener_por_id(db: AsyncSession, id_curso: int, id_contexto: int | Non
         condiciones.append(Curso.id_contexto == id_contexto)
 
     result = await db.execute(
-        select(Curso).where(
+        select(Curso)
+        .options(
+            joinedload(Curso.tutor),
+            joinedload(Curso.estructura_academica),
+        )
+        .where(
             *condiciones,
         )
     )
@@ -36,7 +42,10 @@ async def listar(
     offset: int = 0,
     limit: int = 10,
 ):
-    query = select(Curso).where(Curso.id_contexto == id_contexto)
+    query = select(Curso).options(
+        joinedload(Curso.tutor),
+        joinedload(Curso.estructura_academica),
+    ).where(Curso.id_contexto == id_contexto)
     
     if nombre:
         query = query.where(Curso.nombre.ilike(f"%{nombre}%"))

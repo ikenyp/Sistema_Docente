@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import "../../styles/notas.css";
+import { notify } from "../../components/notify";
 
 function NotasCurso() {
   const { id } = useParams();
@@ -26,16 +27,16 @@ function NotasCurso() {
     ];
 
     const estudiantesBD = {
-      "1": [
+      1: [
         { id: 1, nombre: "Ana Torres", nota: 8.7 },
         { id: 2, nombre: "Luis Pérez", nota: 7.9 },
       ],
-      "2": [
+      2: [
         { id: 3, nombre: "María Gómez", nota: 9.1 },
         { id: 4, nombre: "Carlos Vera", nota: 8.3 },
         { id: 5, nombre: "Daniela Ruiz", nota: 9.5 },
       ],
-      "3": [{ id: 6, nombre: "José Molina", nota: 7.4 }],
+      3: [{ id: 6, nombre: "José Molina", nota: 7.4 }],
     };
 
     const cursoEncontrado = cursosBD.find((c) => c.id === id);
@@ -44,15 +45,19 @@ function NotasCurso() {
   }, [id]);
 
   // ===================== FUNCIONES =====================
-  const cerrarSesion = () => navigate("/");
+  const cerrarSesion = () => {
+    const appMode = localStorage.getItem("app_mode") || "institucional";
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
+    localStorage.removeItem("app_mode");
+    navigate(`/?mode=${appMode}`);
+  };
 
   const actualizarNota = (idEst, valor) => {
     if (!puedeEditar) return;
 
     setEstudiantes((prev) =>
-      prev.map((e) =>
-        e.id === idEst ? { ...e, nota: valor } : e
-      )
+      prev.map((e) => (e.id === idEst ? { ...e, nota: valor } : e)),
     );
   };
 
@@ -68,7 +73,6 @@ function NotasCurso() {
   // ===================== RENDER =====================
   return (
     <div className="notas-page">
-
       {/* -------- NAVBAR -------- */}
       <div className="navbar-notas">
         <div className="menu-icon">☰</div>
@@ -91,9 +95,7 @@ function NotasCurso() {
         ← Volver
       </button>
 
-      <h1 className="page-title">
-        Notas del curso – {curso.nombre}
-      </h1>
+      <h1 className="page-title">Notas del curso – {curso.nombre}</h1>
 
       {/* -------- TABLA -------- */}
       <div className="table-container">
@@ -120,9 +122,7 @@ function NotasCurso() {
                       step="0.1"
                       value={e.nota}
                       className="input-nota"
-                      onChange={(ev) =>
-                        actualizarNota(e.id, ev.target.value)
-                      }
+                      onChange={(ev) => actualizarNota(e.id, ev.target.value)}
                     />
                   ) : (
                     <span className="nota-texto">{e.nota}</span>
@@ -138,7 +138,7 @@ function NotasCurso() {
       {puedeEditar && (
         <button
           className="btn-guardar"
-          onClick={() => alert("Notas guardadas (simulado)")}
+          onClick={() => notify("success", "Notas guardadas (simulado)")}
         >
           Guardar Cambios
         </button>

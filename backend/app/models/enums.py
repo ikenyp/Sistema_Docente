@@ -25,10 +25,5 @@ class ValorComportamientoEnum(str, enum.Enum):
 
 class TipoInsumoEnum(str, enum.Enum):
     actividad = "actividad"
-    proyecto_trimestral = "proyecto_trimestral"
-    examen_trimestral = "examen_trimestral"
-
-class TrimestreEnum(int, enum.Enum):
-    primero = 1
-    segundo = 2
-    tercero = 3
+    proyecto_periodo = "proyecto_periodo"
+    examen_periodo = "examen_periodo"

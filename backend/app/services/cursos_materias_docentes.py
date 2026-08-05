@@ -4,6 +4,7 @@ from sqlalchemy import select
 
 from app.models.cursos_materias_docentes import CursoMateriaDocente
 from app.models.cursos import Curso
+from app.models.estructuras_academicas import EstructuraMateria
 from app.models.materias import Materia
 from app.models.usuarios import Usuario
 from app.models.enums import RolUsuarioEnum
@@ -20,7 +21,8 @@ async def crear_cmd(db: AsyncSession, data: CMDCreate, id_contexto: int):
             Curso.id_contexto == id_contexto,
         )
     )
-    if not curso.scalar_one_or_none():
+    curso_obj = curso.scalar_one_or_none()
+    if not curso_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El curso no existe"
@@ -39,6 +41,19 @@ async def crear_cmd(db: AsyncSession, data: CMDCreate, id_contexto: int):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La materia no existe"
         )
+
+    if curso_obj.id_estructura_academica is not None:
+        estructura_materia = await db.execute(
+            select(EstructuraMateria).where(
+                EstructuraMateria.id_estructura_academica == curso_obj.id_estructura_academica,
+                EstructuraMateria.id_materia == data.id_materia,
+            )
+        )
+        if not estructura_materia.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La materia no pertenece a la estructura académica del curso",
+            )
 
     # Validar que el docente exista y tenga rol de DOCENTE
     docente = await db.execute(
@@ -135,11 +150,14 @@ async def actualizar_cmd(
                 Curso.id_contexto == id_contexto,
             )
         )
-        if not curso.scalar_one_or_none():
+        curso_obj = curso.scalar_one_or_none()
+        if not curso_obj:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="El curso no existe"
             )
+    else:
+        curso_obj = cmd.curso
 
     # Validar que la nueva materia exista si se modifica
     if "id_materia" in values:
@@ -154,6 +172,20 @@ async def actualizar_cmd(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="La materia no existe"
+            )
+
+    id_materia_validar = values.get("id_materia", cmd.id_materia)
+    if curso_obj and curso_obj.id_estructura_academica is not None:
+        estructura_materia = await db.execute(
+            select(EstructuraMateria).where(
+                EstructuraMateria.id_estructura_academica == curso_obj.id_estructura_academica,
+                EstructuraMateria.id_materia == id_materia_validar,
+            )
+        )
+        if not estructura_materia.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La materia no pertenece a la estructura académica del curso",
             )
 
     # Validar que el nuevo docente exista y tenga rol de DOCENTE si se modifica

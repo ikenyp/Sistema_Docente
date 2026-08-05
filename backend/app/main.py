@@ -4,6 +4,7 @@ from app.core.config import settings
 from app.auth.routes import router as auth_routes
 from app.api import (
     estudiantes,
+    estructuras_academicas,
     usuarios,
     cursos,
     materias,
@@ -12,7 +13,7 @@ from app.api import (
     insumos,
     asistencia,
     comportamiento,
-    trimestres,
+    periodizacion,
     promedios
 )
 
@@ -49,6 +50,7 @@ def app_config():
 # Registrar todos los routers
 app.include_router(auth_routes, prefix="/auth", tags=["Authentication"])
 app.include_router(usuarios.router, prefix="/api/usuarios", tags=["Usuarios"])
+app.include_router(estructuras_academicas.router, prefix="/api", tags=["Estructura académica"])
 app.include_router(estudiantes.router, prefix="/api/estudiantes", tags=["Estudiantes"])
 app.include_router(cursos.router, prefix="/api/cursos", tags=["Cursos"])
 app.include_router(materias.router, prefix="/api/materias", tags=["Materias"])
@@ -57,5 +59,5 @@ app.include_router(notas.router, prefix="/api/notas", tags=["Notas"])
 app.include_router(insumos.router, prefix="/api/insumos", tags=["Insumos"])
 app.include_router(asistencia.router, prefix="/api/asistencia", tags=["Asistencia"])
 app.include_router(comportamiento.router, prefix="/api/comportamiento", tags=["Comportamiento"])
-app.include_router(trimestres.router, prefix="/api/trimestres", tags=["Trimestres"])
+app.include_router(periodizacion.router, prefix="/api", tags=["Periodizacion"])
 app.include_router(promedios.router, prefix="/api", tags=["Promedios"])

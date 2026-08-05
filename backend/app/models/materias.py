@@ -13,3 +13,4 @@ class Materia(Base):
 
     contexto = relationship("Contexto", back_populates="materias")
     cursos_materias = relationship("CursoMateriaDocente", back_populates="materia")
+    estructuras = relationship("EstructuraMateria", back_populates="materia")

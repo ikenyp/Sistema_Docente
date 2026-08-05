@@ -45,22 +45,21 @@ async def obtener_por_cmd_nombre(
     return result.scalar_one_or_none()
 
 
-# Validar que no exista proyecto/examen del mismo tipo en el trimestre
-async def obtener_por_cmd_trimestre_tipo(
+# Validar que no exista proyecto/examen del mismo tipo en el periodo
+async def obtener_por_cmd_periodo_tipo(
     db: AsyncSession,
     id_cmd: int,
-    trimestre: int,
+    id_periodo: int,
     tipo_insumo: TipoInsumoEnum,
     id_insumo_excluir: int | None = None,
     id_contexto: int | None = None,
 ):
     """
-    Verifica si ya existe un insumo del mismo tipo en el mismo trimestre.
-    Útil para validar que solo haya un proyecto_trimestral o examen_trimestral por trimestre.
+    Verifica si ya existe un insumo del mismo tipo en el mismo periodo.
     """
     query = select(Insumo).where(
         Insumo.id_cmd == id_cmd,
-        Insumo.id_trimestre == trimestre,
+        Insumo.id_periodo == id_periodo,
         Insumo.tipo_insumo == tipo_insumo
     )
 
@@ -85,7 +84,7 @@ async def listar_insumos(
     id_contexto: int,
     id_cmd: int | None = None,
     nombre: str | None = None,
-    trimestre: int | None = None,
+    periodo: int | None = None,
     tipo_insumo: TipoInsumoEnum | None = None,
     page: int = 1,
     size: int = 10
@@ -101,8 +100,8 @@ async def listar_insumos(
         query = query.where(Insumo.id_cmd == id_cmd)
     if nombre:
         query = query.where(Insumo.nombre.ilike(f"%{nombre}%"))
-    if trimestre is not None:
-        query = query.where(Insumo.trimestre_legacy == trimestre)
+    if periodo is not None:
+        query = query.where(Insumo.id_periodo == periodo)
     if tipo_insumo is not None:
         query = query.where(Insumo.tipo_insumo == tipo_insumo)
 

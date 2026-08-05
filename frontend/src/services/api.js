@@ -1,3 +1,5 @@
+import { endSession } from "./session";
+
 // Configuración base de la API
 const API_BASE_URL = "http://localhost:8000/api";
 
@@ -66,8 +68,6 @@ const apiCall = async (endpoint, method = "GET", body = null) => {
       queryPart ? `?${queryPart}` : ""
     }`;
 
-    // Log de depuración para verificar URL y configuración
-    console.debug("API CALL", method, finalUrl, config);
     const response = await fetch(finalUrl, config);
 
     if (!response.ok) {
@@ -100,6 +100,10 @@ const apiCall = async (endpoint, method = "GET", body = null) => {
         // Si no hay JSON, usar el status
       }
 
+      if (response.status === 401) {
+        endSession("unauthorized");
+      }
+
       throw new Error(errorMessage);
     }
 
@@ -128,6 +132,7 @@ export const cursosAPI = {
     apiCall(`/cursos?id_tutor=${id_tutor}`),
 
   obtenerCurso: (id_curso) => apiCall(`/cursos/${id_curso}`),
+  obtenerDashboard: (id_curso) => apiCall(`/cursos/${id_curso}/dashboard`),
   listar: (filtros = {}) => apiCall(`/cursos${buildQuery(filtros)}`),
   crear: (data) => apiCall(`/cursos`, "POST", data),
   actualizar: (id_curso, data) => apiCall(`/cursos/${id_curso}`, "PUT", data),
@@ -209,6 +214,29 @@ export const materiasAPI = {
   eliminar: (id_materia) => apiCall(`/materias/${id_materia}`, "DELETE"),
 };
 
+export const estructurasAcademicasAPI = {
+  listar: (filtros = {}) =>
+    apiCall(`/estructuras-academicas${buildQuery(filtros)}`),
+  obtener: (id_estructura_academica) =>
+    apiCall(`/estructuras-academicas/${id_estructura_academica}`),
+  crear: (data) => apiCall(`/estructuras-academicas`, "POST", data),
+  actualizar: (id_estructura_academica, data) =>
+    apiCall(`/estructuras-academicas/${id_estructura_academica}`, "PUT", data),
+  listarMaterias: (id_estructura_academica) =>
+    apiCall(`/estructuras-academicas/${id_estructura_academica}/materias`),
+  agregarMateria: (id_estructura_academica, data) =>
+    apiCall(
+      `/estructuras-academicas/${id_estructura_academica}/materias`,
+      "POST",
+      data,
+    ),
+  eliminarMateria: (id_estructura_academica, id_materia) =>
+    apiCall(
+      `/estructuras-academicas/${id_estructura_academica}/materias/${id_materia}`,
+      "DELETE",
+    ),
+};
+
 // ==================== ASISTENCIA ====================
 export const asistenciaAPI = {
   listar: (filtros = {}) => apiCall(`/asistencia${buildQuery(filtros)}`),
@@ -234,23 +262,35 @@ export const comportamientoAPI = {
 
 // ==================== PROMEDIOS ====================
 export const promediosAPI = {
-  obtenerTrimestral: (
-    id_estudiante,
-    id_curso,
-    numero_trimestre,
-    anio_lectivo,
-  ) =>
+  obtenerPeriodo: (id_estudiante, id_curso, numero_periodo, anio_lectivo) =>
     apiCall(
-      `/promedios/trimestre/${id_estudiante}/${id_curso}/${numero_trimestre}?anio_lectivo=${encodeURIComponent(
+      `/promedios/periodo/${id_estudiante}/${id_curso}/${numero_periodo}?anio_lectivo=${encodeURIComponent(
         anio_lectivo,
       )}`,
     ),
-  obtenerFinal: (id_estudiante, id_curso, anio_lectivo) =>
+  obtenerAcumulado: (id_estudiante, id_curso, anio_lectivo) =>
     apiCall(
-      `/promedios/final/${id_estudiante}/${id_curso}?anio_lectivo=${encodeURIComponent(
+      `/promedios/acumulado/${id_estudiante}/${id_curso}?anio_lectivo=${encodeURIComponent(
         anio_lectivo,
       )}`,
     ),
+};
+
+export const periodizacionAPI = {
+  listarPeriodos: async (_id_contexto, anio_lectivo) => {
+    const config = await apiCall(
+      `/periodizacion/actual/${encodeURIComponent(anio_lectivo)}`,
+    );
+    return config?.periodos || [];
+  },
+  obtenerConfiguracionActual: (anio_lectivo) =>
+    apiCall(`/periodizacion/actual/${encodeURIComponent(anio_lectivo)}`),
+  obtenerConfiguracion: (id_contexto, anio_lectivo) =>
+    apiCall(
+      `/periodizacion/contexto/${id_contexto}/${encodeURIComponent(anio_lectivo)}`,
+    ),
+  guardarConfiguracionCompleta: (data) =>
+    apiCall(`/periodizacion/configuracion-completa`, "POST", data),
 };
 
 // ==================== USUARIOS ====================

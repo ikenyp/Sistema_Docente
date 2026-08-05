@@ -1,12 +1,16 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../styles/docente.css";
 import {
   cmdAPI,
   cursosAPI,
-  materiasAPI,
   asignacionesAPI,
+  insumosAPI,
+  notasAPI,
+  periodizacionAPI,
+  estructurasAcademicasAPI,
 } from "../../services/api";
+import { notify } from "../../components/notify";
 
 function Docente() {
   const navigate = useNavigate();
@@ -20,17 +24,50 @@ function Docente() {
     (localStorage.getItem("app_mode") || "institucional").toLowerCase(),
   );
 
-  const [materiasDisponibles, setMateriasDisponibles] = useState([]);
+  const [estructuras, setEstructuras] = useState([]);
+  const [resumenOperacion, setResumenOperacion] = useState({
+    asignaciones: 0,
+    cursosSinMaterias: 0,
+    cursosSinTutor: 0,
+    aniosSinPeriodizacion: 0,
+  });
+
+  // WIZARD DE CREACIÓN DE CURSO
+  const [mostrarWizard, setMostrarWizard] = useState(false);
   const [nuevoCurso, setNuevoCurso] = useState({
     nombre: "",
     anio_lectivo: "",
+    soyTutor: true,
+    id_estructura_academica: "",
   });
-  const [nuevaMateria, setNuevaMateria] = useState({ nombre: "" });
-  const [nuevaAsignacion, setNuevaAsignacion] = useState({
-    id_curso: "",
-    id_materia: "",
-  });
-  const [guardandoGestion, setGuardandoGestion] = useState(false);
+  const [guardandoWizard, setGuardandoWizard] = useState(false);
+  const [errorWizard, setErrorWizard] = useState(null);
+
+  // Menú y edición/eliminación de curso
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [mostrarEditarModal, setMostrarEditarModal] = useState(false);
+  const [editarCursoData, setEditarCursoData] = useState(null);
+  const [guardandoCurso, setGuardandoCurso] = useState(false);
+  const [bloqueoEstructuraEdicion, setBloqueoEstructuraEdicion] = useState("");
+  const [mostrarEliminarModal, setMostrarEliminarModal] = useState(false);
+  const [cursoAEliminar, setCursoAEliminar] = useState(null);
+
+  // Control de sesión expirada
+  const [sesionExpirada, setSesionExpirada] = useState(false);
+
+  const resumenCursos = useMemo(() => {
+    const totalCursos = cursos.length;
+    const cursosConAnio = cursos.filter((curso) => curso?.anio_lectivo).length;
+
+    return {
+      totalCursos,
+      cursosConAnio,
+      modo: appMode === "personal" ? "Personal" : "Institucional",
+      cursosTutor: cursos.filter(
+        (curso) => datosUsuario && curso?.id_tutor === datosUsuario.id_usuario,
+      ).length,
+    };
+  }, [appMode, cursos, datosUsuario]);
 
   // ====================== CARGAR CURSOS DEL DOCENTE ======================
   const cargarCursos = useCallback(async () => {
@@ -38,7 +75,6 @@ function Docente() {
       setCargando(true);
       setError(null);
 
-      // Obtener datos del usuario actual desde localStorage
       const usuarioJSON = localStorage.getItem("usuario");
       if (!usuarioJSON) {
         setError("No hay usuario autenticado");
@@ -48,14 +84,13 @@ function Docente() {
 
       const usuario = JSON.parse(usuarioJSON);
       setDatosUsuario(usuario);
-      setAppMode(
-        (localStorage.getItem("app_mode") || "institucional").toLowerCase(),
-      );
+      const modoActual = (
+        localStorage.getItem("app_mode") || "institucional"
+      ).toLowerCase();
+      setAppMode(modoActual);
 
-      // Obtener cursos en los que el docente está asignado
       const asignaciones = await cmdAPI.listarPorDocente(usuario.id_usuario);
 
-      // Deduplicar cursos (un docente puede tener varias materias en el mismo curso)
       const cursosUnicos = [];
       const vistos = new Set();
 
@@ -72,31 +107,69 @@ function Docente() {
         }
       });
 
-      // En modo personal también mostrar cursos donde es tutor
-      if (
-        (localStorage.getItem("app_mode") || "institucional").toLowerCase() ===
-        "personal"
-      ) {
-        const cursosPropios = await cursosAPI.listar({
-          id_tutor: usuario.id_usuario,
-          size: 100,
-        });
-        (cursosPropios || []).forEach((curso) => {
-          if (curso && curso.id_curso && !vistos.has(curso.id_curso)) {
-            vistos.add(curso.id_curso);
-            cursosUnicos.push(curso);
-          }
-        });
+      const cursosTutor = await cursosAPI.listar({
+        id_tutor: usuario.id_usuario,
+        size: 100,
+      });
+      (cursosTutor || []).forEach((curso) => {
+        if (curso && curso.id_curso && !vistos.has(curso.id_curso)) {
+          vistos.add(curso.id_curso);
+          cursosUnicos.push(curso);
+        }
+      });
+
+      const todasAsignaciones =
+        modoActual === "personal"
+          ? await asignacionesAPI.listar({ size: 100 })
+          : asignaciones || [];
+
+      const idsConAsignacion = new Set(
+        (todasAsignaciones || []).map((item) => item.id_curso),
+      );
+      const cursosSinMaterias = cursosUnicos.filter(
+        (curso) => !idsConAsignacion.has(curso.id_curso),
+      ).length;
+      const cursosSinTutor = cursosUnicos.filter(
+        (curso) => !curso.id_tutor,
+      ).length;
+
+      const aniosUnicos = [
+        ...new Set(cursosUnicos.map((curso) => curso?.anio_lectivo).filter(Boolean)),
+      ];
+      let aniosSinPeriodizacion = 0;
+      for (const anio of aniosUnicos) {
+        try {
+          const config = await periodizacionAPI.obtenerConfiguracionActual(anio);
+          if (!config?.periodos?.length) aniosSinPeriodizacion += 1;
+        } catch {
+          aniosSinPeriodizacion += 1;
+        }
       }
+
+      setResumenOperacion({
+        asignaciones: (todasAsignaciones || []).length,
+        cursosSinMaterias,
+        cursosSinTutor,
+        aniosSinPeriodizacion,
+      });
 
       setCursos(cursosUnicos);
     } catch (err) {
       console.error("Error al cargar cursos:", err);
-      // Si el error es 404, significa que no hay cursos, no es un error real
-      if (err.message && err.message.includes("404")) {
+
+      // Detectar errores de autenticación/token inválido
+      const mensajeError = err.message || "Error al cargar los cursos";
+      if (
+        mensajeError.includes("Token inválido") ||
+        mensajeError.includes("401") ||
+        mensajeError.includes("Unauthorized") ||
+        mensajeError.includes("invalid token")
+      ) {
+        setSesionExpirada(true);
+      } else if (err.message && err.message.includes("404")) {
         setCursos([]);
       } else {
-        setError(err.message || "Error al cargar los cursos");
+        setError(mensajeError);
       }
     } finally {
       setCargando(false);
@@ -107,23 +180,61 @@ function Docente() {
     cargarCursos();
   }, [cargarCursos]);
 
-  const cargarMaterias = useCallback(async () => {
+  const cargarEstructuras = useCallback(async () => {
     if (
       (localStorage.getItem("app_mode") || "institucional").toLowerCase() !==
       "personal"
     )
       return;
     try {
-      const data = await materiasAPI.listar({ size: 100 });
-      setMateriasDisponibles(data || []);
+      const data = await estructurasAcademicasAPI.listar({ size: 100 });
+      setEstructuras(data || []);
     } catch (err) {
-      console.error("Error al cargar materias:", err);
+      console.error("Error al cargar estructuras:", err);
     }
   }, []);
 
   useEffect(() => {
-    cargarMaterias();
-  }, [cargarMaterias]);
+    cargarEstructuras();
+  }, [cargarEstructuras]);
+
+  // Cerrar menú cuando se toca fuera
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (openMenuId !== null && e.target.closest(".curso-card") === null) {
+        setOpenMenuId(null);
+      }
+    };
+
+    if (openMenuId !== null) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
+    }
+  }, [openMenuId]);
+
+  // ====================== UTILIDADES ======================
+  const formatarAnioLectivo = (valor) => {
+    const solo_numeros = valor.replace(/\D/g, "");
+
+    if (solo_numeros.length <= 4) {
+      return solo_numeros;
+    } else if (solo_numeros.length <= 8) {
+      return solo_numeros.slice(0, 4) + "-" + solo_numeros.slice(4, 8);
+    }
+    return solo_numeros.slice(0, 4) + "-" + solo_numeros.slice(4, 8);
+  };
+
+  const validarAnioLectivo = (anio) => {
+    const patron = /^\d{4}-\d{4}$/;
+    if (!patron.test(anio)) {
+      return "Formato inválido. Usa: 2026-2027";
+    }
+    const [inicio, fin] = anio.split("-").map(Number);
+    if (fin !== inicio + 1) {
+      return "El año final debe ser +1 del inicial (ej: 2026-2027)";
+    }
+    return null;
+  };
 
   // ====================== ACCIONES ======================
   const irAlCurso = (curso) => {
@@ -133,73 +244,219 @@ function Docente() {
   };
 
   const cerrarSesion = () => {
+    const appMode = localStorage.getItem("app_mode") || "institucional";
     localStorage.removeItem("token");
     localStorage.removeItem("usuario");
     localStorage.removeItem("app_mode");
-    navigate("/");
+    // Volver al login con el modo que estaba usando
+    navigate(`/?mode=${appMode}`);
+  };
+
+  // ====================== EDITAR / ELIMINAR CURSO ======================
+  const abrirEditarCurso = async (curso) => {
+    let bloqueo = "";
+    if (appMode === "personal") {
+      try {
+        const asignaciones = await cmdAPI.listar({ id_curso: curso.id_curso });
+        if ((asignaciones || []).length > 0) {
+          bloqueo =
+            "La estructura académica ya no se puede cambiar porque este curso tiene materias o configuración académica asociada.";
+        }
+      } catch {
+        bloqueo =
+          "No se pudo verificar la configuración del curso. Por seguridad, la estructura académica no se podrá cambiar ahora.";
+      }
+    }
+
+    setBloqueoEstructuraEdicion(bloqueo);
+    setEditarCursoData({
+      ...curso,
+      soyTutor: !!(datosUsuario && curso.id_tutor === datosUsuario.id_usuario),
+      id_estructura_academica: curso.id_estructura_academica || "",
+    });
+    setMostrarEditarModal(true);
+    setOpenMenuId(null);
+  };
+
+  const guardarEdicionCurso = async () => {
+    if (!editarCursoData) return;
+    const { id_curso, nombre, anio_lectivo } = editarCursoData;
+
+    if (!nombre || !anio_lectivo) {
+      notify("error", "Nombre y año lectivo son obligatorios");
+      return;
+    }
+
+    try {
+      setGuardandoCurso(true);
+
+      // Validar unicidad por nombre (buscar otros cursos con el mismo nombre)
+      const encontrados = await cursosAPI.listar({ nombre });
+      const duplicado = (encontrados || []).some(
+        (c) => c.id_curso !== id_curso && c.nombre === nombre,
+      );
+
+      if (duplicado) {
+        notify(
+          "error",
+          "Ya existe otro curso con ese nombre. Elige otro nombre.",
+        );
+        return;
+      }
+
+      const payload = {
+        nombre,
+        anio_lectivo,
+      };
+
+      if (appMode === "personal") {
+        payload.id_tutor = editarCursoData.soyTutor
+          ? datosUsuario.id_usuario
+          : null;
+        payload.id_estructura_academica = editarCursoData.id_estructura_academica
+          ? Number(editarCursoData.id_estructura_academica)
+          : null;
+      }
+
+      await cursosAPI.actualizar(id_curso, payload);
+      setMostrarEditarModal(false);
+      setEditarCursoData(null);
+      setBloqueoEstructuraEdicion("");
+      await cargarCursos();
+    } catch (err) {
+      notify("error", "Error al actualizar curso: " + err.message);
+    } finally {
+      setGuardandoCurso(false);
+    }
+  };
+
+  const comprobarNotasEnCurso = async (id_curso) => {
+    try {
+      // Obtener asignaciones (cmd) del curso
+      const asignaciones = await cmdAPI.listar({ id_curso });
+
+      for (const asig of asignaciones || []) {
+        const id_cmd = asig.id_cmd;
+        if (!id_cmd) continue;
+        const insumos = await insumosAPI.listarPorCMD(id_cmd);
+        for (const insumo of insumos || []) {
+          const notas = await notasAPI.listar({
+            id_insumo: insumo.id_insumo,
+            size: 1,
+          });
+          if (notas && notas.length > 0) return true;
+        }
+      }
+
+      return false;
+    } catch (err) {
+      console.error("Error comprobando notas en curso:", err);
+      // Si hay error, ser conservador: impedir eliminación
+      return true;
+    }
+  };
+
+  const confirmarEliminarCurso = async (curso) => {
+    setOpenMenuId(null);
+    const tieneNotas = await comprobarNotasEnCurso(curso.id_curso);
+    if (tieneNotas) {
+      notify(
+        "error",
+        "No se puede eliminar el curso porque ya existen notas en sus insumos.",
+      );
+      return;
+    }
+
+    setCursoAEliminar(curso);
+    setMostrarEliminarModal(true);
+  };
+
+  const ejecutarEliminarCurso = async () => {
+    if (!cursoAEliminar) return;
+
+    try {
+      await cursosAPI.eliminar(cursoAEliminar.id_curso);
+      setMostrarEliminarModal(false);
+      setCursoAEliminar(null);
+      await cargarCursos();
+    } catch (err) {
+      notify("error", "Error al eliminar curso: " + err.message);
+    }
   };
 
   const crearCursoPersonal = async () => {
-    if (!nuevoCurso.nombre || !nuevoCurso.anio_lectivo) {
-      alert("Nombre y año lectivo son obligatorios");
-      return;
-    }
-    try {
-      setGuardandoGestion(true);
-      await cursosAPI.crear(nuevoCurso);
-      setNuevoCurso({ nombre: "", anio_lectivo: "" });
-      await cargarCursos();
-      alert("Curso creado correctamente");
-    } catch (err) {
-      alert(`No se pudo crear el curso: ${err.message}`);
-    } finally {
-      setGuardandoGestion(false);
-    }
-  };
+    setErrorWizard(null);
 
-  const crearMateriaPersonal = async () => {
-    if (!nuevaMateria.nombre) {
-      alert("El nombre de la materia es obligatorio");
-      return;
-    }
-    try {
-      setGuardandoGestion(true);
-      await materiasAPI.crear(nuevaMateria);
-      setNuevaMateria({ nombre: "" });
-      await cargarMaterias();
-      alert("Materia creada correctamente");
-    } catch (err) {
-      alert(`No se pudo crear la materia: ${err.message}`);
-    } finally {
-      setGuardandoGestion(false);
-    }
-  };
-
-  const crearAsignacionPersonal = async () => {
     if (
-      !nuevaAsignacion.id_curso ||
-      !nuevaAsignacion.id_materia ||
-      !datosUsuario
+      !nuevoCurso.nombre ||
+      !nuevoCurso.anio_lectivo ||
+      !nuevoCurso.id_estructura_academica
     ) {
-      alert("Debe seleccionar curso y materia");
+      setErrorWizard("Nombre, año lectivo y estructura académica son obligatorios");
+      return;
+    }
+
+    const errorAnio = validarAnioLectivo(nuevoCurso.anio_lectivo);
+    if (errorAnio) {
+      setErrorWizard(errorAnio);
       return;
     }
 
     try {
-      setGuardandoGestion(true);
-      await asignacionesAPI.crear({
-        id_curso: parseInt(nuevaAsignacion.id_curso, 10),
-        id_materia: parseInt(nuevaAsignacion.id_materia, 10),
-        id_docente: datosUsuario.id_usuario,
+      setGuardandoWizard(true);
+      const cursoCreado = await cursosAPI.crear({
+        nombre: nuevoCurso.nombre,
+        anio_lectivo: nuevoCurso.anio_lectivo,
+        id_tutor: nuevoCurso.soyTutor ? datosUsuario.id_usuario : null,
+        id_estructura_academica: Number(nuevoCurso.id_estructura_academica),
       });
-      setNuevaAsignacion({ id_curso: "", id_materia: "" });
+
+      const materiasEstructura =
+        await estructurasAcademicasAPI.listarMaterias(
+          Number(nuevoCurso.id_estructura_academica),
+        );
+
+      for (const item of materiasEstructura || []) {
+        await asignacionesAPI.crear({
+          id_curso: cursoCreado.id_curso,
+          id_materia: item.id_materia,
+          id_docente: datosUsuario.id_usuario,
+        });
+      }
+
       await cargarCursos();
-      alert("Asignación creada correctamente");
+      setMostrarWizard(false);
+      setNuevoCurso({
+        nombre: "",
+        anio_lectivo: "",
+        soyTutor: true,
+        id_estructura_academica: "",
+      });
+      notify("success", "Curso creado correctamente con sus materias base");
     } catch (err) {
-      alert(`No se pudo crear la asignación: ${err.message}`);
+      setErrorWizard(`Error al crear curso: ${err.message}`);
     } finally {
-      setGuardandoGestion(false);
+      setGuardandoWizard(false);
     }
+  };
+
+  const cancelarWizard = () => {
+    setMostrarWizard(false);
+    setNuevoCurso({
+      nombre: "",
+      anio_lectivo: "",
+      soyTutor: true,
+      id_estructura_academica: "",
+    });
+    setErrorWizard(null);
+  };
+
+  const volverAlLogin = () => {
+    const appMode = localStorage.getItem("app_mode") || "institucional";
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
+    // Volver al login con el modo que estaba usando
+    navigate(`/?mode=${appMode}`);
   };
 
   return (
@@ -232,122 +489,425 @@ function Docente() {
       <div className="docente-container">
         <h2 className="docente-title">Mis Cursos</h2>
 
-        {/* MENSAJE DE CARGA/ERROR */}
-        {cargando && <p>Cargando cursos...</p>}
-        {error && <p style={{ color: "red" }}>Error: {error}</p>}
+        <div className="cards-grid dashboard-summary-grid docente-summary-grid">
+          <div className="stat-card accent">
+            <p className="stat-label">Cursos visibles</p>
+            <h3 className="stat-value">{resumenCursos.totalCursos}</h3>
+            <p className="stat-sub">Cargados según tu modo de trabajo</p>
+          </div>
+          <div className="stat-card">
+            <p className="stat-label">Asignaciones activas</p>
+            <h3 className="stat-value">{resumenOperacion.asignaciones}</h3>
+            <p className="stat-sub">Materias que ya puedes gestionar</p>
+          </div>
+        <div className="stat-card">
+          <p className="stat-label">Cursos con año lectivo</p>
+          <h3 className="stat-value">{resumenCursos.cursosConAnio}</h3>
+          <p className="stat-sub">Util para periodos y promedios</p>
+        </div>
+        <div className="stat-card">
+          <p className="stat-label">Cursos como tutor</p>
+          <h3 className="stat-value">{resumenCursos.cursosTutor}</h3>
+          <p className="stat-sub">Marcados para seguimiento tutorial</p>
+        </div>
+      </div>
 
-        {/* GRID DE CURSOS */}
+        {(resumenOperacion.cursosSinMaterias > 0 ||
+          resumenOperacion.cursosSinTutor > 0 ||
+          resumenOperacion.aniosSinPeriodizacion > 0) && (
+          <div className="admin-alerts table-container" style={{ marginBottom: 16 }}>
+            <h3>Pendientes del contexto</h3>
+            <ul className="admin-alert-list">
+              {resumenOperacion.aniosSinPeriodizacion > 0 && (
+                <li>
+                  <strong>{resumenOperacion.aniosSinPeriodizacion}</strong> año(s) lectivos sin periodización configurada. {" "}
+                  <button
+                    type="button"
+                    className="admin-link-btn"
+                    onClick={() => navigate("/docente/periodizacion")}
+                  >
+                    Configurar periodización
+                  </button>
+                </li>
+              )}
+              {resumenOperacion.cursosSinMaterias > 0 && (
+                <li>
+                  <strong>{resumenOperacion.cursosSinMaterias}</strong> curso(s) sin materias asignadas. Abre el curso y completa su configuración.
+                </li>
+              )}
+              {appMode === "personal" && resumenOperacion.cursosSinTutor > 0 && (
+                <li>
+                  <strong>{resumenOperacion.cursosSinTutor}</strong> curso(s) sin marcar como tutor. Úsalo solo si realmente haces seguimiento tutorial de ese curso.
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+
+        <div className="personal-setup-card docente-quick-card">
+          <div className="panel-header panel-header-compact">
+            <div>
+              <h3>Acciones clave</h3>
+              <p className="panel-sub">
+                Mantén el contexto listo y entra a tus cursos para continuar con la gestión académica.
+              </p>
+            </div>
+          </div>
+          <div className="dashboard-grid dashboard-grid-2 docente-quick-actions">
+            {appMode === "personal" && (
+              <button
+                className="personal-action"
+                onClick={() => setMostrarWizard((prev) => !prev)}
+              >
+                {mostrarWizard ? "Ocultar asistente de curso" : "Crear nuevo curso"}
+              </button>
+            )}
+            {appMode === "personal" && (
+              <button
+                className="personal-action"
+                onClick={() => navigate("/docente/estructura-academica")}
+              >
+                Configurar estructura
+              </button>
+            )}
+            {appMode === "personal" && (
+              <button
+                className="personal-action"
+                onClick={() => navigate("/docente/periodizacion")}
+              >
+                Configurar periodizacion
+              </button>
+            )}
+            <button
+              className="btn-ingresar"
+              onClick={cargarCursos}
+              type="button"
+            >
+              Recargar cursos
+            </button>
+          </div>
+        </div>
+
+        {cargando && <p>Cargando cursos...</p>}
+        {error && (
+          <div className="empty-state error-state">
+            <h3>No se pudieron cargar los cursos</h3>
+            <p>{error}</p>
+          </div>
+        )}
+
+        {/* Modal de Sesión Expirada */}
+        {sesionExpirada && (
+          <div
+            className="modal-backdrop"
+            style={{
+              zIndex: 1000,
+              background: "rgba(0, 0, 0, 0.5)",
+            }}
+          >
+            <div
+              style={{
+                background: "rgba(255, 255, 255, 0.95)",
+                borderRadius: "12px",
+                padding: "2rem",
+                width: "90%",
+                maxWidth: "300px",
+                textAlign: "center",
+                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
+              }}
+            >
+              <h3
+                style={{
+                  color: "#c73a51",
+                  marginBottom: "0.75rem",
+                  fontSize: "1.3rem",
+                }}
+              >
+                ⚠️ Sesión Expirada
+              </h3>
+              <p
+                style={{
+                  marginBottom: "1.5rem",
+                  color: "#666",
+                  fontSize: "0.9rem",
+                  lineHeight: "1.4",
+                }}
+              >
+                Tu sesión se cerró por inactividad.
+              </p>
+              <button
+                onClick={volverAlLogin}
+                style={{
+                  width: "100%",
+                  background: "#1f91de",
+                  color: "white",
+                  padding: "0.65rem",
+                  border: "none",
+                  borderRadius: "6px",
+                  fontSize: "0.9rem",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseOver={(e) => {
+                  e.target.style.background = "#0d3d6b";
+                }}
+                onMouseOut={(e) => {
+                  e.target.style.background = "#1f91de";
+                }}
+              >
+                ← Volver al Login
+              </button>
+            </div>
+          </div>
+        )}
+
         {!cargando && !error && (
           <>
-            {appMode === "personal" && (
-              <div className="personal-setup-card">
-                <h3 className="personal-setup-title">
-                  Configuración rápida (modo personal)
-                </h3>
+            {appMode === "personal" && mostrarWizard && (
+              <div className="wizard-container">
+                  <div className="personal-card wizard-card">
+                    <div className="wizard-header">
+                      <h3>Crear curso desde estructura</h3>
+                      <div className="wizard-progress">
+                        <div className="step activo">1. Curso</div>
+                        <div className="step activo">2. Estructura</div>
+                        <div className="step activo">3. Crear</div>
+                      </div>
+                    </div>
 
-                <div className="personal-grid personal-grid-3">
-                  <input
-                    className="personal-input"
-                    type="text"
-                    placeholder="Nombre del curso"
-                    value={nuevoCurso.nombre}
-                    onChange={(e) =>
-                      setNuevoCurso((p) => ({ ...p, nombre: e.target.value }))
-                    }
-                  />
-                  <input
-                    className="personal-input"
-                    type="text"
-                    placeholder="Año lectivo (ej. 2026-2027)"
-                    value={nuevoCurso.anio_lectivo}
-                    onChange={(e) =>
-                      setNuevoCurso((p) => ({
-                        ...p,
-                        anio_lectivo: e.target.value,
-                      }))
-                    }
-                  />
-                  <button
-                    className="personal-action"
-                    onClick={crearCursoPersonal}
-                    disabled={guardandoGestion}
-                  >
-                    Crear curso
-                  </button>
-                </div>
+                    {errorWizard && (
+                      <div
+                        style={{
+                          background: "#ffebee",
+                          color: "#c62828",
+                          padding: "0.8rem",
+                          borderRadius: "8px",
+                          marginBottom: "1rem",
+                          fontSize: "0.9rem",
+                        }}
+                      >
+                        ⚠️ {errorWizard}
+                      </div>
+                    )}
 
-                <div className="personal-grid personal-grid-2">
-                  <input
-                    className="personal-input"
-                    type="text"
-                    placeholder="Nombre de materia"
-                    value={nuevaMateria.nombre}
-                    onChange={(e) =>
-                      setNuevaMateria({ nombre: e.target.value })
-                    }
-                  />
-                  <button
-                    className="personal-action"
-                    onClick={crearMateriaPersonal}
-                    disabled={guardandoGestion}
-                  >
-                    Crear materia
-                  </button>
-                </div>
+                      <div className="wizard-step">
+                        <h4>Información del Curso</h4>
+                    <input
+                          className="personal-input"
+                          type="text"
+                          placeholder="Nombre del curso (ej: 4to A)"
+                          value={nuevoCurso.nombre}
+                          onChange={(e) =>
+                            setNuevoCurso((p) => ({
+                              ...p,
+                              nombre: e.target.value,
+                            }))
+                          }
+                          style={{ marginBottom: "0.8rem" }}
+                        />
+                        <input
+                          className="personal-input"
+                          type="text"
+                          placeholder="Año lectivo (ej: 2026-2027)"
+                          value={nuevoCurso.anio_lectivo}
+                          onChange={(e) =>
+                            setNuevoCurso((p) => ({
+                              ...p,
+                              anio_lectivo: formatarAnioLectivo(e.target.value),
+                            }))
+                          }
+                          style={{ marginBottom: "0.5rem" }}
+                        />
+                        <p
+                          style={{
+                            fontSize: "0.85rem",
+                            color: "#6b7a99",
+                            marginBottom: "1rem",
+                          }}
+                        >
+                          💡 Formato: YYYY-YYYY (ej: 2026-2027)
+                        </p>
+                        {appMode === "personal" && (
+                          <label
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.6rem",
+                              marginBottom: "1rem",
+                              color: "#223553",
+                              fontSize: "0.92rem",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={!!nuevoCurso.soyTutor}
+                              onChange={(e) =>
+                                setNuevoCurso((p) => ({
+                                  ...p,
+                                  soyTutor: e.target.checked,
+                                }))
+                              }
+                            />
+                            Este es uno de mis cursos como tutor
+                          </label>
+                        )}
+                      </div>
 
-                <div className="personal-grid personal-grid-3">
-                  <select
-                    className="personal-input"
-                    value={nuevaAsignacion.id_curso}
-                    onChange={(e) =>
-                      setNuevaAsignacion((p) => ({
-                        ...p,
-                        id_curso: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">Seleccione curso</option>
-                    {cursos.map((c) => (
-                      <option key={c.id_curso} value={c.id_curso}>
-                        {c.nombre} ({c.anio_lectivo})
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="personal-input"
-                    value={nuevaAsignacion.id_materia}
-                    onChange={(e) =>
-                      setNuevaAsignacion((p) => ({
-                        ...p,
-                        id_materia: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">Seleccione materia</option>
-                    {materiasDisponibles.map((m) => (
-                      <option key={m.id_materia} value={m.id_materia}>
-                        {m.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    className="personal-action"
-                    onClick={crearAsignacionPersonal}
-                    disabled={guardandoGestion}
-                  >
-                    Asignar
-                  </button>
-                </div>
+                    <div className="wizard-step">
+                      <h4>Estructura académica</h4>
+                      <select
+                        className="personal-input"
+                        value={nuevoCurso.id_estructura_academica}
+                        onChange={(e) =>
+                          setNuevoCurso((p) => ({
+                            ...p,
+                            id_estructura_academica: e.target.value,
+                          }))
+                        }
+                        style={{ marginBottom: "0.8rem" }}
+                      >
+                        <option value="">Seleccione estructura académica</option>
+                        {estructuras.map((estructura) => (
+                          <option
+                            key={estructura.id_estructura_academica}
+                            value={estructura.id_estructura_academica}
+                          >
+                            {estructura.nombre}
+                          </option>
+                        ))}
+                      </select>
+                      <p
+                        style={{
+                          fontSize: "0.9rem",
+                          color: "#4b5f84",
+                          marginBottom: "1rem",
+                        }}
+                      >
+                        Primero configura la estructura académica y la periodización del contexto. Después crea el curso y continúa su gestión igual que en el modo institucional.
+                      </p>
+                      {estructuras.length === 0 && (
+                        <div className="empty-state" style={{ marginTop: 8 }}>
+                          <h3>Falta estructura académica</h3>
+                          <p>
+                            Antes de crear cursos, configura al menos una estructura académica en tu contexto personal.
+                          </p>
+                          <button
+                            className="personal-action"
+                            onClick={() => navigate("/docente/estructura-academica")}
+                          >
+                            Ir a estructura académica
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div
+                      className="wizard-actions"
+                      style={{
+                        display: "flex",
+                        gap: "0.6rem",
+                        marginTop: "1.5rem",
+                        justifyContent: "flex-end",
+                      }}
+                    >
+                      <button
+                        onClick={cancelarWizard}
+                        disabled={guardandoWizard}
+                        style={{
+                          padding: "0.56rem 0.86rem",
+                          border: "1px solid #dce5f4",
+                          borderRadius: "10px",
+                          background: "#fff",
+                          color: "#223553",
+                          cursor: "pointer",
+                          fontWeight: "600",
+                          fontSize: "0.84rem",
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        className="personal-action"
+                        onClick={crearCursoPersonal}
+                        disabled={guardandoWizard || estructuras.length === 0}
+                      >
+                        {guardandoWizard ? "Guardando..." : "Crear curso"}
+                      </button>
+                    </div>
+                  </div>
               </div>
             )}
 
             <div className="grid-cursos">
               {cursos.length === 0 ? (
-                <p>No tienes cursos asignados</p>
+                <div className="empty-state">
+                  <h3>No tienes cursos asignados</h3>
+                  <p>
+                    {appMode === "personal"
+                      ? "Configura estructura y periodización, luego crea cursos y entra a gestionarlos."
+                      : "Cuando el administrativo te asigne cursos o materias, aparecerán aquí."}
+                  </p>
+                </div>
               ) : (
                 cursos.map((curso) => (
-                  <div className="curso-card" key={curso.id_curso}>
+                  <div
+                    className="curso-card"
+                    key={curso.id_curso}
+                    style={{ position: "relative" }}
+                  >
+                    <div style={{ position: "absolute", top: 12, right: 12 }}>
+                      <button
+                        className="menu-button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuId(
+                            openMenuId === curso.id_curso
+                              ? null
+                              : curso.id_curso,
+                          );
+                        }}
+                        aria-label="Opciones"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                          fontSize: "18px",
+                        }}
+                      >
+                        ⋯
+                      </button>
+
+                      {openMenuId === curso.id_curso && (
+                        <div
+                          className="menu-dropdown"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            className="menu-item menu-item-edit"
+                            onClick={() => abrirEditarCurso(curso)}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            className="menu-item menu-item-delete"
+                            onClick={() => confirmarEliminarCurso(curso)}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
                     <p className="curso-nombre">{curso.nombre}</p>
+                    {curso.id_tutor === datosUsuario?.id_usuario && (
+                      <p
+                        className="curso-info"
+                        style={{ color: "#1f91de", fontWeight: 700 }}
+                      >
+                        Tutor del curso
+                      </p>
+                    )}
                     <p className="curso-info">Año: {curso.anio_lectivo}</p>
                     <button
                       className="btn-ingresar"
@@ -359,6 +919,287 @@ function Docente() {
                 ))
               )}
             </div>
+
+            {/* Modal edición curso */}
+            {mostrarEditarModal && editarCursoData && (
+              <div
+                className="modal-backdrop"
+                style={{
+                  zIndex: 1000,
+                  background: "rgba(0, 0, 0, 0.5)",
+                }}
+                onClick={() => setMostrarEditarModal(false)}
+              >
+                <div
+                  style={{
+                    background: "rgba(255, 255, 255, 0.95)",
+                    borderRadius: "12px",
+                    padding: "2rem",
+                    width: "90%",
+                    maxWidth: "320px",
+                    textAlign: "center",
+                    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h3
+                    style={{
+                      color: "#223553",
+                      marginBottom: "1rem",
+                      fontSize: "1.2rem",
+                    }}
+                  >
+                    Editar Curso
+                  </h3>
+                  <input
+                    style={{
+                      width: "100%",
+                      marginBottom: "0.75rem",
+                      padding: "0.7rem 0.8rem",
+                      borderRadius: "8px",
+                      border: "1px solid #d7e2f2",
+                      fontSize: "0.95rem",
+                      boxSizing: "border-box",
+                    }}
+                    type="text"
+                    placeholder="Nombre del curso"
+                    value={editarCursoData.nombre}
+                    onChange={(e) =>
+                      setEditarCursoData((p) => ({
+                        ...p,
+                        nombre: e.target.value,
+                      }))
+                    }
+                  />
+                  <input
+                    style={{
+                      width: "100%",
+                      marginBottom: "1.25rem",
+                      padding: "0.7rem 0.8rem",
+                      borderRadius: "8px",
+                      border: "1px solid #d7e2f2",
+                      fontSize: "0.95rem",
+                      boxSizing: "border-box",
+                    }}
+                    type="text"
+                    placeholder="Año lectivo (ej. 2025-2026)"
+                    value={editarCursoData.anio_lectivo}
+                    onChange={(e) =>
+                      setEditarCursoData((p) => ({
+                        ...p,
+                        anio_lectivo: e.target.value,
+                      }))
+                    }
+                    />
+                    {appMode === "personal" && (
+                      <>
+                        <select
+                          style={{
+                            width: "100%",
+                            marginBottom: "0.75rem",
+                            padding: "0.7rem 0.8rem",
+                            borderRadius: "8px",
+                            border: "1px solid #d7e2f2",
+                            fontSize: "0.95rem",
+                            boxSizing: "border-box",
+                          }}
+                          value={editarCursoData.id_estructura_academica || ""}
+                          onChange={(e) =>
+                            setEditarCursoData((p) => ({
+                              ...p,
+                              id_estructura_academica: e.target.value,
+                            }))
+                          }
+                          disabled={!!bloqueoEstructuraEdicion}
+                        >
+                          <option value="">Seleccione estructura académica</option>
+                          {estructuras.map((estructura) => (
+                            <option
+                              key={estructura.id_estructura_academica}
+                              value={estructura.id_estructura_academica}
+                            >
+                              {estructura.nombre}
+                            </option>
+                          ))}
+                        </select>
+                        {bloqueoEstructuraEdicion && (
+                          <p
+                            style={{
+                              marginBottom: "0.75rem",
+                              color: "#9a5a00",
+                              background: "#fff4db",
+                              borderRadius: "8px",
+                              padding: "0.7rem 0.8rem",
+                              fontSize: "0.88rem",
+                              textAlign: "left",
+                            }}
+                          >
+                            {bloqueoEstructuraEdicion}
+                          </p>
+                        )}
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.6rem",
+                            marginBottom: "1.25rem",
+                            color: "#223553",
+                            fontSize: "0.92rem",
+                            textAlign: "left",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={!!editarCursoData.soyTutor}
+                            onChange={(e) =>
+                              setEditarCursoData((p) => ({
+                                ...p,
+                                soyTutor: e.target.checked,
+                              }))
+                            }
+                          />
+                          Este es uno de mis cursos como tutor
+                        </label>
+                      </>
+                    )}
+
+                    <div
+                      style={{
+                      display: "flex",
+                      gap: "0.75rem",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <button
+                      style={{
+                        padding: "0.75rem 1.2rem",
+                        border: "none",
+
+                        borderRadius: "8px",
+                        background: "#eef3fb",
+                        color: "#223553",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                        minWidth: "110px",
+                      }}
+                      onClick={() => {
+                        setMostrarEditarModal(false);
+                        setBloqueoEstructuraEdicion("");
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      style={{
+                        padding: "0.75rem 1.2rem",
+                        border: "none",
+                        borderRadius: "8px",
+                        background: "#4c6fdc",
+                        color: "white",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                        minWidth: "110px",
+                      }}
+                      onClick={guardarEdicionCurso}
+                      disabled={guardandoCurso}
+                    >
+                      {guardandoCurso ? "Guardando..." : "Guardar"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modal eliminar curso */}
+            {mostrarEliminarModal && cursoAEliminar && (
+              <div
+                className="modal-backdrop"
+                style={{
+                  zIndex: 1000,
+                  background: "rgba(0, 0, 0, 0.5)",
+                }}
+                onClick={() => {
+                  setMostrarEliminarModal(false);
+                  setCursoAEliminar(null);
+                }}
+              >
+                <div
+                  style={{
+                    background: "rgba(255, 255, 255, 0.95)",
+                    borderRadius: "12px",
+                    padding: "2rem",
+                    width: "90%",
+                    maxWidth: "320px",
+                    textAlign: "center",
+                    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h3
+                    style={{
+                      color: "#c73a51",
+                      marginBottom: "1rem",
+                      fontSize: "1.2rem",
+                    }}
+                  >
+                    Eliminar Curso
+                  </h3>
+                  <p
+                    style={{
+                      marginBottom: "1.25rem",
+                      color: "#666",
+                      fontSize: "0.95rem",
+                      lineHeight: "1.4",
+                    }}
+                  >
+                    ¿Estás seguro de eliminar el curso {cursoAEliminar.nombre}?
+                    Esta acción es irreversible.
+                  </p>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "0.75rem",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <button
+                      style={{
+                        padding: "0.75rem 1.2rem",
+                        border: "none",
+                        borderRadius: "8px",
+                        background: "#eef3fb",
+                        color: "#223553",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                        minWidth: "110px",
+                      }}
+                      onClick={() => {
+                        setMostrarEliminarModal(false);
+                        setCursoAEliminar(null);
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      style={{
+                        padding: "0.75rem 1.2rem",
+                        border: "none",
+                        borderRadius: "8px",
+                        background: "#c73a51",
+                        color: "white",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                        minWidth: "110px",
+                      }}
+                      onClick={ejecutarEliminarCurso}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

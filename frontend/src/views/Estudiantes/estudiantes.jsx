@@ -22,18 +22,16 @@ function Estudiantes() {
     ];
 
     const estudiantesBD = {
-      "1": [
+      1: [
         { id: 1, nombre: "Ana Torres", numeroR: "09999999999", nota: 8.7 },
         { id: 2, nombre: "Luis Pérez", numeroR: "09999999999", nota: 7.9 },
       ],
-      "2": [
+      2: [
         { id: 3, nombre: "María Gómez", numeroR: "09999999999", nota: 9.1 },
         { id: 4, nombre: "Carlos Vera", numeroR: "09999999999", nota: 8.3 },
         { id: 5, nombre: "Daniela Ruiz", numeroR: "09999999999", nota: 8.8 },
       ],
-      "3": [
-        { id: 6, nombre: "José Molina", numeroR: "09999999999", nota: 7.4 },
-      ],
+      3: [{ id: 6, nombre: "José Molina", numeroR: "09999999999", nota: 7.4 }],
     };
 
     setCurso(cursosBD.find((c) => c.id === id));
@@ -42,7 +40,11 @@ function Estudiantes() {
 
   // ------- CERRAR SESIÓN --------
   const cerrarSesion = () => {
-    navigate("/");
+    const appMode = localStorage.getItem("app_mode") || "institucional";
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
+    localStorage.removeItem("app_mode");
+    navigate(`/?mode=${appMode}`);
   };
 
   return (
@@ -69,9 +71,7 @@ function Estudiantes() {
         ← Volver
       </button>
 
-      <h1 className="page-title">
-        Estudiantes inscritos – {curso?.nombre}
-      </h1>
+      <h1 className="page-title">Estudiantes inscritos – {curso?.nombre}</h1>
 
       {/* BOTÓN GENERAL PARA NOTAS */}
       <div className="acciones-curso">
@@ -79,9 +79,7 @@ function Estudiantes() {
           className="btn-notas"
           onClick={() => navigate(`/curso/${id}/notas`)}
         >
-          {rolUsuario === "Docente"
-            ? "Gestionar Notas"
-            : "Ver Notas"}
+          {rolUsuario === "Docente" ? "Gestionar Notas" : "Ver Notas"}
         </button>
       </div>
 

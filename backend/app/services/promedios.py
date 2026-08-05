@@ -1,13 +1,4 @@
-"""
-Servicio de cálculo de promedios para estudiantes.
-
-Estructura de ponderación por trimestre:
-- Actividades: 10%
-- Proyecto Trimestral: 20%
-- Examen Trimestral: 70%
-
-Promedio Final = (Promedio T1 + Promedio T2 + Promedio T3) / 3
-"""
+"""Servicio de calculo de promedios por periodo academico."""
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +8,8 @@ from decimal import Decimal
 from app.models.notas import Nota
 from app.models.insumos import Insumo
 from app.models.enums import TipoInsumoEnum
-from app.models.trimestres import Trimestre
+from app.models.configuracion_periodizacion import ConfiguracionPeriodizacion
+from app.models.periodos_academicos import PeriodoAcademico
 from app.models.estudiantes import Estudiante
 from app.models.cursos_materias_docentes import CursoMateriaDocente
 from app.models.cursos import Curso
@@ -29,28 +21,49 @@ PONDERACION_PROYECTO = Decimal("0.20")  # 20%
 PONDERACION_EXAMEN = Decimal("0.70")  # 70%
 
 
-async def calcular_promedio_trimestral(
+async def _obtener_configuracion_periodizacion(
+    db: AsyncSession,
+    id_contexto: int,
+    anio_lectivo: str,
+):
+    result = await db.execute(
+        select(ConfiguracionPeriodizacion)
+        .where(
+            ConfiguracionPeriodizacion.id_contexto == id_contexto,
+            ConfiguracionPeriodizacion.anio_lectivo == anio_lectivo,
+        )
+    )
+    config = result.scalar_one_or_none()
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No hay configuracion de periodizacion para el contexto y ano lectivo indicados",
+        )
+    return config
+
+
+async def calcular_promedio_periodo(
     db: AsyncSession,
     id_contexto: int,
     id_estudiante: int,
     id_curso: int,
-    numero_trimestre: int,
+    numero_periodo: int,
     anio_lectivo: str
 ) -> dict:
     """
-    Calcula el promedio de un estudiante en un trimestre específico para un curso.
+    Calcula el promedio de un estudiante en un periodo especifico para un curso.
     
     Estructura:
     - Promedio actividades = promedio de todas las notas de actividades
-    - Promedio proyecto = nota del proyecto trimestral (hay solo uno)
-    - Promedio examen = nota del examen trimestral (hay solo uno)
-    - Promedio trimestral = (actividades * 0.10) + (proyecto * 0.20) + (examen * 0.70)
+    - Promedio proyecto = nota del proyecto del periodo (hay solo uno)
+    - Promedio examen = nota del examen del periodo (hay solo uno)
+    - Promedio del periodo = (actividades * 0.10) + (proyecto * 0.20) + (examen * 0.70)
     
     Args:
         db: Sesión de base de datos
         id_estudiante: ID del estudiante
         id_curso: ID del curso
-        numero_trimestre: Número del trimestre (1, 2 o 3)
+        numero_periodo: Numero del periodo academico
         anio_lectivo: Año lectivo (ej: "2025-2026")
     
     Returns:
@@ -66,41 +79,37 @@ async def calcular_promedio_trimestral(
             detail="Estudiante no encontrado"
         )
 
-    # Validar que el curso exista en el contexto actual
-    curso = await db.execute(
+    curso_result = await db.execute(
         select(Curso).where(Curso.id_curso == id_curso, Curso.id_contexto == id_contexto)
     )
-    if not curso.scalar_one_or_none():
+    curso_obj = curso_result.scalar_one_or_none()
+    if not curso_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Curso no encontrado en el contexto actual"
         )
 
-    # Obtener el trimestre
-    trimestre = await db.execute(
-        select(Trimestre)
-        .join(Curso, Curso.id_curso == Trimestre.id_curso)
-        .where(
-            Trimestre.id_curso == id_curso,
-            Trimestre.numero_trimestre == numero_trimestre,
-            Trimestre.anio_lectivo == anio_lectivo,
-            Curso.id_contexto == id_contexto,
-        )
+    config = await _obtener_configuracion_periodizacion(db, id_contexto, anio_lectivo)
+
+    periodo_result = await db.execute(
+        select(PeriodoAcademico)
+        .where(PeriodoAcademico.id_config_periodizacion == config.id_config_periodizacion)
+        .where(PeriodoAcademico.numero_periodo == numero_periodo)
     )
-    trimestre_obj = trimestre.scalar_one_or_none()
-    if not trimestre_obj:
+    periodo_obj = periodo_result.scalar_one_or_none()
+    if not periodo_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Trimestre {numero_trimestre} no encontrado para el curso"
+            detail=f"Periodo {numero_periodo} no encontrado para el curso",
         )
 
-    # Obtener todos los insumos del trimestre para el curso
+    # Obtener todos los insumos del periodo para el curso
     insumos = await db.execute(
         select(Insumo)
         .join(CursoMateriaDocente, CursoMateriaDocente.id_cmd == Insumo.id_cmd)
         .join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
         .where(
-            Insumo.id_trimestre == trimestre_obj.id_trimestre,
+            Insumo.id_periodo == periodo_obj.id_periodo,
             CursoMateriaDocente.id_curso == id_curso,
             Curso.id_contexto == id_contexto,
         )
@@ -109,19 +118,20 @@ async def calcular_promedio_trimestral(
 
     # Separar insumos por tipo
     insumos_actividades = [i for i in insumos_list if i.tipo_insumo == TipoInsumoEnum.actividad]
-    insumos_proyecto = [i for i in insumos_list if i.tipo_insumo == TipoInsumoEnum.proyecto_trimestral]
-    insumos_examen = [i for i in insumos_list if i.tipo_insumo == TipoInsumoEnum.examen_trimestral]
+    insumos_proyecto = [i for i in insumos_list if i.tipo_insumo == TipoInsumoEnum.proyecto_periodo]
+    insumos_examen = [i for i in insumos_list if i.tipo_insumo == TipoInsumoEnum.examen_periodo]
 
     # Inicializar resultados
     result = {
         "id_estudiante": id_estudiante,
         "id_curso": id_curso,
-        "numero_trimestre": numero_trimestre,
+        "numero_periodo": numero_periodo,
+        "nombre_periodo": periodo_obj.nombre_periodo or f"Periodo {numero_periodo}",
         "anio_lectivo": anio_lectivo,
         "promedio_actividades": None,
         "promedio_proyecto": None,
         "promedio_examen": None,
-        "promedio_trimestral": None,
+        "promedio_periodo": None,
         "detalles": {
             "notas_actividades": [],
             "nota_proyecto": None,
@@ -152,7 +162,7 @@ async def calcular_promedio_trimestral(
                 for n in notas_actividades_list
             ]
 
-    # Obtener nota del proyecto trimestral
+    # Obtener nota del proyecto del periodo
     if insumos_proyecto:
         nota_proyecto = await db.execute(
             select(Nota).where(
@@ -169,7 +179,7 @@ async def calcular_promedio_trimestral(
                 "calificacion": float(nota_proyecto_obj.calificacion)
             }
 
-    # Obtener nota del examen trimestral
+    # Obtener nota del examen del periodo
     if insumos_examen:
         nota_examen = await db.execute(
             select(Nota).where(
@@ -186,7 +196,7 @@ async def calcular_promedio_trimestral(
                 "calificacion": float(nota_examen_obj.calificacion)
             }
 
-    # Calcular promedio trimestral si hay al menos un componente
+    # Calcular promedio del periodo si hay al menos un componente
     componentes = [
         result["promedio_actividades"],
         result["promedio_proyecto"],
@@ -205,7 +215,8 @@ async def calcular_promedio_trimestral(
         if result["promedio_examen"] is not None:
             promedio += Decimal(str(result["promedio_examen"])) * PONDERACION_EXAMEN
         
-        result["promedio_trimestral"] = float(round(promedio, 2))
+        promedio_redondeado = float(round(promedio, 2))
+        result["promedio_periodo"] = promedio_redondeado
 
     return result
 
@@ -218,9 +229,7 @@ async def calcular_promedio_final(
     anio_lectivo: str
 ) -> dict:
     """
-    Calcula el promedio final de un estudiante en un curso.
-    
-    Promedio Final = (Promedio T1 + Promedio T2 + Promedio T3) / 3
+    Calcula el promedio acumulado de un estudiante en un curso.
     
     Args:
         db: Sesión de base de datos
@@ -241,38 +250,55 @@ async def calcular_promedio_final(
             detail="Estudiante no encontrado"
         )
 
-    # Calcular promedios por trimestre
-    promedios_trimestrales = []
-    promedio_final = None
-    suma_promedios = Decimal("0")
-    trimestres_con_datos = 0
+    config = await _obtener_configuracion_periodizacion(db, id_contexto, anio_lectivo)
+    periodos_result = await db.execute(
+        select(PeriodoAcademico)
+        .where(
+            PeriodoAcademico.id_config_periodizacion == config.id_config_periodizacion,
+        )
+        .order_by(PeriodoAcademico.numero_periodo.asc())
+    )
+    periodos = periodos_result.scalars().all()
+    if not periodos:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No hay periodos configurados para el contexto y ano lectivo indicados"
+        )
 
-    for num_trimestre in [1, 2, 3]:
-        promedio_trimestral = await calcular_promedio_trimestral(
+    # Calcular promedios por periodo
+    promedios_por_periodo = []
+    promedio_acumulado = None
+    suma_promedios = Decimal("0")
+    periodos_con_datos = 0
+
+    for periodo in periodos:
+        promedio_periodo = await calcular_promedio_periodo(
             db,
             id_contexto,
             id_estudiante,
             id_curso,
-            num_trimestre,
+            periodo.numero_periodo,
             anio_lectivo
         )
-        promedios_trimestrales.append(promedio_trimestral)
+        promedios_por_periodo.append(promedio_periodo)
         
-        if promedio_trimestral["promedio_trimestral"] is not None:
-            suma_promedios += Decimal(str(promedio_trimestral["promedio_trimestral"]))
-            trimestres_con_datos += 1
+        if promedio_periodo["promedio_periodo"] is not None:
+            suma_promedios += Decimal(str(promedio_periodo["promedio_periodo"]))
+            periodos_con_datos += 1
 
-    # Calcular promedio final si hay al menos un trimestre con datos
-    if trimestres_con_datos > 0:
-        promedio_final = float(round(suma_promedios / trimestres_con_datos, 2))
+    if periodos_con_datos > 0:
+        promedio_acumulado = float(round(suma_promedios / periodos_con_datos, 2))
 
     return {
         "id_estudiante": id_estudiante,
         "id_curso": id_curso,
         "anio_lectivo": anio_lectivo,
-        "promedio_final": promedio_final,
-        "promedios_trimestrales": promedios_trimestrales,
-        "trimestres_con_datos": trimestres_con_datos
+        "promedio_acumulado": promedio_acumulado,
+        "promedios_por_periodo": promedios_por_periodo,
+        "periodos_con_datos": periodos_con_datos,
+        "cantidad_periodos": len(periodos),
+        "cantidad_periodos_configurada": len(periodos),
+        "tipo_periodizacion": config.tipo_periodizacion,
     }
 
 
@@ -280,7 +306,7 @@ async def obtener_promedios_curso(
     db: AsyncSession,
     id_contexto: int,
     id_curso: int,
-    numero_trimestre: int | None = None,
+    numero_periodo: int | None = None,
     anio_lectivo: str | None = None
 ) -> list:
     """
@@ -289,8 +315,8 @@ async def obtener_promedios_curso(
     Args:
         db: Sesión de base de datos
         id_curso: ID del curso
-        numero_trimestre: Número de trimestre (opcional, para filtrar por trimestre)
-        anio_lectivo: Año lectivo (requerido si se especifica numero_trimestre)
+        numero_periodo: Numero de periodo academico (opcional)
+        anio_lectivo: Ano lectivo (requerido si se especifica numero_periodo)
     
     Returns:
         Lista con promedios de todos los estudiantes
@@ -313,33 +339,31 @@ async def obtener_promedios_curso(
 
     promedios = []
 
-    if numero_trimestre is not None and anio_lectivo is not None:
-        # Promedios por trimestre
+    if numero_periodo is not None and anio_lectivo is not None:
         for estudiante in estudiantes_list:
-            promedio = await calcular_promedio_trimestral(
+            promedio = await calcular_promedio_periodo(
                 db,
                 id_contexto,
                 estudiante.id_estudiante,
                 id_curso,
-                numero_trimestre,
+                numero_periodo,
                 anio_lectivo
             )
             promedios.append(promedio)
     else:
-        # Promedios finales (si no se especifica trimestre)
-        # Intentar obtener el año lectivo actual
+        # Promedios acumulados (si no se especifica periodo)
+        # Intentar obtener el ano lectivo actual
         if not anio_lectivo:
             # Buscar el año lectivo más reciente
-            trimestre = await db.execute(
-                select(Trimestre)
-                .join(Curso, Curso.id_curso == Trimestre.id_curso)
-                .where(Trimestre.id_curso == id_curso, Curso.id_contexto == id_contexto)
-                .order_by(Trimestre.anio_lectivo.desc())
+            configuracion = await db.execute(
+                select(ConfiguracionPeriodizacion)
+                .where(ConfiguracionPeriodizacion.id_contexto == id_contexto)
+                .order_by(ConfiguracionPeriodizacion.anio_lectivo.desc())
                 .limit(1)
             )
-            trimestre_obj = trimestre.scalar_one_or_none()
-            if trimestre_obj:
-                anio_lectivo = trimestre_obj.anio_lectivo
+            configuracion_obj = configuracion.scalar_one_or_none()
+            if configuracion_obj:
+                anio_lectivo = configuracion_obj.anio_lectivo
 
         if anio_lectivo:
             for estudiante in estudiantes_list:

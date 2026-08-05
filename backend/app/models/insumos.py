@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, Date, DECIMAL, ForeignKey, UniqueConstraint, Enum
 from sqlalchemy.orm import relationship
 from app.core.database import Base
-from app.models.enums import TipoInsumoEnum, TrimestreEnum
+from app.models.enums import TipoInsumoEnum
 
 
 class Insumo(Base):
@@ -9,10 +9,7 @@ class Insumo(Base):
 
     id_insumo = Column(Integer, primary_key=True, index=True)
     id_cmd = Column(Integer, ForeignKey("cursos_materias_docentes.id_cmd", ondelete="CASCADE"), nullable=False)
-    # Campo nuevo ligado a la tabla trimestres
-    id_trimestre = Column(Integer, ForeignKey("trimestres.id_trimestre", ondelete="CASCADE"), nullable=False)
-    # Campo legado utilizado por migraciones anteriores; mantenerlo para compatibilidad
-    trimestre_legacy = Column("trimestre", Integer, nullable=True)
+    id_periodo = Column(Integer, ForeignKey("periodos_academicos.id_periodo", ondelete="CASCADE"), nullable=False)
     nombre = Column(String(150), nullable=False)
     descripcion = Column(Text, nullable=True)
     fecha_creacion = Column(Date, nullable=False)
@@ -24,5 +21,5 @@ class Insumo(Base):
     )
 
     cmd = relationship("CursoMateriaDocente", back_populates="insumos")
-    trimestre = relationship("Trimestre", back_populates="insumos")
+    periodo = relationship("PeriodoAcademico")
     notas = relationship("Nota", back_populates="insumo")

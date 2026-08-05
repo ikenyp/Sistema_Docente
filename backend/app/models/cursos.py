@@ -10,6 +10,11 @@ class Curso(Base):
     nombre = Column(String(100), nullable=False)
     anio_lectivo = Column(String(20), nullable=False)
     id_contexto = Column(Integer, ForeignKey("contextos.id_contexto"), nullable=False)
+    id_estructura_academica = Column(
+        Integer,
+        ForeignKey("estructuras_academicas.id_estructura_academica"),
+        nullable=True,
+    )
 
     id_tutor = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
 
@@ -17,9 +22,9 @@ class Curso(Base):
 
     tutor = relationship("Usuario", foreign_keys=[id_tutor], back_populates="cursos_tutor")
     contexto = relationship("Contexto", back_populates="cursos")
+    estructura_academica = relationship("EstructuraAcademica", back_populates="cursos")
 
     estudiantes = relationship("Estudiante", back_populates="curso_actual")
     materias_docentes = relationship("CursoMateriaDocente", back_populates="curso")
     comportamientos = relationship("Comportamiento", back_populates="curso")
-    trimestres = relationship("Trimestre", back_populates="curso", cascade="all, delete-orphan")
 

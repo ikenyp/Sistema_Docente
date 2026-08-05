@@ -1,13 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import "../../styles/admin.css";
+import { useSearchParams } from "react-router-dom";
+import { Pencil, Brush, Save, X, UserPlus } from "lucide-react";
+import AdminLayout from "../../components/admin/AdminLayout";
 import { estudiantesAPI, cursosAPI } from "../../services/api";
+import { notify } from "../../components/notify";
 
 function EstudiantesAdmin() {
-  const navigate = useNavigate();
-  const [menuUsuario, setMenuUsuario] = useState(false);
-  const [datosUsuario, setDatosUsuario] = useState(null);
-
+  const [searchParams] = useSearchParams();
   const [filtros, setFiltros] = useState({
     nombre: "",
     apellido: "",
@@ -37,7 +36,7 @@ function EstudiantesAdmin() {
   const puedeRetroceder = useMemo(() => filtros.page > 1, [filtros.page]);
   const puedeAvanzar = useMemo(
     () => data.length === filtros.size,
-    [data, filtros.size]
+    [data, filtros.size],
   );
 
   const cargarCursos = async () => {
@@ -49,17 +48,17 @@ function EstudiantesAdmin() {
     }
   };
 
-  const cargar = async () => {
+  const cargarConFiltros = async (filtrosAplicados) => {
     setCargando(true);
     setError("");
     try {
       const res = await estudiantesAPI.buscar({
-        nombre: filtros.nombre || undefined,
-        apellido: filtros.apellido || undefined,
-        estado: filtros.estado || undefined,
-        id_curso: filtros.id_curso || undefined,
-        page: filtros.page,
-        size: filtros.size,
+        nombre: filtrosAplicados.nombre || undefined,
+        apellido: filtrosAplicados.apellido || undefined,
+        estado: filtrosAplicados.estado || undefined,
+        id_curso: filtrosAplicados.id_curso || undefined,
+        page: filtrosAplicados.page,
+        size: filtrosAplicados.size,
       });
       setData(res || []);
     } catch (e) {
@@ -69,7 +68,6 @@ function EstudiantesAdmin() {
     }
   };
 
-  // Formatea valores para evitar mostrar [object Object]
   const formatValue = (v) => {
     if (v === null || v === undefined) return "";
     if (
@@ -94,7 +92,6 @@ function EstudiantesAdmin() {
     }
   };
 
-  // Normalizar valores de estado (mapear legacy a los actuales)
   const normalizeEstado = (v) => {
     if (!v && v !== "") return "matriculado";
     const s = String(v).toLowerCase();
@@ -110,31 +107,43 @@ function EstudiantesAdmin() {
   }, []);
 
   useEffect(() => {
-    const usuarioJSON = localStorage.getItem("usuario");
-    const usuario = usuarioJSON ? JSON.parse(usuarioJSON) : null;
-    if (usuario) setDatosUsuario(usuario);
-  }, []);
+    const cursoQ = searchParams.get("curso");
+    if (cursoQ) {
+      setFiltros((prev) => ({ ...prev, id_curso: cursoQ, page: 1 }));
+    }
+  }, [searchParams]);
 
   useEffect(() => {
-    cargar();
+    const timeout = setTimeout(() => {
+      cargarConFiltros(filtros);
+    }, 250);
+    return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtros.page, filtros.size]);
+  }, [filtros]);
 
-  const buscar = (e) => {
-    e.preventDefault();
-    setFiltros({ ...filtros, page: 1 });
-    cargar();
+  const limpiarFiltros = () => {
+    const base = {
+      nombre: "",
+      apellido: "",
+      estado: "",
+      id_curso: "",
+      page: 1,
+      size: filtros.size,
+    };
+    setFiltros(base);
+    cargarConFiltros(base);
   };
 
   const abrirCrear = () => {
     setEditando(null);
+    const cursoPrefijado = searchParams.get("curso") || filtros.id_curso || "";
     setForm({
       nombre: "",
       apellido: "",
       cedula: "",
       fecha_nacimiento: "",
       estado: "matriculado",
-      id_curso_actual: "",
+      id_curso_actual: cursoPrefijado,
     });
     setModalOpen(true);
   };
@@ -154,13 +163,11 @@ function EstudiantesAdmin() {
 
   const guardar = async () => {
     try {
-      // Validaciones básicas antes de enviar
       if (!form.fecha_nacimiento && !editando) {
-        alert("La fecha de nacimiento es obligatoria");
+        notify("error", "La fecha de nacimiento es obligatoria");
         return;
       }
 
-      // Force 'matriculado' when creating; normalize estado when editing
       const estadoValue = editando
         ? normalizeEstado(form.estado)
         : "matriculado";
@@ -175,225 +182,186 @@ function EstudiantesAdmin() {
           ? Number(form.id_curso_actual)
           : null,
       };
-      console.debug("Estudiantes payload:", payload);
-      // Enviar con fetch incluyendo headers (token) al estilo de agregarUsuario
-      const token = localStorage.getItem("token");
-      const headers = {
-        "Content-Type": "application/json",
-      };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      let res;
       if (editando) {
-        res = await fetch(
-          `http://localhost:8000/api/estudiantes/${editando.id_estudiante}`,
-          {
-            method: "PUT",
-            headers,
-            body: JSON.stringify(payload),
-          }
-        );
+        await estudiantesAPI.actualizar(editando.id_estudiante, payload);
       } else {
-        res = await fetch("http://localhost:8000/api/estudiantes", {
-          method: "POST",
-          headers,
-          body: JSON.stringify(payload),
-        });
-      }
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => null);
-        const mensaje = errorData?.detail
-          ? typeof errorData.detail === "string"
-            ? errorData.detail
-            : JSON.stringify(errorData.detail)
-          : `Error HTTP ${res.status}`;
-        throw new Error(mensaje);
+        await estudiantesAPI.crear(payload);
       }
       setModalOpen(false);
-      cargar();
+      cargarConFiltros(filtros);
     } catch (e) {
-      alert(e.message || "Error al guardar");
+      notify("error", e.message || "Error al guardar");
     }
-  };
-
-  const eliminar = async (est) => {
-    if (!window.confirm("¿Eliminar este estudiante? Debe estar retirado."))
-      return;
-    try {
-      await estudiantesAPI.eliminar(est.id_estudiante);
-      cargar();
-    } catch (e) {
-      alert(e.message || "No se pudo eliminar");
-    }
-  };
-
-  const cerrarSesion = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("usuario");
-    navigate("/");
   };
 
   return (
-    <div className="admin-page">
-      <div className="navbar-admin">
-        <button className="btn-volver" onClick={() => navigate("/admin")}>
-          ← Volver
+    <AdminLayout
+      title="Estudiantes"
+      subtitle="Registre y gestione estudiantes. La vinculación al curso ya se hace directamente aquí."
+    >
+      <div className="docentes-header">
+        <h2 className="section-title">Estudiantes</h2>
+        <button className="btn-add-docente" onClick={abrirCrear}>
+          <UserPlus size={16} style={{ verticalAlign: "middle", marginRight: 4 }} />
+          Añadir Estudiante
         </button>
+      </div>
 
-        <h1 className="titulo-admin">📚 Sistema Docente</h1>
+      <div className="panel-sub" style={{ marginBottom: 12 }}>
+        Busca, filtra y asigna curso desde el mismo flujo sin una pantalla separada de matrícula.
+      </div>
 
-        <div
-          className="navbar-user"
-          onClick={() => setMenuUsuario(!menuUsuario)}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(5, 1fr)",
+          gap: 12,
+          marginBottom: 16,
+        }}
+      >
+        <input
+          placeholder="Nombre"
+          value={filtros.nombre}
+          onChange={(e) =>
+            setFiltros((prev) => ({
+              ...prev,
+              nombre: e.target.value,
+              page: 1,
+            }))
+          }
+        />
+        <input
+          placeholder="Apellido"
+          value={filtros.apellido}
+          onChange={(e) =>
+            setFiltros((prev) => ({
+              ...prev,
+              apellido: e.target.value,
+              page: 1,
+            }))
+          }
+        />
+        <select
+          value={filtros.estado}
+          onChange={(e) =>
+            setFiltros((prev) => ({
+              ...prev,
+              estado: e.target.value,
+              page: 1,
+            }))
+          }
         >
-          {datosUsuario
-            ? `${datosUsuario.nombre} ${datosUsuario.apellido}`
-            : "Admin"}
-        </div>
-        {menuUsuario && (
-          <div className="menu-usuario">
-            <button onClick={cerrarSesion}>Cerrar Sesión</button>
-          </div>
+          <option value="">Todos</option>
+          <option value="matriculado">Matriculado</option>
+          <option value="retirado">Retirado</option>
+          <option value="graduado">Graduado</option>
+        </select>
+        <select
+          value={filtros.id_curso}
+          onChange={(e) =>
+            setFiltros((prev) => ({
+              ...prev,
+              id_curso: e.target.value,
+              page: 1,
+            }))
+          }
+        >
+          <option value="">Curso (todos)</option>
+          {cursos.map((c) => (
+            <option key={c.id_curso} value={c.id_curso}>
+              {c.nombre}
+            </option>
+          ))}
+        </select>
+        <button
+          className="btn-secondary"
+          type="button"
+          onClick={limpiarFiltros}
+        >
+          <Brush size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+          Limpiar
+        </button>
+      </div>
+
+      <div className="table-container">
+        {cargando ? (
+          <p>Cargando...</p>
+        ) : error ? (
+          <p style={{ color: "red" }}>{error}</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Cédula</th>
+                <th>Estado</th>
+                <th>Curso Actual</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((est) => (
+                <tr key={est.id_estudiante}>
+                  <td>{formatValue(est.nombre)}</td>
+                  <td>{formatValue(est.apellido)}</td>
+                  <td>{formatValue(est.cedula)}</td>
+                  <td>{formatValue(est.estado)}</td>
+                  <td>
+                    {formatValue(
+                      cursos.find((c) => c.id_curso === est.id_curso_actual)
+                        ?.nombre || "-",
+                    )}
+                  </td>
+                  <td>
+                    <button
+                      className="btn-view"
+                      onClick={() => abrirEditar(est)}
+                    >
+                      <Pencil size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                      Editar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {data.length === 0 && (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: "center" }}>
+                    No hay estudiantes con los filtros actuales
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         )}
       </div>
 
-      <div className="admin-container">
-        <div className="docentes-header">
-          <h2 className="section-title">Estudiantes</h2>
-          <button className="btn-add-docente" onClick={abrirCrear}>
-            Añadir Estudiante
-          </button>
-        </div>
-
-        <form
-          onSubmit={buscar}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(5, 1fr)",
-            gap: 12,
-            marginBottom: 16,
-          }}
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <button
+          className="btn-view"
+          disabled={!puedeRetroceder}
+          onClick={() =>
+            setFiltros((prev) => ({ ...prev, page: prev.page - 1 }))
+          }
         >
-          <input
-            placeholder="Nombre"
-            value={filtros.nombre}
-            onChange={(e) => setFiltros({ ...filtros, nombre: e.target.value })}
-          />
-          <input
-            placeholder="Apellido"
-            value={filtros.apellido}
-            onChange={(e) =>
-              setFiltros({ ...filtros, apellido: e.target.value })
-            }
-          />
-          <select
-            value={filtros.estado}
-            onChange={(e) => setFiltros({ ...filtros, estado: e.target.value })}
-          >
-            <option value="">Todos</option>
-            <option value="matriculado">Matriculado</option>
-            <option value="retirado">Retirado</option>
-            <option value="graduado">Graduado</option>
-          </select>
-          <select
-            value={filtros.id_curso}
-            onChange={(e) =>
-              setFiltros({ ...filtros, id_curso: e.target.value })
-            }
-          >
-            <option value="">Curso (todos)</option>
-            {cursos.map((c) => (
-              <option key={c.id_curso} value={c.id_curso}>
-                {c.nombre}
-              </option>
-            ))}
-          </select>
-          <button className="btn-view" type="submit">
-            Buscar
-          </button>
-        </form>
-
-        <div className="table-container">
-          {cargando ? (
-            <p>Cargando...</p>
-          ) : error ? (
-            <p style={{ color: "red" }}>{error}</p>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Apellido</th>
-                  <th>Cédula</th>
-                  <th>Estado</th>
-                  <th>Curso Actual</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((est) => (
-                  <tr key={est.id_estudiante}>
-                    <td>{formatValue(est.nombre)}</td>
-                    <td>{formatValue(est.apellido)}</td>
-                    <td>{formatValue(est.cedula)}</td>
-                    <td>{formatValue(est.estado)}</td>
-                    <td>
-                      {formatValue(
-                        cursos.find((c) => c.id_curso === est.id_curso_actual)
-                          ?.nombre || "-"
-                      )}
-                    </td>
-                    <td>
-                      <button
-                        className="btn-view"
-                        onClick={() => abrirEditar(est)}
-                      >
-                        Editar
-                      </button>{" "}
-                      <button
-                        className="btn-danger"
-                        onClick={() => eliminar(est)}
-                      >
-                        Eliminar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {data.length === 0 && (
-                  <tr>
-                    <td colSpan="6" style={{ textAlign: "center" }}>
-                      Sin resultados
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button
-            className="btn-view"
-            disabled={!puedeRetroceder}
-            onClick={() => setFiltros({ ...filtros, page: filtros.page - 1 })}
-          >
-            Anterior
-          </button>
-          <span style={{ alignSelf: "center" }}>Página {filtros.page}</span>
-          <button
-            className="btn-view"
-            disabled={!puedeAvanzar}
-            onClick={() => setFiltros({ ...filtros, page: filtros.page + 1 })}
-          >
-            Siguiente
-          </button>
-        </div>
+          Anterior
+        </button>
+        <span style={{ alignSelf: "center" }}>Página {filtros.page}</span>
+        <button
+          className="btn-view"
+          disabled={!puedeAvanzar}
+          onClick={() =>
+            setFiltros((prev) => ({ ...prev, page: prev.page + 1 }))
+          }
+        >
+          Siguiente
+        </button>
       </div>
 
       {modalOpen && (
-        <div className="modal">
-          <div className="modal-content">
+        <div className="admin-modal">
+          <div className="admin-modal-content">
             <h3>{editando ? "Editar Estudiante" : "Crear Estudiante"}</h3>
             <input
               placeholder="Nombre"
@@ -428,7 +396,6 @@ function EstudiantesAdmin() {
                 <option value="graduado">Graduado</option>
               </select>
             ) : (
-              // show fixed value for creation (no selector)
               <input type="hidden" value="matriculado" />
             )}
             <select
@@ -449,16 +416,18 @@ function EstudiantesAdmin() {
                 className="btn-cancel"
                 onClick={() => setModalOpen(false)}
               >
+                <X size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
                 Cancelar
               </button>
               <button className="btn-save" onClick={guardar}>
+                <Save size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
                 Guardar
               </button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </AdminLayout>
   );
 }
 

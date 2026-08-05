@@ -17,6 +17,7 @@ from app.models.notas import Nota
 from app.models.asistencia import Asistencia
 from app.models.comportamiento import Comportamiento
 from app.models.contextos import Contexto
+from app.models.estructuras_academicas import EstructuraAcademica, EstructuraMateria
 
 
 # this is the Alembic Config object, which provides

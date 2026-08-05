@@ -3,13 +3,34 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.models.cursos import Curso
+from app.models.contextos import Contexto
+from app.models.estructuras_academicas import EstructuraAcademica
 from app.models.usuarios import Usuario
 from app.models.enums import RolUsuarioEnum
 from app.schemas.cursos import CursoCreate, CursoUpdate
 from app.crud import cursos as crud
+from sqlalchemy import select
+from app.models.notas import Nota
+from app.models.insumos import Insumo
+from app.models.cursos_materias_docentes import CursoMateriaDocente
+from app.models.cursos import Curso
 
 # Crear curso
 async def crear_curso(db: AsyncSession, data: CursoCreate, id_contexto: int):
+    if data.id_estructura_academica is not None:
+        estructura = await db.execute(
+            select(EstructuraAcademica).where(
+                EstructuraAcademica.id_estructura_academica == data.id_estructura_academica,
+                EstructuraAcademica.id_contexto == id_contexto,
+                EstructuraAcademica.activo == True,
+            )
+        )
+        if not estructura.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="La estructura académica no existe en el contexto actual",
+            )
+
     # Validar que el tutor exista y sea DOCENTE (solo si se proporciona)
     if data.id_tutor is not None:
         tutor = await db.execute(
@@ -56,6 +77,7 @@ async def crear_curso(db: AsyncSession, data: CursoCreate, id_contexto: int):
         nombre=data.nombre,
         anio_lectivo=data.anio_lectivo,
         id_contexto=id_contexto,
+        id_estructura_academica=data.id_estructura_academica,
         id_tutor=data.id_tutor
     )
     return await crud.crear(db, curso)
@@ -90,6 +112,41 @@ async def obtener_curso(db: AsyncSession, id_curso: int, id_contexto: int | None
 async def actualizar_curso(db: AsyncSession, id_curso: int, data: CursoUpdate, id_contexto: int):
     curso = await obtener_curso(db, id_curso, id_contexto)
     values = data.model_dump(exclude_unset=True)
+
+    contexto_result = await db.execute(
+        select(Contexto).where(Contexto.id_contexto == curso.id_contexto)
+    )
+    contexto = contexto_result.scalar_one_or_none()
+
+    if "id_estructura_academica" in values and values["id_estructura_academica"] is not None:
+        estructura = await db.execute(
+            select(EstructuraAcademica).where(
+                EstructuraAcademica.id_estructura_academica == values["id_estructura_academica"],
+                EstructuraAcademica.id_contexto == id_contexto,
+                EstructuraAcademica.activo == True,
+            )
+        )
+        if not estructura.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="La estructura académica no existe en el contexto actual",
+            )
+
+        if (
+            contexto
+            and contexto.tipo_modo == "personal"
+            and values["id_estructura_academica"] != curso.id_estructura_academica
+        ):
+            existe_configuracion = await db.execute(
+                select(CursoMateriaDocente.id_cmd).where(
+                    CursoMateriaDocente.id_curso == curso.id_curso
+                )
+            )
+            if existe_configuracion.first():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="No puedes cambiar la estructura académica porque el curso ya tiene materias o configuración académica asociada",
+                )
 
     # Validar que el nuevo tutor exista y sea DOCENTE si se modifica (solo si no es None)
     if "id_tutor" in values and values["id_tutor"] is not None:
@@ -142,4 +199,21 @@ async def actualizar_curso(db: AsyncSession, id_curso: int, data: CursoUpdate, i
 
 async def eliminar_curso(db: AsyncSession, id_curso: int, id_contexto: int):
     curso = await obtener_curso(db, id_curso, id_contexto)
+    # Verificar si existen notas asociadas a insumos del curso
+    query = (
+        select(Nota)
+        .join(Insumo, Insumo.id_insumo == Nota.id_insumo)
+        .join(CursoMateriaDocente, CursoMateriaDocente.id_cmd == Insumo.id_cmd)
+        .join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
+        .where(Curso.id_curso == id_curso)
+        .limit(1)
+    )
+    result = await db.execute(query)
+    nota_existente = result.scalar_one_or_none()
+    if nota_existente:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se puede eliminar el curso porque existen notas asociadas a sus insumos"
+        )
+
     return await crud.eliminar(db, curso)

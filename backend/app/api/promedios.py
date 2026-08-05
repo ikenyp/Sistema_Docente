@@ -9,8 +9,13 @@ from app.core.database import get_session
 from app.core.context_manager import resolve_contexto_id
 from app.auth.dependencies import get_current_user
 from app.services import promedios as service
-from app.schemas.promedios import PromedioTrimestral, PromedioFinal, PromediosCurso
+from app.schemas.promedios import PromedioPeriodo, PromedioAcumulado, PromediosCurso
 from app.models.usuarios import Usuario
+from app.schemas.usuarios import RolUsuarioEnum
+from app.services.authorization import (
+    validar_usuario_puede_ver_curso,
+    validar_usuario_puede_ver_estudiante,
+)
 
 router = APIRouter(
     prefix="/promedios",
@@ -20,63 +25,50 @@ router = APIRouter(
 
 
 @router.get(
-    "/trimestre/{id_estudiante}/{id_curso}/{numero_trimestre}",
-    response_model=PromedioTrimestral,
-    summary="Obtener promedio trimestral de un estudiante"
+    "/periodo/{id_estudiante}/{id_curso}/{numero_periodo}",
+    response_model=PromedioPeriodo,
+    summary="Obtener promedio de un periodo de un estudiante"
 )
-async def obtener_promedio_trimestral(
+async def obtener_promedio_periodo(
     id_estudiante: int = Path(..., gt=0, description="ID del estudiante"),
     id_curso: int = Path(..., gt=0, description="ID del curso"),
-    numero_trimestre: int = Path(..., ge=1, le=3, description="Número de trimestre (1, 2 o 3)"),
-    anio_lectivo: str = Query(..., description="Año lectivo (ej: 2025-2026)"),
+    numero_periodo: int = Path(..., ge=1, description="Numero de periodo"),
+    anio_lectivo: str = Query(..., description="Ano lectivo (ej: 2025-2026)"),
     request: Request = None,
     current_user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
 ):
-    """
-    Calcula y retorna el promedio de un estudiante en un trimestre específico.
-    
-    **Estructura de cálculo:**
-    - Promedio de Actividades (10%)
-    - Nota del Proyecto Trimestral (20%)
-    - Nota del Examen Trimestral (70%)
-    
-    **Fórmula:**
-    Promedio Trimestral = (Actividades × 0.10) + (Proyecto × 0.20) + (Examen × 0.70)
-    """
     id_contexto = await resolve_contexto_id(db, current_user, request)
-    return await service.calcular_promedio_trimestral(
+    if current_user.rol != RolUsuarioEnum.administrativo:
+        await validar_usuario_puede_ver_curso(db, id_curso, current_user, id_contexto)
+        await validar_usuario_puede_ver_estudiante(db, id_estudiante, current_user, id_contexto)
+    return await service.calcular_promedio_periodo(
         db=db,
         id_contexto=id_contexto,
         id_estudiante=id_estudiante,
         id_curso=id_curso,
-        numero_trimestre=numero_trimestre,
+        numero_periodo=numero_periodo,
         anio_lectivo=anio_lectivo
     )
 
 
 @router.get(
-    "/final/{id_estudiante}/{id_curso}",
-    response_model=PromedioFinal,
-    summary="Obtener promedio final de un estudiante"
+    "/acumulado/{id_estudiante}/{id_curso}",
+    response_model=PromedioAcumulado,
+    summary="Obtener promedio acumulado de un estudiante"
 )
-async def obtener_promedio_final(
+async def obtener_promedio_acumulado(
     id_estudiante: int = Path(..., gt=0, description="ID del estudiante"),
     id_curso: int = Path(..., gt=0, description="ID del curso"),
-    anio_lectivo: str = Query(..., description="Año lectivo (ej: 2025-2026)"),
+    anio_lectivo: str = Query(..., description="Ano lectivo (ej: 2025-2026)"),
     request: Request = None,
     current_user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
 ):
-    """
-    Calcula y retorna el promedio final de un estudiante en un curso.
-    
-    **Fórmula:**
-    Promedio Final = (Promedio T1 + Promedio T2 + Promedio T3) / 3
-    
-    Incluye desglose de promedios por trimestre.
-    """
     id_contexto = await resolve_contexto_id(db, current_user, request)
+    if current_user.rol != RolUsuarioEnum.administrativo:
+        await validar_usuario_puede_ver_curso(db, id_curso, current_user, id_contexto)
+        await validar_usuario_puede_ver_estudiante(db, id_estudiante, current_user, id_contexto)
     return await service.calcular_promedio_final(
         db=db,
         id_contexto=id_contexto,
@@ -92,8 +84,8 @@ async def obtener_promedio_final(
 )
 async def obtener_promedios_curso(
     id_curso: int = Path(..., gt=0, description="ID del curso"),
-    numero_trimestre: int | None = Query(None, ge=1, le=3, description="Filtrar por trimestre (opcional)"),
-    anio_lectivo: str | None = Query(None, description="Año lectivo (requerido si se especifica trimestre)"),
+    numero_periodo: int | None = Query(None, ge=1, description="Filtrar por periodo (opcional)"),
+    anio_lectivo: str | None = Query(None, description="Ano lectivo (requerido si se especifica periodo)"),
     request: Request = None,
     current_user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
@@ -101,18 +93,17 @@ async def obtener_promedios_curso(
     """
     Obtiene los promedios de todos los estudiantes matriculados en un curso.
     
-    **Parámetros opcionales:**
-    - `numero_trimestre`: Filtrar por trimestre específico (1, 2 o 3)
-    - `anio_lectivo`: Requerido si se especifica trimestre
-    
-    Si no se especifica trimestre, retorna promedios finales del año.
+    Si se especifica `numero_periodo`, filtra por periodo especifico.
+    Si no se especifica, retorna promedios acumulados del ano.
     """
     id_contexto = await resolve_contexto_id(db, current_user, request)
+    if current_user.rol != RolUsuarioEnum.administrativo:
+        await validar_usuario_puede_ver_curso(db, id_curso, current_user, id_contexto)
     promedios = await service.obtener_promedios_curso(
         db=db,
         id_contexto=id_contexto,
         id_curso=id_curso,
-        numero_trimestre=numero_trimestre,
+        numero_periodo=numero_periodo,
         anio_lectivo=anio_lectivo
     )
     

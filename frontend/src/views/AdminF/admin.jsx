@@ -1,549 +1,377 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { usuariosAPI, cursosAPI } from "../../services/api";
-import "../../styles/admin.css";
+import { Check, Clipboard, BookOpen, ArrowLeft } from "lucide-react";
+import AdminLayout from "../../components/admin/AdminLayout";
+import { notify } from "../../components/notify";
+import {
+  usuariosAPI,
+  cursosAPI,
+  estudiantesAPI,
+  asignacionesAPI,
+  estructurasAcademicasAPI,
+} from "../../services/api";
 
 function Admin() {
   const navigate = useNavigate();
-
-  const [datosUsuario, setDatosUsuario] = useState(null);
-
-  // ====== Estados ======
   const [usuarios, setUsuarios] = useState([]);
   const [cursos, setCursos] = useState([]);
+  const [estudiantes, setEstudiantes] = useState([]);
+  const [asignaciones, setAsignaciones] = useState([]);
+  const [estructuras, setEstructuras] = useState([]);
+  const [anioActivo, setAnioActivo] = useState("");
+  const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState("");
 
-  // Modal editar usuario
-  const [modalEditarOpen, setModalEditarOpen] = useState(false);
-  const [usuarioEditar, setUsuarioEditar] = useState(null);
-
-  // Modal añadir usuario
-  const [modalAgregarOpen, setModalAgregarOpen] = useState(false);
-  const [nuevoUsuario, setNuevoUsuario] = useState({
-    nombre: "",
-    apellido: "",
-    correo: "",
-    contrasena: "",
-    rol: "docente",
-  });
-
-  // Modal añadir curso
-  const [modalAgregarCursoOpen, setModalAgregarCursoOpen] = useState(false);
-  const [nuevoCurso, setNuevoCurso] = useState({
-    nombre: "",
-    anio_lectivo: "",
-    id_docente: "",
-    id_tutor: "",
-  });
-
-  // Otros
-  const [menuUsuario, setMenuUsuario] = useState(false);
-  const [cargandoUsuarios, setCargandoUsuarios] = useState(true);
-  const [errorUsuarios, setErrorUsuarios] = useState(false);
-
-  // ====== Traer usuarios ======
   useEffect(() => {
-    const fetchUsuarios = async () => {
+    (async () => {
       try {
-        const usuarioJSON = localStorage.getItem("usuario");
-        const usuario = usuarioJSON ? JSON.parse(usuarioJSON) : null;
-        if (usuario) setDatosUsuario(usuario);
-
-        const data = await usuariosAPI.listar();
-        setUsuarios(data);
-        setCargandoUsuarios(false);
-      } catch (error) {
-        console.error(error);
-        setErrorUsuarios(true);
-        setCargandoUsuarios(false);
+        const [u, c, e, a, es] = await Promise.all([
+          usuariosAPI.listar({ size: 100 }),
+          cursosAPI.listar({ size: 100 }),
+          estudiantesAPI.buscar({ estado: "matriculado", size: 100 }),
+          asignacionesAPI.listar({ size: 100 }),
+          estructurasAcademicasAPI.listar({ size: 100 }),
+        ]);
+        setUsuarios(u || []);
+        setCursos(c || []);
+        setEstudiantes(e || []);
+        setAsignaciones(a || []);
+        setEstructuras(es || []);
+      } catch (e) {
+        const msg = e.message || "Error al cargar datos del dashboard";
+        setErrorCarga(msg);
+        notify("error", msg);
+      } finally {
+        setCargando(false);
       }
-    };
-    fetchUsuarios();
+    })();
   }, []);
 
-  // ====== Traer cursos ======
+  const anios = useMemo(() => {
+    const set = new Set(cursos.map((c) => c.anio_lectivo).filter(Boolean));
+    return Array.from(set).sort().reverse();
+  }, [cursos]);
+
   useEffect(() => {
-    const fetchCursos = async () => {
-      try {
-        const data = await cursosAPI.listar();
-        setCursos(data);
-      } catch (error) {
-        console.error(error);
-      }
+    if (!anioActivo && anios.length > 0) setAnioActivo(anios[0]);
+  }, [anios, anioActivo]);
+
+  const cursosAnio = useMemo(() => {
+    if (!anioActivo) return cursos;
+    return cursos.filter((c) => c.anio_lectivo === anioActivo);
+  }, [cursos, anioActivo]);
+
+  const estudiantesAnio = useMemo(() => {
+    if (!anioActivo) return estudiantes;
+    const idsCursos = new Set(cursosAnio.map((c) => c.id_curso));
+    return estudiantes.filter((e) => idsCursos.has(e.id_curso_actual));
+  }, [estudiantes, cursosAnio, anioActivo]);
+
+  const resumen = useMemo(() => {
+    const docentes = usuarios.filter(
+      (u) => (u.rol || "").toLowerCase() === "docente",
+    ).length;
+    const admins = usuarios.filter(
+      (u) => (u.rol || "").toLowerCase() === "administrativo",
+    ).length;
+    return {
+      docentes,
+      admins,
+      totalUsuarios: usuarios.length,
+      estructuras: estructuras.length,
+      cursosAnio: cursosAnio.length,
+      estudiantesAnio: estudiantesAnio.length,
     };
-    fetchCursos();
-  }, []);
+  }, [usuarios, estructuras, cursosAnio, estudiantesAnio]);
 
-  // ====== Modal editar usuario ======
-  const abrirEditarModal = (usuario) => {
-    setUsuarioEditar({
-      id_usuario: usuario.id_usuario,
-      nombre: usuario.nombre,
-      apellido: usuario.apellido,
-      correo: usuario.correo,
-      rol: usuario.rol,
-      contrasena: "",
-    });
-    setModalEditarOpen(true);
+  const pendientes = useMemo(() => {
+    const sinCurso = estudiantes.filter((e) => !e.id_curso_actual).length;
+    const sinTutor = cursosAnio.filter((c) => !c.id_tutor).length;
+    const sinEstructura = cursosAnio.filter((c) => !c.id_estructura_academica).length;
+    const idsConAsignacion = new Set(asignaciones.map((a) => a.id_curso));
+    const sinMaterias = cursosAnio.filter(
+      (c) => !idsConAsignacion.has(c.id_curso),
+    ).length;
+    return { sinCurso, sinTutor, sinMaterias, sinEstructura };
+  }, [estudiantes, cursosAnio, asignaciones]);
+
+  const totalPendientes = useMemo(
+    () =>
+      pendientes.sinCurso +
+      pendientes.sinTutor +
+      pendientes.sinMaterias +
+      pendientes.sinEstructura,
+    [pendientes],
+  );
+
+  const pasosInicioAnio = [
+    {
+      title: "1. Usuarios",
+      sub: "Docentes y administradores",
+      to: "/admin/usuarios",
+    },
+    {
+      title: "2. Estructura académica",
+      sub: "Plantillas, materias base y periodización",
+      to: "/admin/estructura-academica",
+    },
+    {
+      title: "3. Cursos",
+      sub: "Paralelos del año lectivo",
+      to: "/admin/cursos",
+    },
+    {
+      title: "4. Estudiantes",
+      sub: "Registro de alumnos",
+      to: "/admin/estudiantes",
+    },
+  ];
+
+  const nombreTutor = (id_tutor) => {
+    if (!id_tutor) return "—";
+    const u = usuarios.find((x) => x.id_usuario === id_tutor);
+    return u ? `${u.nombre} ${u.apellido}` : `#${id_tutor}`;
   };
 
-  const cerrarEditarModal = () => {
-    setModalEditarOpen(false);
-    setUsuarioEditar(null);
-  };
-
-  const editarUsuario = async () => {
-    if (
-      !usuarioEditar.nombre ||
-      !usuarioEditar.apellido ||
-      !usuarioEditar.correo
-    ) {
-      alert("Nombre, apellido y correo son obligatorios");
-      return;
-    }
-    try {
-      const body = {
-        nombre: usuarioEditar.nombre,
-        apellido: usuarioEditar.apellido,
-        correo: usuarioEditar.correo,
-        rol: usuarioEditar.rol,
-      };
-
-      // Solo incluir contraseña si se ingresó una nueva
-      if (usuarioEditar.contrasena) {
-        body.contrasena = usuarioEditar.contrasena;
-      }
-
-      const usuarioActualizado = await usuariosAPI.actualizar(
-        usuarioEditar.id_usuario,
-        body,
-      );
-      setUsuarios((prev) =>
-        prev.map((u) =>
-          u.id_usuario === usuarioEditar.id_usuario ? usuarioActualizado : u,
-        ),
-      );
-      cerrarEditarModal();
-    } catch (error) {
-      console.error(error);
-      alert("No se pudo editar el usuario: " + error.message);
-    }
-  };
-
-  // ====== Eliminar usuario ======
-  const eliminarUsuario = async (usuario) => {
-    if (
-      !window.confirm(
-        `¿Estás seguro de eliminar a ${usuario.nombre} ${usuario.apellido}?`,
-      )
-    ) {
-      return;
-    }
-
-    try {
-      await usuariosAPI.eliminar(usuario.id_usuario);
-      setUsuarios((prev) =>
-        prev.filter((u) => u.id_usuario !== usuario.id_usuario),
-      );
-      alert("Usuario eliminado exitosamente");
-    } catch (error) {
-      console.error(error);
-      alert(error.message);
-    }
-  };
-
-  // ====== Modal añadir usuario ======
-  const abrirAgregarModal = () => setModalAgregarOpen(true);
-  const cerrarAgregarModal = () => {
-    setModalAgregarOpen(false);
-    setNuevoUsuario({
-      nombre: "",
-      apellido: "",
-      correo: "",
-      contrasena: "",
-      rol: "docente",
-    });
-  };
-
-  const agregarUsuario = async () => {
-    if (
-      !nuevoUsuario.nombre ||
-      !nuevoUsuario.apellido ||
-      !nuevoUsuario.correo ||
-      !nuevoUsuario.contrasena
-    ) {
-      alert("Todos los campos son obligatorios");
-      return;
-    }
-    try {
-      const nuevo = await usuariosAPI.crear(nuevoUsuario);
-      setUsuarios((prev) => [...prev, nuevo]);
-      cerrarAgregarModal();
-    } catch (error) {
-      console.error(error);
-      alert("No se pudo agregar el usuario: " + error.message);
-    }
-  };
-
-  // ====== Modal añadir curso ======
-  const abrirAgregarCursoModal = () => setModalAgregarCursoOpen(true);
-  const cerrarAgregarCursoModal = () => {
-    setModalAgregarCursoOpen(false);
-    setNuevoCurso({
-      nombre: "",
-      anio_lectivo: "",
-      id_docente: "",
-      id_tutor: "",
-    });
-  };
-
-  const agregarCurso = async () => {
-    if (!nuevoCurso.nombre || !nuevoCurso.anio_lectivo) {
-      alert("Nombre y año lectivo son obligatorios");
-      return;
-    }
-    try {
-      const curso = await cursosAPI.crear({
-        nombre: nuevoCurso.nombre,
-        anio_lectivo: nuevoCurso.anio_lectivo,
-        id_tutor: nuevoCurso.id_tutor ? parseInt(nuevoCurso.id_tutor) : null,
-      });
-      setCursos((prev) => [...prev, curso]);
-      cerrarAgregarCursoModal();
-    } catch (error) {
-      console.error(error);
-      alert("No se pudo agregar el curso");
-    }
-  };
-
-  // ====== Cerrar sesión ======
-  const cerrarSesion = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("usuario");
-    navigate("/");
-  };
-
-  // ====== JSX ======
   return (
-    <div className="admin-page">
-      {/* NAVBAR */}
-      <div className="navbar-admin">
-        <h1 className="titulo-admin">📚 Sistema Docente</h1>
-
-        <div
-          className="navbar-user"
-          onClick={() => setMenuUsuario(!menuUsuario)}
-        >
-          {datosUsuario
-            ? `${datosUsuario.nombre} ${datosUsuario.apellido}`
-            : "Administrador"}
-        </div>
-        {menuUsuario && (
-          <div className="menu-usuario">
-            <button onClick={cerrarSesion}>Cerrar Sesión</button>
-          </div>
-        )}
+    <AdminLayout
+      title="Panel del administrador"
+      subtitle="Organice la estructura académica, prepare cursos y revise pendientes del periodo."
+    >
+      <div className="admin-year-bar">
+        <label className="admin-inline-label">
+          Año lectivo de trabajo
+          <select
+            value={anioActivo}
+            onChange={(e) => setAnioActivo(e.target.value)}
+          >
+            {anios.length === 0 && <option value="">—</option>}
+            {anios.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
-      <div className="admin-container">
-        <h1 className="admin-title">Panel del Administrador</h1>
-
-        <div className="table-container" style={{ marginTop: 8 }}>
-          <div className="dashboard-grid dashboard-grid-3">
-            <button
-              className="btn-view"
-              onClick={() => navigate("/admin/estudiantes")}
-            >
-              Gestionar Estudiantes
-            </button>
-            <button
-              className="btn-view"
-              onClick={() => navigate("/admin/materias")}
-            >
-              Gestionar Materias
-            </button>
-            <button
-              className="btn-view"
-              onClick={() => navigate("/admin/asignaciones")}
-            >
-              Asignar Docentes a Cursos/Materias
-            </button>
-          </div>
-          <div className="dashboard-grid dashboard-grid-2">
-            {/* <button
-              className="btn-view"
-              onClick={() => navigate("/admin/matriculacion")}
-            >
-              Matricular Estudiantes a Cursos
-            </button> */}
-            <button
-              className="btn-view"
-              onClick={() => navigate("/admin/lecturas")}
-            >
-              Ver Notas/Asistencia/Comportamiento
-            </button>
-            <button
-              className="btn-view"
-              onClick={() => navigate("/admin/promedios")}
-            >
-              Vista de Promedios
-            </button>
-          </div>
-        </div>
-
-        {/* USUARIOS */}
-        <div className="docentes-header">
-          <h2 className="section-title">Usuarios Registrados</h2>
-          <button className="btn-add-docente" onClick={abrirAgregarModal}>
-            Añadir Usuario
-          </button>
-        </div>
-
-        {cargandoUsuarios && <p>Cargando usuarios...</p>}
-        {errorUsuarios && (
-          <p style={{ color: "red", textAlign: "center" }}>
-            No se pudieron cargar los usuarios registrados
+      <div className="cards-grid dashboard-summary-grid admin-metrics-grid">
+        <div className="stat-card accent">
+          <p className="stat-label">Usuarios</p>
+          <h3 className="stat-value">{resumen.totalUsuarios}</h3>
+          <p className="stat-sub">
+            {resumen.docentes} docentes · {resumen.admins} administradores
           </p>
-        )}
-
-        {!cargandoUsuarios && !errorUsuarios && (
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Nombres</th>
-                  <th>Apellidos</th>
-                  <th>Correo</th>
-                  <th>Rol</th>
-                  <th>Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {usuarios.map((u) => (
-                  <tr key={u.id_usuario}>
-                    <td>{u.nombre}</td>
-                    <td>{u.apellido}</td>
-                    <td>{u.correo}</td>
-                    <td>{u.rol}</td>
-                    <td>
-                      <button
-                        className="btn-view"
-                        onClick={() => abrirEditarModal(u)}
-                        style={{ marginRight: "8px" }}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        className="btn-danger"
-                        onClick={() => eliminarUsuario(u)}
-                      >
-                        Eliminar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* CURSOS */}
-        <div className="docentes-header">
-          <h2 className="section-title">Cursos Disponibles</h2>
-          <button className="btn-add-docente" onClick={abrirAgregarCursoModal}>
-            Añadir Curso
-          </button>
         </div>
+        <div className="stat-card">
+          <p className="stat-label">Estudiantes ({anioActivo || "todos"})</p>
+          <h3 className="stat-value">{resumen.estudiantesAnio}</h3>
+          <p className="stat-sub">Matriculados en el periodo</p>
+        </div>
+        <div className="stat-card">
+          <p className="stat-label">Cursos ({anioActivo || "todos"})</p>
+          <h3 className="stat-value">{resumen.cursosAnio}</h3>
+          <p className="stat-sub">Paralelos del periodo</p>
+        </div>
+        <div className="stat-card">
+          <p className="stat-label">Estructuras</p>
+          <h3 className="stat-value">{resumen.estructuras}</h3>
+          <p className="stat-sub">Plantillas académicas disponibles</p>
+        </div>
+        <div className="stat-card">
+          <p className="stat-label">Pendientes</p>
+          <h3 className="stat-value">{totalPendientes}</h3>
+          <p className="stat-sub">Tareas por revisar abajo</p>
+        </div>
+      </div>
 
-        <div className="table-container">
+      {errorCarga && (
+        <div className="admin-alerts table-container">
+          <h3>Error al cargar datos</h3>
+          <p>{errorCarga}</p>
+        </div>
+      )}
+
+      {!cargando && totalPendientes > 0 && (
+        <div className="admin-alerts table-container">
+          <h3>Atención</h3>
+          <ul className="admin-alert-list">
+            {pendientes.sinCurso > 0 && (
+              <li>
+                <strong>{pendientes.sinCurso}</strong> estudiante(s)
+                matriculado(s) sin curso asignado.{" "}
+                <button
+                  type="button"
+                  className="admin-link-btn"
+                  onClick={() => navigate("/admin/estudiantes")}
+                >
+                  <Check size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                  Ir a estudiantes
+                </button>
+              </li>
+            )}
+            {pendientes.sinEstructura > 0 && (
+              <li>
+                <strong>{pendientes.sinEstructura}</strong> curso(s) sin estructura académica.{" "}
+                <button
+                  type="button"
+                  className="admin-link-btn"
+                  onClick={() => navigate("/admin/cursos")}
+                >
+                  <Clipboard size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                  Revisar cursos
+                </button>
+              </li>
+            )}
+            {pendientes.sinTutor > 0 && (
+              <li>
+                <strong>{pendientes.sinTutor}</strong> curso(s) sin tutor.{" "}
+                <button
+                  type="button"
+                  className="admin-link-btn"
+                  onClick={() => navigate("/admin/cursos")}
+                >
+                  <Clipboard size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                  Revisar cursos
+                </button>
+              </li>
+            )}
+            {pendientes.sinMaterias > 0 && (
+              <li>
+                <strong>{pendientes.sinMaterias}</strong> curso(s) sin
+                asignaciones de materias.{" "}
+                <button
+                  type="button"
+                  className="admin-link-btn"
+                  onClick={() => navigate("/admin/cursos")}
+                >
+                  <BookOpen size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                  Abrir cursos
+                </button>
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
+
+      <div className="panel-divider" />
+
+      <div className="section-block">
+        <div className="section-block-head">
+          <h3>Inicio de año lectivo</h3>
+          <p>Siga este orden para dejar lista la operación del periodo.</p>
+        </div>
+        <div className="dashboard-grid dashboard-grid-2 admin-action-grid">
+          {pasosInicioAnio.map((p) => (
+            <button
+              key={p.to}
+              type="button"
+              className="admin-action-card"
+              onClick={() => navigate(p.to)}
+            >
+              <span className="admin-action-title">{p.title}</span>
+              <span className="admin-action-sub">{p.sub}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="panel-divider" />
+
+      <div className="section-block">
+        <div className="section-block-head">
+          <h3>Cursos del periodo</h3>
+          <p>Entre directamente a la ficha de cada curso.</p>
+        </div>
+        <div className="table-container table-compact">
           <table>
             <thead>
               <tr>
                 <th>Curso</th>
-                <th>Año Lectivo</th>
+                <th>Año</th>
+                <th>Tutor</th>
                 <th>Estudiantes</th>
                 <th>Acción</th>
               </tr>
             </thead>
             <tbody>
-              {cursos.map((c) => (
-                <tr key={c.id}>
+              {cursosAnio.map((c) => (
+                <tr key={c.id_curso}>
                   <td>{c.nombre}</td>
                   <td>{c.anio_lectivo}</td>
-                  <td>{c.estudiantes}</td>
+                  <td>{nombreTutor(c.id_tutor)}</td>
+                  <td>
+                    {estudiantes.filter(
+                      (e) => e.id_curso_actual === c.id_curso,
+                    ).length}
+                  </td>
                   <td>
                     <button
+                      type="button"
                       className="btn-view"
-                      onClick={() => navigate(`Notas/notasCurso/`)}
+                      onClick={() => navigate(`/admin/cursos/${c.id_curso}`)}
                     >
-                      Ver Estudiantes
+                      <ArrowLeft size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                      Abrir curso
                     </button>
                   </td>
                 </tr>
               ))}
+              {cursosAnio.length === 0 && !cargando && (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: "center" }}>
+                    Cree cursos en la sección Cursos
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
+          {cursos.length > 8 && (
+            <p className="panel-sub" style={{ marginTop: 8 }}>
+              <button
+                type="button"
+                className="admin-link-btn"
+                onClick={() => navigate("/admin/cursos")}
+              >
+                <Clipboard size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                Ver todos los cursos
+              </button>
+            </p>
+          )}
         </div>
       </div>
 
-      {/* MODAL EDITAR USUARIO */}
-      {modalEditarOpen && usuarioEditar && (
-        <div className="modal">
-          <div className="modal-content">
-            <h3>Editar Usuario</h3>
-            <input
-              type="text"
-              placeholder="Nombre"
-              value={usuarioEditar.nombre}
-              onChange={(e) =>
-                setUsuarioEditar({ ...usuarioEditar, nombre: e.target.value })
-              }
-            />
-            <input
-              type="text"
-              placeholder="Apellido"
-              value={usuarioEditar.apellido}
-              onChange={(e) =>
-                setUsuarioEditar({ ...usuarioEditar, apellido: e.target.value })
-              }
-            />
-            <input
-              type="email"
-              placeholder="Correo"
-              value={usuarioEditar.correo}
-              onChange={(e) =>
-                setUsuarioEditar({ ...usuarioEditar, correo: e.target.value })
-              }
-            />
-            <input
-              type="password"
-              placeholder="Nueva Contraseña (dejar vacío para mantener)"
-              value={usuarioEditar.contrasena}
-              onChange={(e) =>
-                setUsuarioEditar({
-                  ...usuarioEditar,
-                  contrasena: e.target.value,
-                })
-              }
-            />
-            <select
-              value={usuarioEditar.rol}
-              onChange={(e) =>
-                setUsuarioEditar({ ...usuarioEditar, rol: e.target.value })
-              }
-            >
-              <option value="docente">Docente</option>
-              <option value="tutor">Tutor</option>
-              <option value="admin">Administrador</option>
-            </select>
-            <div className="modal-buttons">
-              <button className="btn-cancel" onClick={cerrarEditarModal}>
-                Cancelar
-              </button>
-              <button className="btn-save" onClick={editarUsuario}>
-                Guardar
-              </button>
-            </div>
-          </div>
+      <div className="panel-divider" />
+
+      <div className="section-block">
+        <div className="section-block-head">
+          <h3>Accesos rápidos</h3>
+          <p>Las consultas y reportes más usados.</p>
         </div>
-      )}
-
-      {/* MODAL AÑADIR USUARIO */}
-      {modalAgregarOpen && (
-        <div className="modal">
-          <div className="modal-content">
-            <h3>Añadir Usuario</h3>
-            <input
-              type="text"
-              placeholder="Nombre"
-              value={nuevoUsuario.nombre}
-              onChange={(e) =>
-                setNuevoUsuario({ ...nuevoUsuario, nombre: e.target.value })
-              }
-            />
-            <input
-              type="text"
-              placeholder="Apellido"
-              value={nuevoUsuario.apellido}
-              onChange={(e) =>
-                setNuevoUsuario({ ...nuevoUsuario, apellido: e.target.value })
-              }
-            />
-            <input
-              type="email"
-              placeholder="Correo"
-              value={nuevoUsuario.correo}
-              onChange={(e) =>
-                setNuevoUsuario({ ...nuevoUsuario, correo: e.target.value })
-              }
-            />
-            <input
-              type="password"
-              placeholder="Contraseña"
-              value={nuevoUsuario.contrasena}
-              onChange={(e) =>
-                setNuevoUsuario({ ...nuevoUsuario, contrasena: e.target.value })
-              }
-            />
-            <div className="modal-buttons">
-              <button className="btn-cancel" onClick={cerrarAgregarModal}>
-                Cancelar
-              </button>
-              <button className="btn-save" onClick={agregarUsuario}>
-                Guardar
-              </button>
-            </div>
-          </div>
+        <div className="dashboard-grid dashboard-grid-2 admin-action-grid">
+          <button
+            type="button"
+            className="admin-action-card"
+            onClick={() => navigate("/admin/consultas")}
+          >
+            <span className="admin-action-title">Consulta de curso</span>
+            <span className="admin-action-sub">
+              Estudiantes, notas y promedios
+            </span>
+          </button>
+          <button
+            type="button"
+            className="admin-action-card"
+            onClick={() => navigate("/admin/usuarios")}
+          >
+            <span className="admin-action-title">Gestionar usuarios</span>
+            <span className="admin-action-sub">
+              Docentes y administradores
+            </span>
+          </button>
         </div>
-      )}
-
-      {/* MODAL AÑADIR CURSO */}
-      {modalAgregarCursoOpen && (
-        <div className="modal">
-          <div className="modal-content">
-            <h3>Añadir Curso</h3>
-            <input
-              type="text"
-              placeholder="Nombre del curso"
-              value={nuevoCurso.nombre}
-              onChange={(e) =>
-                setNuevoCurso({ ...nuevoCurso, nombre: e.target.value })
-              }
-            />
-            <input
-              type="text"
-              placeholder="Año lectivo"
-              value={nuevoCurso.anio_lectivo}
-              onChange={(e) =>
-                setNuevoCurso({ ...nuevoCurso, anio_lectivo: e.target.value })
-              }
-            />
-
-            <select
-              value={nuevoCurso.id_tutor}
-              onChange={(e) =>
-                setNuevoCurso({ ...nuevoCurso, id_tutor: e.target.value })
-              }
-            >
-              <option value="">Selecciona un tutor (opcional)</option>
-              {usuarios.map((u) => (
-                <option key={u.id_usuario} value={u.id_usuario}>
-                  {u.nombre} {u.apellido}
-                </option>
-              ))}
-            </select>
-
-            <div className="modal-buttons">
-              <button className="btn-cancel" onClick={cerrarAgregarCursoModal}>
-                Cancelar
-              </button>
-              <button className="btn-save" onClick={agregarCurso}>
-                Guardar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
+    </AdminLayout>
   );
 }
 

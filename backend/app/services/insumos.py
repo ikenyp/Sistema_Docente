@@ -6,68 +6,49 @@ from datetime import date
 from app.models.insumos import Insumo
 from app.models.cursos_materias_docentes import CursoMateriaDocente
 from app.models.cursos import Curso
-from app.models.trimestres import Trimestre
+from app.models.configuracion_periodizacion import ConfiguracionPeriodizacion
+from app.models.periodos_academicos import PeriodoAcademico
 from app.models.enums import TipoInsumoEnum
 from app.models.notas import Nota
 from app.crud import insumos as crud
 from app.schemas.insumos import InsumoCreate, InsumoUpdate
+from app.schemas.usuarios import RolUsuarioEnum
 
 
-async def _resolver_trimestre_id(db: AsyncSession, id_curso: int, id_trimestre_input: int, id_contexto: int) -> int:
-    """Acepta ID real o número (1-3).
-    Si se pasa número y no existe el trimestre, lo crea con fechas por defecto.
-    """
-    # Intentar primero como ID real
-    res = await db.execute(
-        select(Trimestre)
-        .join(Curso, Curso.id_curso == Trimestre.id_curso)
-        .where(
-            Trimestre.id_trimestre == id_trimestre_input,
-            Curso.id_contexto == id_contexto,
+async def _resolver_periodo(db: AsyncSession, id_curso: int, id_contexto: int, id_periodo: int):
+    curso_result = await db.execute(
+        select(Curso).where(Curso.id_curso == id_curso, Curso.id_contexto == id_contexto)
+    )
+    curso_obj = curso_result.scalar_one_or_none()
+    if not curso_obj:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Curso no encontrado en el contexto actual",
+        )
+
+    config_result = await db.execute(
+        select(ConfiguracionPeriodizacion).where(
+            ConfiguracionPeriodizacion.id_contexto == id_contexto,
+            ConfiguracionPeriodizacion.anio_lectivo == curso_obj.anio_lectivo,
         )
     )
-    tri = res.scalar_one_or_none()
-    if tri:
-        return tri.id_trimestre
-
-    # Si viene como número de trimestre (1-3), buscar por curso y número
-    if id_trimestre_input in (1, 2, 3):
-        res = await db.execute(
-            select(Trimestre).where(
-                Trimestre.id_curso == id_curso,
-                Trimestre.numero_trimestre == id_trimestre_input,
-            )
+    config = config_result.scalar_one_or_none()
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No hay configuracion de periodizacion para el contexto y ano lectivo del curso",
         )
-        tri = res.scalar_one_or_none()
-        if tri:
-            return tri.id_trimestre
 
-        # Crear automáticamente si no existe
-        curso_res = await db.execute(select(Curso).where(Curso.id_curso == id_curso))
-        curso_obj = curso_res.scalar_one_or_none()
-        anio_lectivo = curso_obj.anio_lectivo if curso_obj else ""
-
-        from datetime import timedelta
-        hoy = date.today()
-        fecha_inicio = hoy
-        fecha_fin = hoy + timedelta(days=90)
-
-        nuevo = Trimestre(
-            id_curso=id_curso,
-            numero_trimestre=id_trimestre_input,
-            anio_lectivo=anio_lectivo,
-            fecha_inicio=fecha_inicio,
-            fecha_fin=fecha_fin,
+    periodo_result = await db.execute(
+        select(PeriodoAcademico).where(
+            PeriodoAcademico.id_periodo == id_periodo,
+            PeriodoAcademico.id_config_periodizacion == config.id_config_periodizacion,
         )
-        db.add(nuevo)
-        await db.commit()
-        await db.refresh(nuevo)
-        return nuevo.id_trimestre
-
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="El trimestre indicado no es válido",
     )
+    periodo = periodo_result.scalar_one_or_none()
+    if not periodo:
+        raise HTTPException(status_code=404, detail="Periodo no encontrado para este contexto y ano")
+    return periodo, curso_obj
 
 
 # Crear insumo
@@ -90,7 +71,11 @@ async def crear_insumo(db: AsyncSession, data: InsumoCreate, current_user = None
         )
     
     # VALIDACIÓN: Docente solo puede crear insumos en sus propias asignaciones
-    if current_user and current_user.id_usuario != cmd_obj.id_docente:
+    if (
+        current_user
+        and current_user.rol != RolUsuarioEnum.administrativo
+        and current_user.id_usuario != cmd_obj.id_docente
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Solo puedes crear insumos para tus propias materias"
@@ -103,8 +88,12 @@ async def crear_insumo(db: AsyncSession, data: InsumoCreate, current_user = None
             detail="La ponderación debe estar entre 1 y 10"
         )
 
-    # Resolver id_trimestre real (acepta ID real o número 1-3 del curso)
-    trimestre_id = await _resolver_trimestre_id(db, cmd_obj.id_curso, data.id_trimestre, id_contexto)
+    periodo_obj, _ = await _resolver_periodo(
+        db,
+        cmd_obj.id_curso,
+        id_contexto,
+        data.id_periodo,
+    )
 
     # Validar que no exista el insumo en el mismo CMD
     if await crud.obtener_por_cmd_nombre(db, data.id_cmd, data.nombre, id_contexto):
@@ -113,20 +102,20 @@ async def crear_insumo(db: AsyncSession, data: InsumoCreate, current_user = None
             detail="Ya existe un insumo con ese nombre en esta asignación"
         )
 
-    # Validar que solo haya un proyecto o examen trimestral por trimestre
-    if data.tipo_insumo in [TipoInsumoEnum.proyecto_trimestral, TipoInsumoEnum.examen_trimestral]:
-        existente = await crud.obtener_por_cmd_trimestre_tipo(
+    # Validar que solo haya un proyecto o examen por periodo
+    if data.tipo_insumo in [TipoInsumoEnum.proyecto_periodo, TipoInsumoEnum.examen_periodo]:
+        existente = await crud.obtener_por_cmd_periodo_tipo(
             db, 
             data.id_cmd, 
-            trimestre_id,
+            periodo_obj.id_periodo,
             data.tipo_insumo,
             id_contexto=id_contexto,
         )
         if existente:
-            tipo_texto = "proyecto trimestral" if data.tipo_insumo == TipoInsumoEnum.proyecto_trimestral else "examen trimestral"
+            tipo_texto = "proyecto del periodo" if data.tipo_insumo == TipoInsumoEnum.proyecto_periodo else "examen del periodo"
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Ya existe un {tipo_texto} para el trimestre {data.id_trimestre} en esta asignación"
+                detail=f"Ya existe un {tipo_texto} para el periodo {periodo_obj.numero_periodo} en esta asignación"
             )
 
     insumo = Insumo(
@@ -135,9 +124,7 @@ async def crear_insumo(db: AsyncSession, data: InsumoCreate, current_user = None
         descripcion=data.descripcion,
         ponderacion=data.ponderacion,
         tipo_insumo=data.tipo_insumo,
-        id_trimestre=trimestre_id,
-        # Guardamos el número para compatibilidad con esquemas viejos
-        trimestre_legacy=data.id_trimestre if data.id_trimestre in (1, 2, 3) else None,
+        id_periodo=periodo_obj.id_periodo,
         fecha_creacion=date.today()
     )
 
@@ -150,7 +137,7 @@ async def listar_insumos(
     id_contexto: int,
     id_cmd: int | None,
     nombre: str | None,
-    trimestre: int | None,
+    periodo: int | None,
     tipo_insumo: TipoInsumoEnum | None,
     page: int,
     size: int
@@ -165,7 +152,7 @@ async def listar_insumos(
         id_contexto=id_contexto,
         id_cmd=id_cmd,
         nombre=nombre,
-        trimestre=trimestre,
+        periodo=periodo,
         tipo_insumo=tipo_insumo,
         page=page,
         size=size
@@ -201,7 +188,11 @@ async def actualizar_insumo(
     insumo = await obtener_insumo(db, id_insumo, id_contexto)
     
     # VALIDACIÓN: Docente solo puede actualizar sus propios insumos
-    if current_user and current_user.id_usuario != insumo.cmd.id_docente:
+    if (
+        current_user
+        and current_user.rol != RolUsuarioEnum.administrativo
+        and current_user.id_usuario != insumo.cmd.id_docente
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Solo el docente asignado puede actualizar este insumo"
@@ -217,17 +208,18 @@ async def actualizar_insumo(
                 detail="La ponderación debe estar entre 1 y 10"
             )
 
-    trimestre_actualizado = insumo.id_trimestre
-
-    # Validar trimestre si se actualiza
-    if "id_trimestre" in values:
-        trimestre_actualizado = await _resolver_trimestre_id(
+    periodo_actualizado = insumo.id_periodo
+    
+    # Validar periodo si se actualiza
+    if "id_periodo" in values:
+        periodo_obj, _ = await _resolver_periodo(
             db,
             insumo.cmd.id_curso,
-            values["id_trimestre"],
             id_contexto,
+            values["id_periodo"],
         )
-        values["id_trimestre"] = trimestre_actualizado
+        periodo_actualizado = periodo_obj.id_periodo
+        values["id_periodo"] = periodo_actualizado
 
     # VALIDACIÓN CRÍTICA: No permitir cambiar tipo_insumo si ya tiene notas
     if "tipo_insumo" in values:
@@ -254,25 +246,24 @@ async def actualizar_insumo(
                 detail="Ya existe un insumo con ese nombre en esta asignación"
             )
 
-    # Validar que no se duplique proyecto/examen si se cambia tipo o trimestre
+    # Validar que no se duplique proyecto/examen si se cambia tipo o periodo
     tipo_actualizado = values.get("tipo_insumo", insumo.tipo_insumo)
     
-    if tipo_actualizado in [TipoInsumoEnum.proyecto_trimestral, TipoInsumoEnum.examen_trimestral]:
-        # Solo validar si cambió el tipo o el trimestre
-        if "tipo_insumo" in values or "id_trimestre" in values:
-            existente = await crud.obtener_por_cmd_trimestre_tipo(
+    if tipo_actualizado in [TipoInsumoEnum.proyecto_periodo, TipoInsumoEnum.examen_periodo]:
+        if "tipo_insumo" in values or "id_periodo" in values:
+            existente = await crud.obtener_por_cmd_periodo_tipo(
                 db,
                 insumo.id_cmd,
-                trimestre_actualizado,
+                periodo_actualizado,
                 tipo_actualizado,
                 id_insumo_excluir=id_insumo,
                 id_contexto=id_contexto,
             )
             if existente:
-                tipo_texto = "proyecto trimestral" if tipo_actualizado == TipoInsumoEnum.proyecto_trimestral else "examen trimestral"
+                tipo_texto = "proyecto del periodo" if tipo_actualizado == TipoInsumoEnum.proyecto_periodo else "examen del periodo"
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Ya existe un {tipo_texto} para el trimestre {trimestre_actualizado} en esta asignación"
+                    detail=f"Ya existe un {tipo_texto} para este periodo en esta asignación"
                 )
 
     for key, value in values.items():
@@ -286,7 +277,11 @@ async def eliminar_insumo(db: AsyncSession, id_insumo: int, current_user = None,
     insumo = await obtener_insumo(db, id_insumo, id_contexto)
     
     # VALIDACIÓN: Docente solo puede eliminar sus propios insumos
-    if current_user and current_user.id_usuario != insumo.cmd.id_docente:
+    if (
+        current_user
+        and current_user.rol != RolUsuarioEnum.administrativo
+        and current_user.id_usuario != insumo.cmd.id_docente
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Solo el docente asignado puede eliminar este insumo"

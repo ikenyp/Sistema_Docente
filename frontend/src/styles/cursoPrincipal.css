@@ -190,7 +190,7 @@
 .panel-card,
 .table-container,
 .insumos-section,
-.trimestre-section,
+.periodo-section,
 .stat-card {
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid #dce5f4;
@@ -275,7 +275,7 @@
 .insumos-section,
 .panel-card,
 .table-container,
-.trimestre-section {
+.periodo-section {
   padding: 0.95rem;
 }
 
@@ -347,18 +347,18 @@ textarea:focus,
   gap: 0.8rem;
 }
 
-.trimestre-title {
+.periodo-title {
   margin: 0 0 0.6rem;
   color: #243756;
 }
 
-.trimestre-insumos {
+.periodo-insumos {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
   gap: 0.72rem;
 }
 
-.no-insumos-trimestre {
+.no-insumos-periodo {
   margin: 0;
   color: #6981ab;
   font-style: italic;
@@ -456,7 +456,7 @@ textarea:focus,
   font-size: 0.86rem;
 }
 
-.trimestre-list {
+.periodo-list {
   margin: 0.2rem 0 0;
   padding-left: 1rem;
   color: #405a84;
@@ -589,4 +589,13 @@ textarea:focus,
   .tabla-notas {
     overflow-x: auto;
   }
+}
+
+.course-stats-grid {
+  margin-bottom: 0.95rem;
+}
+
+.warning-state {
+  border-color: rgba(255, 159, 67, 0.34);
+  background: rgba(255, 248, 237, 0.95);
 }

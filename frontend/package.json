@@ -19,7 +19,6 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-
     "frontend": "npm start",
     "backend": "cd ../backend && venv\\Scripts\\python -m uvicorn app.main:app --reload",
     "dev": "concurrently --kill-others=false \"npm run backend\" \"npm run frontend\""

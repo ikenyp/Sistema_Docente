@@ -1,5 +1,6 @@
 import React from "react";
 import { asistenciaAPI } from "../../../services/api";
+import { notify, requestConfirm } from "../../../components/notify";
 
 const ESTADOS_ASISTENCIA = [
   { value: "presente", label: "Presente" },
@@ -22,7 +23,7 @@ export const TabAsistencia = ({
 }) => {
   const obtenerAsistenciaEstudiante = (id_estudiante) => {
     return asistencias.find(
-      (a) => a.id_estudiante === id_estudiante && a.fecha === fechaAsistencia
+      (a) => a.id_estudiante === id_estudiante && a.fecha === fechaAsistencia,
     );
   };
 
@@ -36,13 +37,13 @@ export const TabAsistencia = ({
   const guardarAsistenciaEstudiante = async (id_estudiante) => {
     const estadoNuevo = estadosTemporales[id_estudiante];
     if (!estadoNuevo) {
-      alert("Seleccione un estado");
+      notify("error", "Seleccione un estado");
       return;
     }
 
     const asistenciaExistente = obtenerAsistenciaEstudiante(id_estudiante);
     if (asistenciaExistente && asistenciaExistente.estado === estadoNuevo) {
-      alert("Seleccione un estado diferente");
+      notify("error", "Seleccione un estado diferente");
       return;
     }
 
@@ -57,7 +58,7 @@ export const TabAsistencia = ({
       if (asistenciaExistente) {
         await asistenciaAPI.actualizar(
           asistenciaExistente.id_asistencia,
-          payload
+          payload,
         );
       } else {
         await asistenciaAPI.crear(payload);
@@ -70,12 +71,13 @@ export const TabAsistencia = ({
         return nuevo;
       });
     } catch (err) {
-      alert("No se pudo guardar: " + err.message);
+      notify("error", "No se pudo guardar: " + err.message);
     }
   };
 
   const eliminarAsistenciaEstudiante = async (id_estudiante) => {
-    if (!window.confirm("¿Eliminar asistencia?")) return;
+    const ok = await requestConfirm("¿Eliminar asistencia?");
+    if (!ok) return;
 
     const asistenciaExistente = obtenerAsistenciaEstudiante(id_estudiante);
     if (!asistenciaExistente) return;
@@ -89,7 +91,7 @@ export const TabAsistencia = ({
         return nuevo;
       });
     } catch (err) {
-      alert("Error al eliminar: " + err.message);
+      notify("error", "Error al eliminar: " + err.message);
     }
   };
 
@@ -142,7 +144,7 @@ export const TabAsistencia = ({
               .sort((a, b) => a.apellido.localeCompare(b.apellido))
               .map((estudiante) => {
                 const asistenciaExistente = obtenerAsistenciaEstudiante(
-                  estudiante.id_estudiante
+                  estudiante.id_estudiante,
                 );
                 const estadoActual =
                   estadosTemporales[estudiante.id_estudiante] ||
@@ -160,7 +162,7 @@ export const TabAsistencia = ({
                         onChange={(e) =>
                           cambiarEstadoTemporal(
                             estudiante.id_estudiante,
-                            e.target.value
+                            e.target.value,
                           )
                         }
                         style={{
@@ -200,7 +202,7 @@ export const TabAsistencia = ({
                           className="btn-eliminar"
                           onClick={() =>
                             eliminarAsistenciaEstudiante(
-                              estudiante.id_estudiante
+                              estudiante.id_estudiante,
                             )
                           }
                           disabled={cargandoAsistencia}

@@ -1,5 +1,6 @@
 import React from "react";
 import { estudiantesAPI } from "../../../services/api";
+import { notify } from "../../../components/notify";
 
 export const TabBusquedaEstudiantes = ({
   activeTab,
@@ -23,7 +24,7 @@ export const TabBusquedaEstudiantes = ({
       const data = await estudiantesAPI.buscar(filtros);
       setResultadosBusqueda(data || []);
     } catch (err) {
-      alert("No se pudo realizar la búsqueda: " + err.message);
+      notify("error", "No se pudo realizar la búsqueda: " + err.message);
     } finally {
       setCargandoBusqueda(false);
     }

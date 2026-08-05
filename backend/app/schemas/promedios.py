@@ -13,38 +13,42 @@ class DetalleNotaInsumo(BaseModel):
     calificacion: float
 
 
-class DetalleActividadesTrimestr(BaseModel):
-    """Detalles de actividades en un trimestre"""
+class DetalleActividadesPeriodo(BaseModel):
+    """Detalles de actividades en un periodo academico."""
     notas_actividades: List[DetalleNotaInsumo] = []
     nota_proyecto: Optional[DetalleNotaInsumo] = None
     nota_examen: Optional[DetalleNotaInsumo] = None
 
 
-class PromedioTrimestral(BaseModel):
-    """Promedio de un estudiante en un trimestre"""
+class PromedioPeriodo(BaseModel):
+    """Promedio de un estudiante en un periodo academico."""
     id_estudiante: int
     id_curso: int
-    numero_trimestre: int
+    numero_periodo: int
+    nombre_periodo: str
     anio_lectivo: str
     promedio_actividades: Optional[float] = None
     promedio_proyecto: Optional[float] = None
     promedio_examen: Optional[float] = None
-    promedio_trimestral: Optional[float] = None
-    detalles: DetalleActividadesTrimestr
+    promedio_periodo: Optional[float] = None
+    detalles: DetalleActividadesPeriodo
 
 
-class PromedioFinal(BaseModel):
-    """Promedio final de un estudiante en un curso"""
+class PromedioAcumulado(BaseModel):
+    """Promedio acumulado de un estudiante en un curso."""
     id_estudiante: int
     id_curso: int
     anio_lectivo: str
-    promedio_final: Optional[float] = None
-    promedios_trimestrales: List[PromedioTrimestral]
-    trimestres_con_datos: int
+    promedio_acumulado: Optional[float] = None
+    promedios_por_periodo: List[PromedioPeriodo]
+    periodos_con_datos: int
+    cantidad_periodos: int
+    cantidad_periodos_configurada: int
+    tipo_periodizacion: str
 
 
 class PromediosCurso(BaseModel):
     """Promedios de todos los estudiantes en un curso"""
     id_curso: int
-    promedios: List[PromedioFinal]
+    promedios: List[PromedioAcumulado]
     cantidad_estudiantes: int

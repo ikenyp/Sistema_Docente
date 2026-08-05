@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { insumosAPI, notasAPI, estudiantesAPI } from "../../../services/api";
+import { notify, requestConfirm } from "../../../components/notify";
 
 export const TabInsumos = ({
   activeTab,
@@ -22,7 +23,7 @@ export const TabInsumos = ({
 
   const agregarInsumo = async () => {
     if (!nuevoInsumo.nombre.trim() || !nuevoInsumo.ponderacion) {
-      alert("Debe completar nombre y ponderación");
+      notify("error", "Debe completar nombre y ponderación");
       return;
     }
 
@@ -34,7 +35,7 @@ export const TabInsumos = ({
         descripcion: nuevoInsumo.descripcion || null,
         ponderacion: parseFloat(nuevoInsumo.ponderacion),
         tipo_insumo: nuevoInsumo.tipo_insumo,
-        id_trimestre: parseInt(nuevoInsumo.id_trimestre),
+        id_periodo: parseInt(nuevoInsumo.id_periodo, 10),
       };
 
       await insumosAPI.crear(data);
@@ -43,24 +44,25 @@ export const TabInsumos = ({
         descripcion: "",
         ponderacion: "",
         tipo_insumo: "actividad",
-        id_trimestre: "1",
+        id_periodo: "",
       });
       await cargarInsumos(materiaSeleccionada.id_cmd);
     } catch (err) {
-      alert("Error al crear insumo: " + err.message);
+      notify("error", "Error al crear insumo: " + err.message);
     } finally {
       setCargandoInsumoProceso(false);
     }
   };
 
   const eliminarInsumo = async (id_insumo) => {
-    if (!window.confirm("¿Está seguro de eliminar este insumo?")) return;
+    const ok = await requestConfirm("¿Está seguro de eliminar este insumo?");
+    if (!ok) return;
 
     try {
       await insumosAPI.eliminar(id_insumo);
       await cargarInsumos(materiaSeleccionada.id_cmd);
     } catch (err) {
-      alert("Error al eliminar insumo: " + err.message);
+      notify("error", "Error al eliminar insumo: " + err.message);
     }
   };
 
@@ -81,7 +83,7 @@ export const TabInsumos = ({
       });
       setNotasEstudiantes(notasMap);
     } catch (err) {
-      alert("Error al cargar notas: " + err.message);
+      notify("error", "Error al cargar notas: " + err.message);
     }
   };
 
@@ -91,13 +93,13 @@ export const TabInsumos = ({
       calificacion === null ||
       calificacion === undefined
     ) {
-      alert("Por favor ingrese una calificación");
+      notify("error", "Por favor ingrese una calificación");
       return;
     }
 
     const notaNum = parseFloat(calificacion);
     if (isNaN(notaNum) || notaNum < 0 || notaNum > 10) {
-      alert("La calificación debe ser un número entre 0 y 10");
+      notify("error", "La calificación debe ser un número entre 0 y 10");
       return;
     }
 
@@ -117,10 +119,10 @@ export const TabInsumos = ({
       }
 
       await abrirInsumosNotas(insumosSeleccionado);
-      alert("Nota guardada correctamente");
+      notify("success", "Nota guardada correctamente");
     } catch (err) {
       console.error("Error al guardar nota:", err);
-      alert("Error al guardar nota: " + (err.message || err));
+      notify("error", "Error al guardar nota: " + (err.message || err));
     }
   };
 
@@ -128,13 +130,14 @@ export const TabInsumos = ({
     const nota = notasEstudiantes[id_estudiante];
     if (!nota) return;
 
-    if (!window.confirm("¿Eliminar esta nota?")) return;
+    const ok = await requestConfirm("¿Eliminar esta nota?");
+    if (!ok) return;
 
     try {
       await notasAPI.eliminar(nota.id_nota);
       await abrirInsumosNotas(insumosSeleccionado);
     } catch (err) {
-      alert("Error al eliminar nota: " + err.message);
+      notify("error", "Error al eliminar nota: " + err.message);
     }
   };
 
@@ -193,21 +196,19 @@ export const TabInsumos = ({
             }
           >
             <option value="actividad">Actividad</option>
-            <option value="proyecto_trimestral">Proyecto trimestral</option>
-            <option value="examen_trimestral">Examen trimestral</option>
+            <option value="proyecto_periodo">Proyecto del periodo</option>
+            <option value="examen_periodo">Examen del periodo</option>
           </select>
           <select
-            value={nuevoInsumo.id_trimestre}
+            value={nuevoInsumo.id_periodo}
             onChange={(e) =>
               setNuevoInsumo({
                 ...nuevoInsumo,
-                id_trimestre: e.target.value,
+                id_periodo: e.target.value,
               })
             }
           >
-            <option value="1">Trimestre 1</option>
-            <option value="2">Trimestre 2</option>
-            <option value="3">Trimestre 3</option>
+            <option value="">Seleccione periodo</option>
           </select>
           <button
             onClick={agregarInsumo}
@@ -222,18 +223,18 @@ export const TabInsumos = ({
           {insumosMateria.length === 0 ? (
             <p>No hay insumos creados</p>
           ) : (
-            [1, 2, 3].map((trimestre) => {
-              const insumosTrimestre = insumosMateria.filter(
-                (i) => i.id_trimestre === trimestre
+            [1, 2, 3].map((periodo) => {
+              const insumosPeriodo = insumosMateria.filter(
+                (i) => i.id_periodo === periodo,
               );
               return (
-                <div key={trimestre} className="trimestre-section">
-                  <h4 className="trimestre-title">📅 Trimestre {trimestre}</h4>
-                  {insumosTrimestre.length === 0 ? (
-                    <p className="no-insumos-trimestre">Sin actividades</p>
+                <div key={periodo} className="periodo-section">
+                  <h4 className="periodo-title">📅 Periodo {periodo}</h4>
+                  {insumosPeriodo.length === 0 ? (
+                    <p className="no-insumos-periodo">Sin actividades</p>
                   ) : (
-                    <div className="trimestre-insumos">
-                      {insumosTrimestre.map((insumo) => (
+                    <div className="periodo-insumos">
+                      {insumosPeriodo.map((insumo) => (
                         <div key={insumo.id_insumo} className="insumo-card">
                           <div className="insumo-info">
                             <h4>{insumo.nombre}</h4>
@@ -241,11 +242,11 @@ export const TabInsumos = ({
                             <div className="insumo-meta">
                               <small>Ponderación: {insumo.ponderacion}</small>
                               <small className="tipo-insumo">
-                                {insumo.tipo_insumo === "proyecto_trimestral"
+                                {insumo.tipo_insumo === "proyecto_periodo"
                                   ? "📁 Proyecto"
-                                  : insumo.tipo_insumo === "examen_trimestral"
-                                  ? "📝 Examen"
-                                  : "📌 Actividad"}
+                                  : insumo.tipo_insumo === "examen_periodo"
+                                    ? "📝 Examen"
+                                    : "📌 Actividad"}
                               </small>
                             </div>
                           </div>
@@ -325,11 +326,11 @@ export const TabInsumos = ({
                             className="btn-guardar-nota"
                             onClick={() => {
                               const input = document.getElementById(
-                                `nota-${estudiante.id_estudiante}`
+                                `nota-${estudiante.id_estudiante}`,
                               );
                               guardarNota(
                                 estudiante.id_estudiante,
-                                input.value
+                                input.value,
                               );
                             }}
                           >

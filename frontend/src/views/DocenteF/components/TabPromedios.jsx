@@ -1,41 +1,44 @@
 import React from "react";
 import { promediosAPI } from "../../../services/api";
+import { notify } from "../../../components/notify";
 
 export const TabPromedios = ({
   activeTab,
   estudiantesCurso,
   estudiantePromedio,
   setEstudiantePromedio,
-  trimestreSeleccionado,
-  setTrimestreSeleccionado,
-  promedioTrimestre,
-  setPromedioTrimestre,
-  promedioFinal,
-  setPromedioFinal,
+  periodoSeleccionado,
+  setPeriodoSeleccionado,
+  promedioPeriodo,
+  setPromedioPeriodo,
+  promedioAcumulado,
+  setPromedioAcumulado,
   loadingPromedios,
   setLoadingPromedios,
   errorPromedios,
   setErrorPromedios,
   id_curso,
   cursoDetalle,
+  periodos = [],
 }) => {
-  const consultarPromedioTrimestral = async () => {
+  const consultarPromedioPeriodo = async () => {
     if (!estudiantePromedio) {
-      alert("Seleccione un estudiante");
+      notify("error", "Seleccione un estudiante");
       return;
     }
     try {
       setLoadingPromedios(true);
       setErrorPromedios(null);
-      const data = await promediosAPI.obtenerTrimestral(
+      const data = await promediosAPI.obtenerPeriodo(
         parseInt(estudiantePromedio, 10),
         parseInt(id_curso, 10),
-        parseInt(trimestreSeleccionado, 10)
+        parseInt(periodoSeleccionado, 10),
+        cursoDetalle.anio_lectivo,
       );
-      setPromedioTrimestre(data);
+      setPromedioPeriodo(data);
     } catch (err) {
       setErrorPromedios(
-        err.message || "No se pudo calcular el promedio trimestral"
+        err.message || "No se pudo calcular el promedio del periodo",
       );
     } finally {
       setLoadingPromedios(false);
@@ -44,20 +47,23 @@ export const TabPromedios = ({
 
   const consultarPromedioFinal = async () => {
     if (!estudiantePromedio || !cursoDetalle?.anio_lectivo) {
-      alert("Seleccione estudiante y verifique que el curso tenga año lectivo");
+      notify(
+        "error",
+        "Seleccione estudiante y verifique que el curso tenga año lectivo",
+      );
       return;
     }
     try {
       setLoadingPromedios(true);
       setErrorPromedios(null);
-      const data = await promediosAPI.obtenerFinal(
+      const data = await promediosAPI.obtenerAcumulado(
         parseInt(estudiantePromedio, 10),
         parseInt(id_curso, 10),
-        cursoDetalle.anio_lectivo
+        cursoDetalle.anio_lectivo,
       );
-      setPromedioFinal(data);
+      setPromedioAcumulado(data);
     } catch (err) {
-      setErrorPromedios(err.message || "No se pudo calcular el promedio final");
+      setErrorPromedios(err.message || "No se pudo calcular el promedio acumulado");
     } finally {
       setLoadingPromedios(false);
     }
@@ -72,7 +78,7 @@ export const TabPromedios = ({
       <div className="panel-header">
         <div>
           <h3>📈 Promedios</h3>
-          <p className="panel-sub">Trimestral y final anual</p>
+          <p className="panel-sub">Por periodo y acumulado</p>
         </div>
       </div>
 
@@ -90,20 +96,31 @@ export const TabPromedios = ({
         </select>
 
         <select
-          value={trimestreSeleccionado}
-          onChange={(e) => setTrimestreSeleccionado(e.target.value)}
+          value={periodoSeleccionado}
+          onChange={(e) => setPeriodoSeleccionado(e.target.value)}
+          disabled={periodos.length === 0}
         >
-          <option value="1">Trimestre 1</option>
-          <option value="2">Trimestre 2</option>
-          <option value="3">Trimestre 3</option>
+          <option value="" disabled>
+            {periodos.length === 0
+              ? "No hay periodos configurados"
+              : "Seleccione periodo"}
+          </option>
+          {periodos.map((periodo) => (
+            <option
+              key={periodo.id_periodo || periodo.numero_periodo}
+              value={periodo.numero_periodo}
+            >
+              {periodo.nombre_periodo || `Periodo ${periodo.numero_periodo}`}
+            </option>
+          ))}
         </select>
 
         <button
           className="btn-primary"
-          onClick={consultarPromedioTrimestral}
+          onClick={consultarPromedioPeriodo}
           disabled={loadingPromedios}
         >
-          Ver promedio trimestral
+          Ver promedio del periodo
         </button>
 
         <button
@@ -111,7 +128,7 @@ export const TabPromedios = ({
           onClick={consultarPromedioFinal}
           disabled={loadingPromedios}
         >
-          Ver promedio final
+          Ver promedio acumulado
         </button>
       </div>
 
@@ -119,46 +136,46 @@ export const TabPromedios = ({
         <p style={{ color: "red", marginTop: "10px" }}>{errorPromedios}</p>
       )}
 
-      {promedioTrimestre && (
+      {promedioPeriodo && (
         <div className="cards-grid">
           <div className="stat-card">
             <p className="stat-label">
-              Trimestre {promedioTrimestre.numero_trimestre}
+              {promedioPeriodo.nombre_periodo || `Periodo ${promedioPeriodo.numero_periodo}`}
             </p>
             <h3 className="stat-value">
-              {promedioTrimestre.promedio_trimestral ?? "-"}
+              {promedioPeriodo.promedio_periodo ?? "-"}
             </h3>
             <p className="stat-sub">
-              Actividades: {promedioTrimestre.promedio_actividades ?? "-"}
+              Actividades: {promedioPeriodo.promedio_actividades ?? "-"}
             </p>
             <p className="stat-sub">
-              Proyecto: {promedioTrimestre.promedio_proyecto ?? "-"}
+              Proyecto: {promedioPeriodo.promedio_proyecto ?? "-"}
             </p>
             <p className="stat-sub">
-              Examen: {promedioTrimestre.promedio_examen ?? "-"}
+              Examen: {promedioPeriodo.promedio_examen ?? "-"}
             </p>
           </div>
         </div>
       )}
 
-      {promedioFinal && (
+      {promedioAcumulado && (
         <div className="cards-grid">
           <div className="stat-card accent">
-            <p className="stat-label">Promedio Final</p>
+            <p className="stat-label">Promedio acumulado</p>
             <h3 className="stat-value">
-              {promedioFinal.promedio_final ?? "-"}
+              {promedioAcumulado.promedio_acumulado ?? "-"}
             </h3>
             <p className="stat-sub">
-              Trimestres con datos: {promedioFinal.trimestres_con_datos}
+              Periodos con datos: {promedioAcumulado.periodos_con_datos}
             </p>
           </div>
           <div className="stat-card">
-            <p className="stat-label">Detalle por trimestre</p>
-            <ul className="trimestre-list">
-              {promedioFinal.promedios_trimestrales.map((t) => (
-                <li key={t.numero_trimestre}>
-                  <strong>T{t.numero_trimestre}:</strong>{" "}
-                  {t.promedio_trimestral ?? "-"}
+            <p className="stat-label">Detalle por periodo</p>
+            <ul className="periodo-list">
+              {promedioAcumulado.promedios_por_periodo.map((t) => (
+                <li key={t.numero_periodo}>
+                  <strong>{t.nombre_periodo || `Periodo ${t.numero_periodo}`}:</strong>{" "}
+                  {t.promedio_periodo ?? "-"}
                 </li>
               ))}
             </ul>

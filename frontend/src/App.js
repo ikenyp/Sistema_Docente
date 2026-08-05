@@ -1,25 +1,36 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
+  useParams,
 } from "react-router-dom";
 
 import Login from "./views/LoginF/login";
 import Admin from "./views/AdminF/admin";
 import Docente from "./views/DocenteF/docente";
 import CursoPrincipal from "./views/DocenteF/cursoPrincipal";
-import Estudiantes from "./views/Estudiantes/estudiantes";
 import NotasCurso from "./views/Notas/notasCurso.jsx";
+
+import NotificationCenter from "./components/NotificationCenter";
+import SessionModal from "./components/SessionModal";
+import {
+  clearSessionStorage,
+  getSessionExpiration,
+  scheduleSessionWatch,
+  subscribeSession,
+} from "./services/session";
 
 // Admin sub-rutas
 import EstudiantesAdmin from "./views/AdminF/estudiantesAdmin";
 import MateriasAdmin from "./views/AdminF/materiasAdmin";
-import AsignacionesAdmin from "./views/AdminF/asignacionesAdmin";
-import MatriculacionAdmin from "./views/AdminF/matriculacionAdmin";
-import LecturasAdmin from "./views/AdminF/lecturasAdmin";
-import PromediosAdmin from "./views/AdminF/promediosAdmin";
+import UsuariosAdmin from "./views/AdminF/usuariosAdmin";
+import CursosAdmin from "./views/AdminF/cursosAdmin";
+import CursoHubAdmin from "./views/AdminF/cursoHubAdmin";
+import ConsultasAdmin from "./views/AdminF/consultasAdmin";
+import PeriodizacionAdmin from "./views/AdminF/periodizacionAdmin";
+import PeriodizacionPage from "./views/Periodizacion/PeriodizacionPage";
 
 function ProtectedRoute({ children, allowRoles = [], allowModes = [] }) {
   const token = localStorage.getItem("token");
@@ -41,9 +52,47 @@ function ProtectedRoute({ children, allowRoles = [], allowModes = [] }) {
   return children;
 }
 
+function RedirectCursoEstudiantes() {
+  const { id } = useParams();
+  return (
+    <Navigate to={`/admin/cursos/${id}?tab=estudiantes`} replace />
+  );
+}
+
 function App() {
+  const [sessionState, setSessionState] = useState(null);
+
+  useEffect(() => {
+    if (localStorage.getItem("token") && getSessionExpiration()) {
+      scheduleSessionWatch();
+    }
+
+    const unsubscribe = subscribeSession((event) => {
+      setSessionState(event);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogout = () => {
+    clearSessionStorage();
+    setSessionState(null);
+    window.location.replace("/");
+  };
+
+  const handleStay = () => {
+    setSessionState(null);
+    scheduleSessionWatch();
+  };
+
   return (
     <Router>
+      <NotificationCenter />
+      <SessionModal
+        state={sessionState}
+        onStay={handleStay}
+        onLogout={handleLogout}
+      />
       <Routes>
         <Route path="/" element={<Login />} />
         <Route
@@ -69,7 +118,7 @@ function App() {
           }
         />
         <Route
-          path="/admin/materias"
+          path="/admin/estructura-academica"
           element={
             <ProtectedRoute
               allowRoles={["administrativo"]}
@@ -80,13 +129,35 @@ function App() {
           }
         />
         <Route
+          path="/admin/materias"
+          element={
+            <ProtectedRoute
+              allowRoles={["administrativo"]}
+              allowModes={["institucional"]}
+            >
+              <Navigate to="/admin/estructura-academica" replace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/asignaciones"
           element={
             <ProtectedRoute
               allowRoles={["administrativo"]}
               allowModes={["institucional"]}
             >
-              <AsignacionesAdmin />
+              <Navigate to="/admin/cursos" replace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/asignaciones-academicas"
+          element={
+            <ProtectedRoute
+              allowRoles={["administrativo"]}
+              allowModes={["institucional"]}
+            >
+              <Navigate to="/admin/cursos" replace />
             </ProtectedRoute>
           }
         />
@@ -97,7 +168,73 @@ function App() {
               allowRoles={["administrativo"]}
               allowModes={["institucional"]}
             >
-              <MatriculacionAdmin />
+              <Navigate to="/admin/estudiantes" replace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/matricula"
+          element={
+            <ProtectedRoute
+              allowRoles={["administrativo"]}
+              allowModes={["institucional"]}
+            >
+              <Navigate to="/admin/estudiantes" replace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/usuarios"
+          element={
+            <ProtectedRoute
+              allowRoles={["administrativo"]}
+              allowModes={["institucional"]}
+            >
+              <UsuariosAdmin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/cursos"
+          element={
+            <ProtectedRoute
+              allowRoles={["administrativo"]}
+              allowModes={["institucional"]}
+            >
+              <CursosAdmin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/cursos/:id"
+          element={
+            <ProtectedRoute
+              allowRoles={["administrativo"]}
+              allowModes={["institucional"]}
+            >
+              <CursoHubAdmin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/consultas"
+          element={
+            <ProtectedRoute
+              allowRoles={["administrativo"]}
+              allowModes={["institucional"]}
+            >
+              <ConsultasAdmin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/periodizacion"
+          element={
+            <ProtectedRoute
+              allowRoles={["administrativo"]}
+              allowModes={["institucional"]}
+            >
+              <PeriodizacionAdmin />
             </ProtectedRoute>
           }
         />
@@ -108,7 +245,7 @@ function App() {
               allowRoles={["administrativo"]}
               allowModes={["institucional"]}
             >
-              <LecturasAdmin />
+              <Navigate to="/admin/consultas" replace />
             </ProtectedRoute>
           }
         />
@@ -119,7 +256,18 @@ function App() {
               allowRoles={["administrativo"]}
               allowModes={["institucional"]}
             >
-              <PromediosAdmin />
+              <Navigate to="/admin/consultas" replace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reportes"
+          element={
+            <ProtectedRoute
+              allowRoles={["administrativo"]}
+              allowModes={["institucional"]}
+            >
+              <Navigate to="/admin/consultas" replace />
             </ProtectedRoute>
           }
         />
@@ -141,13 +289,35 @@ function App() {
           }
         />
         <Route
+          path="/docente/estructura-academica"
+          element={
+            <ProtectedRoute
+              allowRoles={["docente"]}
+              allowModes={["personal"]}
+            >
+              <MateriasAdmin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/docente/periodizacion"
+          element={
+            <ProtectedRoute
+              allowRoles={["docente"]}
+              allowModes={["personal"]}
+            >
+              <PeriodizacionPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/cursos/:id/estudiantes"
           element={
             <ProtectedRoute
               allowRoles={["administrativo"]}
               allowModes={["institucional"]}
             >
-              <Estudiantes />
+              <RedirectCursoEstudiantes />
             </ProtectedRoute>
           }
         />

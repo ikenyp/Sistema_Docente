@@ -2,16 +2,15 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
   asistenciaAPI,
-  cmdAPI,
   comportamientoAPI,
   cursosAPI,
   estudiantesAPI,
   insumosAPI,
   notasAPI,
   promediosAPI,
-  materiasAPI,
 } from "../../services/api";
 import "../../styles/cursoPrincipal.css";
+import { notify, requestConfirm } from "../../components/notify";
 
 const ESTADOS_ASISTENCIA = [
   { value: "presente", label: "Presente" },
@@ -33,13 +32,15 @@ function CursoPrincipal() {
   const [error, setError] = useState(null);
   const [datosUsuario, setDatosUsuario] = useState(null);
   const [menuUsuario, setMenuUsuario] = useState(false);
+  const [appMode, setAppMode] = useState(
+    (localStorage.getItem("app_mode") || "institucional").toLowerCase(),
+  );
 
   // Datos del curso
   const [cursoDetalle, setCursoDetalle] = useState(curso || null);
   const [materiasCurso, setMateriasCurso] = useState([]);
   const [materiaSeleccionada, setMateriaSeleccionada] = useState(null);
   const [insumosMateria, setInsumosMateria] = useState([]);
-  const [materiaNombres, setMateriaNombres] = useState({});
 
   // Estudiantes del curso
   const [estudiantesCurso, setEstudiantesCurso] = useState([]);
@@ -49,10 +50,14 @@ function CursoPrincipal() {
     nombre: "",
     descripcion: "",
     ponderacion: "",
-    tipo_insumo: "", // valores válidos: actividad | proyecto_trimestral | examen_trimestral
-    id_trimestre: "", // número de trimestre (1-3) o id real si lo prefieres cargar
+    tipo_insumo: "", // valores validos: actividad | proyecto_periodo | examen_periodo
+    id_periodo: "",
   });
   const [cargandoInsumo, setCargandoInsumo] = useState(false);
+
+  // Periodos
+  const [periodos, setPeriodos] = useState([]);
+  const [errorCargaPeriodos] = useState(null);
 
   // Vista de notas por insumo (modal)
   const [insumosSeleccionado, setInsumosSeleccionado] = useState(null);
@@ -89,9 +94,9 @@ function CursoPrincipal() {
   const [cargandoNotasIndividual, setCargandoNotasIndividual] = useState(false);
 
   // Promedios
-  const [promedioTrimestre, setPromedioTrimestre] = useState(null);
-  const [promedioFinal, setPromedioFinal] = useState(null);
-  const [trimestreSeleccionado, setTrimestreSeleccionado] = useState("1");
+  const [promedioPeriodo, setPromedioPeriodo] = useState(null);
+  const [promedioAcumulado, setPromedioAcumulado] = useState(null);
+  const [periodoSeleccionado, setPeriodoSeleccionado] = useState("");
   const [estudiantePromedio, setEstudiantePromedio] = useState("");
   const [loadingPromedios, setLoadingPromedios] = useState(false);
   const [errorPromedios, setErrorPromedios] = useState(null);
@@ -101,6 +106,18 @@ function CursoPrincipal() {
   const [resultadosBusqueda, setResultadosBusqueda] = useState([]);
   const [cargandoBusqueda, setCargandoBusqueda] = useState(false);
 
+  const [errorPeriodos, setErrorPeriodos] = useState(null);
+
+  const esTutorCurso = useMemo(
+    () =>
+      appMode === "institucional" &&
+      !!datosUsuario &&
+      cursoDetalle?.id_tutor === datosUsuario.id_usuario,
+    [appMode, cursoDetalle, datosUsuario],
+  );
+
+  const soloLecturaTutor = esTutorCurso;
+
   const tabs = useMemo(
     () => [
       { id: "insumos", label: "Insumos y notas" },
@@ -108,6 +125,7 @@ function CursoPrincipal() {
       { id: "comportamiento", label: "Comportamiento" },
       { id: "notasEstudiante", label: "Notas por estudiante" },
       { id: "promedios", label: "Promedios" },
+      { id: "periodizacion", label: "⏰ Periodizacion" },
       { id: "busqueda", label: "Búsqueda estudiantes" },
     ],
     [],
@@ -149,40 +167,6 @@ function CursoPrincipal() {
     }
   }, [id_curso]);
 
-  const cargarNombresMaterias = useCallback(
-    async (cmdList) => {
-      const faltantes = (cmdList || [])
-        .map((item) => item.id_materia)
-        .filter((id) => id && !materiaNombres[id]);
-
-      if (faltantes.length === 0) return;
-
-      try {
-        const respuestas = await Promise.all(
-          faltantes.map(async (id) => {
-            try {
-              const data = await materiasAPI.obtener(id);
-              return { id, nombre: data?.nombre || `Materia ${id}` };
-            } catch (err) {
-              console.error("No se pudo obtener nombre de materia", id, err);
-              return { id, nombre: `Materia ${id}` };
-            }
-          }),
-        );
-
-        const nuevos = respuestas.reduce((acc, item) => {
-          acc[item.id] = item.nombre;
-          return acc;
-        }, {});
-
-        setMateriaNombres((prev) => ({ ...prev, ...nuevos }));
-      } catch (err) {
-        console.error("Error cargando nombres de materias", err);
-      }
-    },
-    [materiaNombres],
-  );
-
   const cargarDatos = useCallback(async () => {
     try {
       setCargando(true);
@@ -197,27 +181,61 @@ function CursoPrincipal() {
 
       const usuario = JSON.parse(usuarioJSON);
       setDatosUsuario(usuario);
+      setAppMode(
+        (localStorage.getItem("app_mode") || "institucional").toLowerCase(),
+      );
 
-      if (!cursoDetalle) {
-        const cursoApi = await cursosAPI.obtenerCurso(id_curso);
-        setCursoDetalle(cursoApi);
-      }
+      const dashboard = await cursosAPI.obtenerDashboard(id_curso);
+      const cursoActual = dashboard?.curso || curso;
+      setCursoDetalle(cursoActual);
 
-      const cmd = await cmdAPI.listarPorDocente(usuario.id_usuario, id_curso);
+      const esTutorInstitucional =
+        (localStorage.getItem("app_mode") || "institucional").toLowerCase() ===
+          "institucional" && cursoActual?.id_tutor === usuario.id_usuario;
+
+      const cmd = esTutorInstitucional
+        ? dashboard?.asignaciones || []
+        : (dashboard?.asignaciones || []).filter(
+            (item) => item.id_docente === usuario.id_usuario,
+          );
       setMateriasCurso(cmd || []);
-      await cargarNombresMaterias(cmd || []);
 
-      const estudiantes = await estudiantesAPI.obtenerPorCurso(id_curso);
+      const estudiantes = dashboard?.estudiantes || [];
       setEstudiantesCurso(estudiantes || []);
 
       if (cmd && cmd.length > 0) {
         const primera = cmd[0];
         setMateriaSeleccionada(primera);
-        await Promise.all([
-          cargarInsumos(primera.id_cmd),
-          cargarAsistencia(primera.id_cmd),
-        ]);
-        await cargarComportamientos();
+      }
+
+      // Cargar periodizacion con el curso actual
+      if (cursoActual) {
+        setErrorPeriodos(null);
+        try {
+          const anio = cursoActual.anio_lectivo;
+          const config = dashboard?.periodizacion;
+            const periodos = (config?.periodos || []).map((periodo) => ({
+              id_periodo: periodo.id_periodo,
+              numero_periodo: periodo.numero_periodo,
+              fecha_inicio: periodo.fecha_inicio,
+              fecha_fin: periodo.fecha_fin,
+              nombre_periodo: periodo.nombre_periodo,
+            }));
+            setPeriodos(periodos);
+            setPeriodoSeleccionado(periodos[0]?.numero_periodo?.toString() || "");
+
+          if (periodos.length === 0) {
+            setErrorPeriodos(
+              `No hay periodos configurados para ${anio}. Solicita que se configure la periodizacion.`,
+            );
+          }
+        } catch (err) {
+          console.error("Error al cargar periodos:", err);
+          setErrorPeriodos(
+            err.message ||
+              "Error al cargar los periodos. Solicita que se configure la periodizacion.",
+          );
+        }
       }
     } catch (err) {
       console.error("Error al cargar datos:", err);
@@ -226,33 +244,56 @@ function CursoPrincipal() {
       setCargando(false);
     }
   }, [
-    cursoDetalle,
     id_curso,
     navigate,
-    cargarAsistencia,
-    cargarComportamientos,
-    cargarInsumos,
-    cargarNombresMaterias,
+    curso,
   ]);
 
   useEffect(() => {
     cargarDatos();
   }, [cargarDatos]);
 
+  useEffect(() => {
+    if (!materiaSeleccionada?.id_cmd) return;
+    if (activeTab === "insumos") {
+      cargarInsumos(materiaSeleccionada.id_cmd);
+    }
+    if (activeTab === "asistencia") {
+      cargarAsistencia(materiaSeleccionada.id_cmd);
+    }
+  }, [activeTab, materiaSeleccionada, cargarInsumos, cargarAsistencia]);
+
+  useEffect(() => {
+    if (activeTab === "comportamiento") {
+      cargarComportamientos();
+    }
+  }, [activeTab, cargarComportamientos]);
+
   // ====================== INSUMOS ======================
   const agregarInsumo = async () => {
     if (!nuevoInsumo.nombre.trim() || !nuevoInsumo.ponderacion) {
-      alert("Debe completar nombre y ponderación");
+      notify("error", "Debe completar nombre y ponderación");
       return;
     }
 
     if (!nuevoInsumo.tipo_insumo) {
-      alert("Debe seleccionar el tipo de insumo");
+      notify("error", "Debe seleccionar el tipo de insumo");
       return;
     }
 
-    if (!nuevoInsumo.id_trimestre) {
-      alert("Debe seleccionar el trimestre");
+    if (!nuevoInsumo.id_periodo) {
+      notify("error", "Debe seleccionar el periodo");
+      return;
+    }
+
+    // Validar que hay periodos disponibles
+    if (errorPeriodos || periodos.length === 0) {
+      notify(
+        "error",
+        "No hay periodos disponibles. " +
+          (errorPeriodos ||
+            "Solicita que se configure la periodizacion."),
+      );
       return;
     }
 
@@ -264,7 +305,7 @@ function CursoPrincipal() {
         descripcion: nuevoInsumo.descripcion || null,
         ponderacion: parseFloat(nuevoInsumo.ponderacion),
         tipo_insumo: nuevoInsumo.tipo_insumo,
-        id_trimestre: parseInt(nuevoInsumo.id_trimestre, 10),
+        id_periodo: parseInt(nuevoInsumo.id_periodo, 10),
       };
 
       await insumosAPI.crear(data);
@@ -273,24 +314,25 @@ function CursoPrincipal() {
         descripcion: "",
         ponderacion: "",
         tipo_insumo: "",
-        id_trimestre: "",
+        id_periodo: "",
       });
       await cargarInsumos(materiaSeleccionada.id_cmd);
     } catch (err) {
-      alert("Error al crear insumo: " + err.message);
+      notify("error", "Error al crear insumo: " + err.message);
     } finally {
       setCargandoInsumo(false);
     }
   };
 
   const eliminarInsumo = async (id_insumo) => {
-    if (!window.confirm("¿Está seguro de eliminar este insumo?")) return;
+    const ok = await requestConfirm("¿Está seguro de eliminar este insumo?");
+    if (!ok) return;
 
     try {
       await insumosAPI.eliminar(id_insumo);
       await cargarInsumos(materiaSeleccionada.id_cmd);
     } catch (err) {
-      alert("Error al eliminar insumo: " + err.message);
+      notify("error", "Error al eliminar insumo: " + err.message);
     }
   };
 
@@ -312,7 +354,7 @@ function CursoPrincipal() {
       });
       setNotasEstudiantes(notasMap);
     } catch (err) {
-      alert("Error al cargar notas: " + err.message);
+      notify("error", "Error al cargar notas: " + err.message);
     }
   };
 
@@ -341,7 +383,7 @@ function CursoPrincipal() {
 
       await abrirInsumosNotas(insumosSeleccionado);
     } catch (err) {
-      alert("Error al guardar nota: " + err.message);
+      notify("error", "Error al guardar nota: " + err.message);
     }
   };
 
@@ -358,7 +400,7 @@ function CursoPrincipal() {
   const guardarAsistencia = async () => {
     if (!materiaSeleccionada) return;
     if (!asistenciaForm.id_estudiante || !asistenciaForm.fecha) {
-      alert("Seleccione estudiante y fecha");
+      notify("error", "Seleccione estudiante y fecha");
       return;
     }
 
@@ -382,7 +424,7 @@ function CursoPrincipal() {
       await cargarAsistencia(materiaSeleccionada.id_cmd);
       resetAsistenciaForm();
     } catch (err) {
-      alert("No se pudo guardar la asistencia: " + err.message);
+      notify("error", "No se pudo guardar la asistencia: " + err.message);
     } finally {
       setCargandoAsistencia(false);
     }
@@ -398,13 +440,14 @@ function CursoPrincipal() {
   };
 
   const eliminarAsistencia = async (id_asistencia) => {
-    if (!window.confirm("¿Eliminar registro de asistencia?")) return;
+    const ok = await requestConfirm("¿Eliminar registro de asistencia?");
+    if (!ok) return;
     try {
       await asistenciaAPI.eliminar(id_asistencia);
       await cargarAsistencia(materiaSeleccionada.id_cmd);
       resetAsistenciaForm();
     } catch (err) {
-      alert("No se pudo eliminar: " + err.message);
+      notify("error", "No se pudo eliminar: " + err.message);
     }
   };
 
@@ -421,7 +464,7 @@ function CursoPrincipal() {
 
   const guardarComportamiento = async () => {
     if (!comportamientoForm.id_estudiante || !comportamientoForm.mes) {
-      alert("Seleccione estudiante y mes");
+      notify("error", "Seleccione estudiante y mes");
       return;
     }
 
@@ -445,7 +488,7 @@ function CursoPrincipal() {
       await cargarComportamientos();
       resetComportamientoForm();
     } catch (err) {
-      alert("No se pudo guardar el comportamiento: " + err.message);
+      notify("error", "No se pudo guardar el comportamiento: " + err.message);
     } finally {
       setCargandoComportamiento(false);
     }
@@ -462,13 +505,14 @@ function CursoPrincipal() {
   };
 
   const eliminarComportamiento = async (id_comportamiento) => {
-    if (!window.confirm("¿Eliminar registro de comportamiento?")) return;
+    const ok = await requestConfirm("¿Eliminar registro de comportamiento?");
+    if (!ok) return;
     try {
       await comportamientoAPI.eliminar(id_comportamiento);
       await cargarComportamientos();
       resetComportamientoForm();
     } catch (err) {
-      alert("No se pudo eliminar: " + err.message);
+      notify("error", "No se pudo eliminar: " + err.message);
     }
   };
 
@@ -492,7 +536,10 @@ function CursoPrincipal() {
 
         setNotasIndividuales(dataset);
       } catch (err) {
-        alert("No se pudieron cargar las notas del estudiante: " + err.message);
+        notify(
+          "error",
+          "No se pudieron cargar las notas del estudiante: " + err.message,
+        );
       } finally {
         setCargandoNotasIndividual(false);
       }
@@ -524,29 +571,36 @@ function CursoPrincipal() {
 
       await cargarNotasEstudiante(estudianteSeleccionado);
     } catch (err) {
-      alert("No se pudo guardar la nota: " + err.message);
+      notify("error", "No se pudo guardar la nota: " + err.message);
     }
   };
 
   // ====================== PROMEDIOS ======================
-  const consultarPromedioTrimestral = async () => {
+  const consultarPromedioPeriodo = async () => {
     if (!estudiantePromedio || !cursoDetalle?.anio_lectivo) {
-      alert("Seleccione estudiante y verifique que el curso tenga año lectivo");
+      notify(
+        "error",
+        "Seleccione estudiante y verifique que el curso tenga año lectivo",
+      );
+      return;
+    }
+    if (!periodoSeleccionado) {
+      notify("error", "Seleccione un periodo");
       return;
     }
     try {
       setLoadingPromedios(true);
       setErrorPromedios(null);
-      const data = await promediosAPI.obtenerTrimestral(
+      const data = await promediosAPI.obtenerPeriodo(
         parseInt(estudiantePromedio, 10),
         parseInt(id_curso, 10),
-        parseInt(trimestreSeleccionado, 10),
+        parseInt(periodoSeleccionado, 10),
         cursoDetalle.anio_lectivo,
       );
-      setPromedioTrimestre(data);
+      setPromedioPeriodo(data);
     } catch (err) {
       setErrorPromedios(
-        err.message || "No se pudo calcular el promedio trimestral",
+        err.message || "No se pudo calcular el promedio del periodo",
       );
     } finally {
       setLoadingPromedios(false);
@@ -555,20 +609,23 @@ function CursoPrincipal() {
 
   const consultarPromedioFinal = async () => {
     if (!estudiantePromedio || !cursoDetalle?.anio_lectivo) {
-      alert("Seleccione estudiante y verifique que el curso tenga año lectivo");
+      notify(
+        "error",
+        "Seleccione estudiante y verifique que el curso tenga año lectivo",
+      );
       return;
     }
     try {
       setLoadingPromedios(true);
       setErrorPromedios(null);
-      const data = await promediosAPI.obtenerFinal(
+      const data = await promediosAPI.obtenerAcumulado(
         parseInt(estudiantePromedio, 10),
         parseInt(id_curso, 10),
         cursoDetalle.anio_lectivo,
       );
-      setPromedioFinal(data);
+      setPromedioAcumulado(data);
     } catch (err) {
-      setErrorPromedios(err.message || "No se pudo calcular el promedio final");
+      setErrorPromedios(err.message || "No se pudo calcular el promedio acumulado");
     } finally {
       setLoadingPromedios(false);
     }
@@ -587,27 +644,25 @@ function CursoPrincipal() {
       const data = await estudiantesAPI.buscar(filtros);
       setResultadosBusqueda(data || []);
     } catch (err) {
-      alert("No se pudo realizar la búsqueda: " + err.message);
+      notify("error", "No se pudo realizar la búsqueda: " + err.message);
     } finally {
       setCargandoBusqueda(false);
     }
   };
 
   const cerrarSesion = () => {
+    const appMode = localStorage.getItem("app_mode") || "institucional";
     localStorage.removeItem("token");
     localStorage.removeItem("usuario");
-    navigate("/");
+    localStorage.removeItem("app_mode");
+    // Volver al login con el modo que estaba usando
+    navigate(`/?mode=${appMode}`);
   };
-
-  // ====================== RENDERS ======================
-  if (cargando) return <p>Cargando...</p>;
-  if (error) return <p style={{ color: "red" }}>Error: {error}</p>;
 
   const materiaNombre = (m) => {
     if (!m) return "Materia";
     if (m.materia?.nombre) return m.materia.nombre;
-    const nombreGuardado = materiaNombres[m.id_materia];
-    return nombreGuardado || `Materia ${m.id_materia}`;
+    return `Materia ${m.id_materia}`;
   };
 
   return (
@@ -638,7 +693,45 @@ function CursoPrincipal() {
       </div>
 
       <div className="curso-container">
-        {materiasCurso.length === 0 ? (
+        {cargando ? (
+          <>
+            <div className="course-summary">
+              <div>
+                <p className="summary-label">Curso</p>
+                <h3>Cargando curso...</h3>
+                <p className="summary-sub">Preparando materias, estudiantes y periodos</p>
+              </div>
+              <div className="summary-badge">
+                <span>...</span>
+                <small>Materias</small>
+              </div>
+              <div className="summary-badge">
+                <span>...</span>
+                <small>Estudiantes</small>
+              </div>
+            </div>
+
+            <div className="cards-grid course-stats-grid">
+              {[1, 2, 3, 4].map((item) => (
+                <div key={item} className="stat-card">
+                  <p className="stat-label">Cargando</p>
+                  <h3 className="stat-value">...</h3>
+                  <p className="stat-sub">Obteniendo información del curso</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="empty-state" style={{ marginTop: "1rem" }}>
+              <h3>Cargando información del curso</h3>
+              <p>Espera unos segundos mientras se obtienen materias, estudiantes y configuración académica.</p>
+            </div>
+          </>
+        ) : error ? (
+          <div className="empty-state error-state">
+            <h3>No se pudo cargar el curso</h3>
+            <p>{error}</p>
+          </div>
+        ) : materiasCurso.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">📚</div>
             <h2>No hay materias asignadas</h2>
@@ -656,6 +749,11 @@ function CursoPrincipal() {
                 <p className="summary-sub">
                   Año lectivo: {cursoDetalle?.anio_lectivo || "-"}
                 </p>
+                {soloLecturaTutor && (
+                  <p className="summary-sub" style={{ color: "#1f91de", fontWeight: 700 }}>
+                    Tutor del curso · Vista global en solo lectura
+                  </p>
+                )}
               </div>
               <div className="summary-badge">
                 <span>{materiasCurso.length}</span>
@@ -666,6 +764,53 @@ function CursoPrincipal() {
                 <small>Estudiantes</small>
               </div>
             </div>
+
+            <div className="cards-grid course-stats-grid">
+              <div className="stat-card accent">
+                <p className="stat-label">Materias activas</p>
+                <h3 className="stat-value">{materiasCurso.length}</h3>
+                <p className="stat-sub">Relacionadas al curso actual</p>
+              </div>
+              <div className="stat-card">
+                <p className="stat-label">Estudiantes</p>
+                <h3 className="stat-value">{estudiantesCurso.length}</h3>
+                <p className="stat-sub">Puedes buscar, registrar y evaluar</p>
+              </div>
+              <div className="stat-card">
+                <p className="stat-label">Insumos</p>
+                <h3 className="stat-value">{insumosMateria.length}</h3>
+                <p className="stat-sub">
+                  Peso de actividades, proyectos y exámenes
+                </p>
+              </div>
+              <div className="stat-card">
+          <p className="stat-label">Periodos</p>
+          <h3 className="stat-value">{periodos.length}</h3>
+          <p className="stat-sub">Base para notas y promedios</p>
+              </div>
+            </div>
+
+            {errorCargaPeriodos && (
+              <div
+                className="empty-state warning-state"
+                style={{ marginBottom: "0.95rem" }}
+              >
+                <h3>Falta configuracion de periodizacion</h3>
+                <p>{errorCargaPeriodos}</p>
+              </div>
+            )}
+
+            {soloLecturaTutor && (
+              <div
+                className="empty-state"
+                style={{ marginBottom: "0.95rem", border: "1px solid #dce5f4" }}
+              >
+                <h3>Modo tutor</h3>
+                <p>
+                  Puedes revisar materias, notas, asistencia, promedios y comportamiento del curso completo, pero sin editar datos de las materias.
+                </p>
+              </div>
+            )}
 
             <div className="materia-selector">
               <label>Selecciona Materia:</label>
@@ -757,33 +902,43 @@ function CursoPrincipal() {
                       Selecciona tipo de insumo
                     </option>
                     <option value="actividad">Actividad</option>
-                    <option value="proyecto_trimestral">
-                      Proyecto trimestral
+                    <option value="proyecto_periodo">
+                      Proyecto del periodo
                     </option>
-                    <option value="examen_trimestral">Examen trimestral</option>
+                    <option value="examen_periodo">Examen del periodo</option>
                   </select>
                   <select
-                    value={nuevoInsumo.id_trimestre}
+                    value={nuevoInsumo.id_periodo}
                     onChange={(e) =>
                       setNuevoInsumo({
                         ...nuevoInsumo,
-                        id_trimestre: e.target.value,
+                        id_periodo: e.target.value,
                       })
                     }
+                    disabled={periodos.length === 0}
                   >
                     <option value="" disabled>
-                      Selecciona trimestre
+                      {errorCargaPeriodos
+                        ? "❌ " + errorCargaPeriodos
+                        : "Selecciona periodo"}
                     </option>
-                    <option value="1">Trimestre 1</option>
-                    <option value="2">Trimestre 2</option>
-                    <option value="3">Trimestre 3</option>
+                    {periodos.map((tri) => (
+                      <option key={tri.id_periodo} value={tri.id_periodo}>
+                        {(tri.nombre_periodo || `Periodo ${tri.numero_periodo}`) +
+                          ` (${tri.fecha_inicio} - ${tri.fecha_fin})`}
+                      </option>
+                    ))}
                   </select>
                   <button
                     onClick={agregarInsumo}
-                    disabled={cargandoInsumo}
+                    disabled={cargandoInsumo || soloLecturaTutor}
                     className="btn-add-insumo"
                   >
-                    {cargandoInsumo ? "Agregando..." : "Agregar Insumo"}
+                    {soloLecturaTutor
+                      ? "Solo lectura"
+                      : cargandoInsumo
+                        ? "Agregando..."
+                        : "Agregar Insumo"}
                   </button>
                 </div>
 
@@ -805,12 +960,14 @@ function CursoPrincipal() {
                           >
                             Notas
                           </button>
-                          <button
-                            className="btn-eliminar"
-                            onClick={() => eliminarInsumo(insumo.id_insumo)}
-                          >
-                            Eliminar
-                          </button>
+                          {!soloLecturaTutor && (
+                            <button
+                              className="btn-eliminar"
+                              onClick={() => eliminarInsumo(insumo.id_insumo)}
+                            >
+                              Eliminar
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))
@@ -833,6 +990,12 @@ function CursoPrincipal() {
                     Limpiar formulario
                   </button>
                 </div>
+
+                {soloLecturaTutor && (
+                  <p className="panel-sub" style={{ marginBottom: 12 }}>
+                    Solo lectura: como tutor puedes revisar la asistencia registrada por cada docente, pero no modificarla.
+                  </p>
+                )}
 
                 <div className="form-grid">
                   <select
@@ -882,9 +1045,11 @@ function CursoPrincipal() {
                   <button
                     className="btn-primary"
                     onClick={guardarAsistencia}
-                    disabled={cargandoAsistencia}
+                    disabled={cargandoAsistencia || soloLecturaTutor}
                   >
-                    {asistenciaEditando ? "Actualizar" : "Crear"} registro
+                    {soloLecturaTutor
+                      ? "Solo lectura"
+                      : `${asistenciaEditando ? "Actualizar" : "Crear"} registro`}
                   </button>
                 </div>
 
@@ -917,20 +1082,26 @@ function CursoPrincipal() {
                               </span>
                             </td>
                             <td className="actions-cell">
-                              <button
-                                className="link-button"
-                                onClick={() => editarAsistencia(item)}
-                              >
-                                Editar
-                              </button>
-                              <button
-                                className="link-button danger"
-                                onClick={() =>
-                                  eliminarAsistencia(item.id_asistencia)
-                                }
-                              >
-                                Eliminar
-                              </button>
+                              {!soloLecturaTutor ? (
+                                <>
+                                  <button
+                                    className="link-button"
+                                    onClick={() => editarAsistencia(item)}
+                                  >
+                                    Editar
+                                  </button>
+                                  <button
+                                    className="link-button danger"
+                                    onClick={() =>
+                                      eliminarAsistencia(item.id_asistencia)
+                                    }
+                                  >
+                                    Eliminar
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="panel-sub">Solo lectura</span>
+                              )}
                             </td>
                           </tr>
                         );
@@ -959,10 +1130,19 @@ function CursoPrincipal() {
                   <button
                     className="link-button"
                     onClick={resetComportamientoForm}
+                    disabled={soloLecturaTutor || appMode === "institucional"}
                   >
                     Limpiar formulario
                   </button>
                 </div>
+
+                <p className="panel-sub" style={{ marginBottom: 12 }}>
+                  {soloLecturaTutor
+                    ? "Solo lectura: el tutor puede revisar el comportamiento general del curso, pero no editarlo."
+                    : appMode === "institucional"
+                      ? "En modo institucional el comportamiento se gestiona de forma centralizada."
+                      : "Registra observaciones y valoraciones mensuales del curso."}
+                </p>
 
                 <div className="form-grid">
                   <select
@@ -1024,9 +1204,13 @@ function CursoPrincipal() {
                   <button
                     className="btn-primary"
                     onClick={guardarComportamiento}
-                    disabled={cargandoComportamiento}
+                    disabled={cargandoComportamiento || soloLecturaTutor || appMode === "institucional"}
                   >
-                    {comportamientoEditando ? "Actualizar" : "Guardar"}
+                    {soloLecturaTutor || appMode === "institucional"
+                      ? "Solo lectura"
+                      : comportamientoEditando
+                        ? "Actualizar"
+                        : "Guardar"}
                   </button>
                 </div>
 
@@ -1061,20 +1245,26 @@ function CursoPrincipal() {
                             </td>
                             <td>{item.observaciones || "-"}</td>
                             <td className="actions-cell">
-                              <button
-                                className="link-button"
-                                onClick={() => editarComportamiento(item)}
-                              >
-                                Editar
-                              </button>
-                              <button
-                                className="link-button danger"
-                                onClick={() =>
-                                  eliminarComportamiento(item.id_comportamiento)
-                                }
-                              >
-                                Eliminar
-                              </button>
+                              {soloLecturaTutor || appMode === "institucional" ? (
+                                <span className="panel-sub">Solo lectura</span>
+                              ) : (
+                                <>
+                                  <button
+                                    className="link-button"
+                                    onClick={() => editarComportamiento(item)}
+                                  >
+                                    Editar
+                                  </button>
+                                  <button
+                                    className="link-button danger"
+                                    onClick={() =>
+                                      eliminarComportamiento(item.id_comportamiento)
+                                    }
+                                  >
+                                    Eliminar
+                                  </button>
+                                </>
+                              )}
                             </td>
                           </tr>
                         );
@@ -1143,11 +1333,13 @@ function CursoPrincipal() {
                                 defaultValue={registro.valor}
                                 className="input-nota"
                                 id={`nota-ind-${registro.insumo.id_insumo}`}
+                                disabled={soloLecturaTutor}
                               />
                             </td>
                             <td>
                               <button
                                 className="btn-guardar-nota"
+                                disabled={soloLecturaTutor}
                                 onClick={() => {
                                   const input = document.getElementById(
                                     `nota-ind-${registro.insumo.id_insumo}`,
@@ -1180,7 +1372,7 @@ function CursoPrincipal() {
                 <div className="panel-header">
                   <div>
                     <h3>📈 Promedios</h3>
-                    <p className="panel-sub">Trimestral y final anual</p>
+                    <p className="panel-sub">Por periodo y acumulado anual</p>
                   </div>
                 </div>
 
@@ -1198,20 +1390,31 @@ function CursoPrincipal() {
                   </select>
 
                   <select
-                    value={trimestreSeleccionado}
-                    onChange={(e) => setTrimestreSeleccionado(e.target.value)}
+                    value={periodoSeleccionado}
+                    onChange={(e) => setPeriodoSeleccionado(e.target.value)}
+                    disabled={periodos.length === 0}
                   >
-                    <option value="1">Trimestre 1</option>
-                    <option value="2">Trimestre 2</option>
-                    <option value="3">Trimestre 3</option>
+                    <option value="" disabled>
+                      {periodos.length === 0
+                        ? "No hay periodos configurados"
+                        : "Seleccione periodo"}
+                    </option>
+                    {periodos.map((tri) => (
+                      <option
+                        key={tri.id_periodo}
+                        value={tri.numero_periodo}
+                      >
+                        {tri.nombre_periodo || `Periodo ${tri.numero_periodo}`}
+                      </option>
+                    ))}
                   </select>
 
                   <button
                     className="btn-primary"
-                    onClick={consultarPromedioTrimestral}
+                    onClick={consultarPromedioPeriodo}
                     disabled={loadingPromedios}
                   >
-                    Ver promedio trimestral
+                    Ver promedio del periodo
                   </button>
 
                   <button
@@ -1219,7 +1422,7 @@ function CursoPrincipal() {
                     onClick={consultarPromedioFinal}
                     disabled={loadingPromedios}
                   >
-                    Ver promedio final
+                    Ver promedio acumulado
                   </button>
                 </div>
 
@@ -1229,54 +1432,116 @@ function CursoPrincipal() {
                   </p>
                 )}
 
-                {promedioTrimestre && (
+                    {promedioPeriodo && (
                   <div className="cards-grid">
                     <div className="stat-card">
                       <p className="stat-label">
-                        Trimestre {promedioTrimestre.numero_trimestre}
+                        {promedioPeriodo.nombre_periodo ||
+                          `Periodo ${promedioPeriodo.numero_periodo}`}
                       </p>
                       <h3 className="stat-value">
-                        {promedioTrimestre.promedio_trimestral ?? "-"}
+                        {promedioPeriodo.promedio_periodo ?? "-"}
                       </h3>
                       <p className="stat-sub">
                         Actividades:{" "}
-                        {promedioTrimestre.promedio_actividades ?? "-"}
+                        {promedioPeriodo.promedio_actividades ?? "-"}
                       </p>
                       <p className="stat-sub">
-                        Proyecto: {promedioTrimestre.promedio_proyecto ?? "-"}
+                        Proyecto: {promedioPeriodo.promedio_proyecto ?? "-"}
                       </p>
                       <p className="stat-sub">
-                        Examen: {promedioTrimestre.promedio_examen ?? "-"}
+                        Examen: {promedioPeriodo.promedio_examen ?? "-"}
                       </p>
                     </div>
                   </div>
                 )}
 
-                {promedioFinal && (
+                {promedioAcumulado && (
                   <div className="cards-grid">
                     <div className="stat-card accent">
-                      <p className="stat-label">Promedio Final</p>
+                      <p className="stat-label">Promedio acumulado</p>
                       <h3 className="stat-value">
-                        {promedioFinal.promedio_final ?? "-"}
+                        {promedioAcumulado.promedio_acumulado ?? "-"}
                       </h3>
                       <p className="stat-sub">
-                        Trimestres con datos:{" "}
-                        {promedioFinal.trimestres_con_datos}
+                        Periodos con datos: {" "}
+                        {promedioAcumulado.periodos_con_datos}
                       </p>
                     </div>
                     <div className="stat-card">
-                      <p className="stat-label">Detalle por trimestre</p>
-                      <ul className="trimestre-list">
-                        {promedioFinal.promedios_trimestrales.map((t) => (
-                          <li key={t.numero_trimestre}>
-                            <strong>T{t.numero_trimestre}:</strong>{" "}
-                            {t.promedio_trimestral ?? "-"}
+                      <p className="stat-label">Detalle por periodo</p>
+                      <ul className="periodo-list">
+                        {(promedioAcumulado.promedios_por_periodo || []).map((t) => (
+                          <li key={t.numero_periodo}>
+                            <strong>
+                              {t.nombre_periodo || `Periodo ${t.numero_periodo}`}:
+                            </strong>{" "}
+                            {t.promedio_periodo ?? "-"}
                           </li>
                         ))}
                       </ul>
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* TAB: PERIODIZACION */}
+            {activeTab === "periodizacion" && (
+              <div className="panel-card">
+                <div className="panel-header">
+                  <div>
+                    <h3>⏰ Periodizacion</h3>
+                    <p className="panel-sub">
+                      Consulta los periodos configurados para este ano lectivo
+                    </p>
+                  </div>
+                </div>
+
+                {errorPeriodos && (
+                  <p style={{ color: "red", marginBottom: "15px" }}>
+                    {errorPeriodos}
+                  </p>
+                )}
+
+                {periodos.length > 0 ? (
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Periodo</th>
+                          <th>Fecha Inicio</th>
+                          <th>Fecha Fin</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {periodos.map((periodo) => (
+                          <tr key={periodo.id_periodo || periodo.numero_periodo}>
+                            <td>
+                              {periodo.nombre_periodo || `Periodo ${periodo.numero_periodo}`}
+                            </td>
+                            <td>{periodo.fecha_inicio}</td>
+                            <td>{periodo.fecha_fin}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div
+                    className="empty-state"
+                    style={{ padding: "20px", textAlign: "center" }}
+                    >
+                      <p>No hay periodos configurados aun</p>
+                    </div>
+                  )}
+                <div className="empty-state" style={{ marginTop: 16 }}>
+                  <p>
+                    La configuracion de la periodizacion se realiza desde la
+                    administracion general. Aqui solo puedes consultarla para usar
+                    correctamente insumos y promedios del curso.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -1409,11 +1674,13 @@ function CursoPrincipal() {
                             placeholder="--"
                             className="input-nota"
                             id={`nota-${estudiante.id_estudiante}`}
+                            disabled={soloLecturaTutor}
                           />
                         </td>
                         <td>
                           <button
                             className="btn-guardar-nota"
+                            disabled={soloLecturaTutor}
                             onClick={() => {
                               const input = document.getElementById(
                                 `nota-${estudiante.id_estudiante}`,
@@ -1424,7 +1691,7 @@ function CursoPrincipal() {
                               );
                             }}
                           >
-                            Guardar
+                            {soloLecturaTutor ? "Solo lectura" : "Guardar"}
                           </button>
                         </td>
                       </tr>

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional
 from datetime import date
 from app.models.enums import TipoInsumoEnum
@@ -13,10 +13,9 @@ class InsumoBase(BaseModel):
 # Schema para crear
 class InsumoCreate(InsumoBase):
     id_cmd: int
-    id_trimestre: int
+    id_periodo: int
     """No se incluye id_insumo ni fecha_creacion, 
     ya que se generan automaticamente"""
-    pass 
 
 # Schema para actualizar
 class InsumoUpdate(BaseModel):
@@ -24,13 +23,13 @@ class InsumoUpdate(BaseModel):
     descripcion: Optional[str] = None
     ponderacion: Optional[float] = Field(None, ge=1, le=10)
     tipo_insumo: Optional[TipoInsumoEnum] = None
-    id_trimestre: Optional[int] = None
+    id_periodo: Optional[int] = None
 
 # Schema para respuesta
 class InsumoResponse(InsumoBase):
     id_insumo: int
     id_cmd: int
-    id_trimestre: int
+    id_periodo: int
     fecha_creacion: date
 
     model_config = {

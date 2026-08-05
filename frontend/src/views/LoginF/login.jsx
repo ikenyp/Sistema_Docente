@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import "../../styles/login.css";
+import { scheduleSessionWatch } from "../../services/session";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
@@ -10,6 +11,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedMode, setSelectedMode] = useState("");
+  const [searchParams] = useSearchParams();
   const [authView, setAuthView] = useState("login");
   const [registerName, setRegisterName] = useState("");
   const [registerLastName, setRegisterLastName] = useState("");
@@ -22,6 +24,17 @@ export default function Login() {
   const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
   const [success, setSuccess] = useState("");
   const navigate = useNavigate();
+
+  // Detectar modo desde parámetro de query al cargar el componente
+  useEffect(() => {
+    const modeParam = searchParams.get("mode");
+    if (
+      modeParam &&
+      (modeParam === "personal" || modeParam === "institucional")
+    ) {
+      setSelectedMode(modeParam);
+    }
+  }, [searchParams]);
 
   const resetFlowMessages = () => {
     setError("");
@@ -72,13 +85,12 @@ export default function Login() {
 
       const data = await res.json();
       const role = (data.role ?? data.rol ?? "").toLowerCase();
-      console.log("login data:", data, "role:", role);
-
       if (!role) throw new Error("No se pudo iniciar sesión, intenta de nuevo");
 
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("role", role);
       localStorage.setItem("app_mode", appMode);
+      scheduleSessionWatch(data.access_token);
 
       // Obtener datos completos del usuario
       const userRes = await fetch(`${API_URL}/auth/me`, {

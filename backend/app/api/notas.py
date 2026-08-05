@@ -6,8 +6,15 @@ from app.core.context_manager import resolve_contexto_id
 from app.schemas.notas import (NotaCreate, NotaUpdate,NotaResponse)
 from app.schemas.usuarios import RolUsuarioEnum
 from app.services import notas as service
-from app.auth.dependencies import get_current_user, require_role
+from app.auth.dependencies import get_current_user
 from app.models.usuarios import Usuario
+from app.services.authorization import (
+    validar_usuario_puede_editar_insumo,
+    validar_usuario_puede_editar_nota,
+    validar_usuario_puede_ver_estudiante,
+    validar_usuario_puede_ver_insumo,
+    validar_usuario_puede_ver_nota,
+)
 
 router = APIRouter(
     tags=["Notas"]
@@ -18,10 +25,15 @@ router = APIRouter(
 async def crear_nota(
     data: NotaCreate,
     request: Request,
-    current_user: Usuario = Depends(require_role(RolUsuarioEnum.docente)),
+    current_user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
 ):
+    if current_user.rol not in [RolUsuarioEnum.docente, RolUsuarioEnum.administrativo]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tiene permisos para crear notas")
     id_contexto = await resolve_contexto_id(db, current_user, request)
+    if current_user.rol != RolUsuarioEnum.administrativo:
+        await validar_usuario_puede_editar_insumo(db, data.id_insumo, current_user, id_contexto)
+        await validar_usuario_puede_ver_estudiante(db, data.id_estudiante, current_user, id_contexto)
     return await service.crear_nota(db, data, id_contexto)
 
 
@@ -36,6 +48,13 @@ async def listar_notas(
     db: AsyncSession = Depends(get_session)
 ):
     id_contexto = await resolve_contexto_id(db, current_user, request)
+    if current_user.rol != RolUsuarioEnum.administrativo:
+        if id_insumo is None and id_estudiante is None:
+            raise HTTPException(status_code=400, detail="Debes filtrar por insumo o estudiante")
+        if id_insumo is not None:
+            await validar_usuario_puede_ver_insumo(db, id_insumo, current_user, id_contexto)
+        if id_estudiante is not None:
+            await validar_usuario_puede_ver_estudiante(db, id_estudiante, current_user, id_contexto)
     return await service.listar_notas(
         db=db,
         id_contexto=id_contexto,
@@ -54,6 +73,7 @@ async def obtener_nota(
     db: AsyncSession = Depends(get_session)
 ):
     id_contexto = await resolve_contexto_id(db, current_user, request)
+    await validar_usuario_puede_ver_nota(db, id_nota, current_user, id_contexto)
     return await service.obtener_nota(db, id_nota, id_contexto)
 
 
@@ -62,16 +82,14 @@ async def actualizar_nota(
     id_nota: int,
     data: NotaUpdate,
     request: Request,
-    current_user: Usuario = Depends(require_role(RolUsuarioEnum.docente)),
+    current_user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
 ):
-    # Validar que no sea admin
-    if current_user.rol == RolUsuarioEnum.administrativo:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Los administradores no pueden modificar notas"
-        )
+    if current_user.rol not in [RolUsuarioEnum.docente, RolUsuarioEnum.administrativo]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tiene permisos para actualizar notas")
     id_contexto = await resolve_contexto_id(db, current_user, request)
+    if current_user.rol != RolUsuarioEnum.administrativo:
+        await validar_usuario_puede_editar_nota(db, id_nota, current_user, id_contexto)
     return await service.actualizar_nota(db, id_nota, data, id_contexto)
 
 
@@ -79,14 +97,12 @@ async def actualizar_nota(
 async def eliminar_nota(
     id_nota: int,
     request: Request,
-    current_user: Usuario = Depends(require_role(RolUsuarioEnum.docente)),
+    current_user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
 ):
-    # Validar que no sea admin
-    if current_user.rol == RolUsuarioEnum.administrativo:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Los administradores no pueden eliminar notas"
-        )
+    if current_user.rol not in [RolUsuarioEnum.docente, RolUsuarioEnum.administrativo]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tiene permisos para eliminar notas")
     id_contexto = await resolve_contexto_id(db, current_user, request)
+    if current_user.rol != RolUsuarioEnum.administrativo:
+        await validar_usuario_puede_editar_nota(db, id_nota, current_user, id_contexto)
     return await service.eliminar_nota(db, id_nota, id_contexto)

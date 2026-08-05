@@ -1,0 +1,54 @@
+.notification-root {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 200;
+}
+
+.toast {
+  padding: 0.6rem 0.9rem;
+  border-radius: 8px;
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(15, 38, 70, 0.18);
+  font-weight: 600;
+}
+
+.toast-info {
+  background: linear-gradient(135deg, #2f72b5, #4f5ebf);
+}
+.toast-success {
+  background: linear-gradient(135deg, #2f9f74, #21795d);
+}
+.toast-error {
+  background: linear-gradient(135deg, #e74c3c, #c62828);
+}
+
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 250;
+}
+
+.confirm-modal {
+  background: #fff;
+  padding: 1rem 1.2rem;
+  border-radius: 10px;
+  min-width: 320px;
+  box-shadow: 0 18px 40px rgba(22, 42, 84, 0.24);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #e74c3c, #c62828);
+  color: #fff;
+  padding: 0.45rem 0.8rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}

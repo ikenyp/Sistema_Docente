@@ -1,5 +1,6 @@
 import React from "react";
 import { comportamientoAPI } from "../../../services/api";
+import { notify, requestConfirm } from "../../../components/notify";
 
 const VALORES_COMPORTAMIENTO = ["A", "B", "C", "D"];
 
@@ -19,7 +20,7 @@ export const TabComportamiento = ({
 }) => {
   const obtenerComportamientoEstudiante = (id_estudiante) => {
     return comportamientos.find(
-      (c) => c.id_estudiante === id_estudiante && c.mes === mesComportamiento
+      (c) => c.id_estudiante === id_estudiante && c.mes === mesComportamiento,
     );
   };
 
@@ -40,7 +41,7 @@ export const TabComportamiento = ({
   const guardarComportamientoEstudiante = async (id_estudiante) => {
     const valorNuevo = valoresTemporales[id_estudiante];
     if (!valorNuevo) {
-      alert("Seleccione una valoración");
+      notify("error", "Seleccione una valoración");
       return;
     }
 
@@ -50,7 +51,7 @@ export const TabComportamiento = ({
       comportamientoExistente &&
       comportamientoExistente.valor === valorNuevo
     ) {
-      alert("Seleccione una valoración diferente");
+      notify("error", "Seleccione una valoración diferente");
       return;
     }
 
@@ -66,7 +67,7 @@ export const TabComportamiento = ({
       if (comportamientoExistente) {
         await comportamientoAPI.actualizar(
           comportamientoExistente.id_comportamiento,
-          payload
+          payload,
         );
       } else {
         await comportamientoAPI.crear(payload);
@@ -84,12 +85,13 @@ export const TabComportamiento = ({
         return nuevo;
       });
     } catch (err) {
-      alert("No se pudo guardar: " + err.message);
+      notify("error", "No se pudo guardar: " + err.message);
     }
   };
 
   const eliminarComportamientoEstudiante = async (id_estudiante) => {
-    if (!window.confirm("¿Eliminar registro de comportamiento?")) return;
+    const ok = await requestConfirm("¿Eliminar registro de comportamiento?");
+    if (!ok) return;
 
     const comportamientoExistente =
       obtenerComportamientoEstudiante(id_estudiante);
@@ -97,7 +99,7 @@ export const TabComportamiento = ({
 
     try {
       await comportamientoAPI.eliminar(
-        comportamientoExistente.id_comportamiento
+        comportamientoExistente.id_comportamiento,
       );
       await cargarComportamientos();
       setValoresTemporales((prev) => {
@@ -111,7 +113,7 @@ export const TabComportamiento = ({
         return nuevo;
       });
     } catch (err) {
-      alert("Error al eliminar: " + err.message);
+      notify("error", "Error al eliminar: " + err.message);
     }
   };
 
@@ -163,7 +165,7 @@ export const TabComportamiento = ({
               .sort((a, b) => a.apellido.localeCompare(b.apellido))
               .map((estudiante) => {
                 const comportamientoExistente = obtenerComportamientoEstudiante(
-                  estudiante.id_estudiante
+                  estudiante.id_estudiante,
                 );
                 const valorActual =
                   valoresTemporales[estudiante.id_estudiante] ||
@@ -185,7 +187,7 @@ export const TabComportamiento = ({
                         onChange={(e) =>
                           cambiarValorTemporal(
                             estudiante.id_estudiante,
-                            e.target.value
+                            e.target.value,
                           )
                         }
                         style={{
@@ -213,7 +215,7 @@ export const TabComportamiento = ({
                         onChange={(e) =>
                           cambiarObservacionTemporal(
                             estudiante.id_estudiante,
-                            e.target.value
+                            e.target.value,
                           )
                         }
                         style={{
@@ -230,7 +232,7 @@ export const TabComportamiento = ({
                         className="btn-notas"
                         onClick={() =>
                           guardarComportamientoEstudiante(
-                            estudiante.id_estudiante
+                            estudiante.id_estudiante,
                           )
                         }
                         disabled={cargandoComportamiento || !valorActual}
@@ -247,7 +249,7 @@ export const TabComportamiento = ({
                           className="btn-eliminar"
                           onClick={() =>
                             eliminarComportamientoEstudiante(
-                              estudiante.id_estudiante
+                              estudiante.id_estudiante,
                             )
                           }
                           disabled={cargandoComportamiento}

@@ -17,7 +17,7 @@ from app.services import estudiantes as service
 from app.auth.dependencies import get_current_user
 from app.models.usuarios import Usuario
 from app.schemas.usuarios import RolUsuarioEnum
-from app.services.authorization import validar_docente_puede_editar_curso
+from app.services.authorization import validar_docente_puede_editar_curso, validar_usuario_puede_ver_curso
 
 router = APIRouter(
     tags=["Estudiantes"]
@@ -76,9 +76,17 @@ async def listar_estudiantes(
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
     current_user: Usuario = Depends(get_current_user),
+    request: Request = None,
     db: AsyncSession = Depends(get_session)
 ):
-    _ = current_user
+    if current_user.rol != RolUsuarioEnum.administrativo:
+        id_contexto = await resolve_contexto_id(db, current_user, request)
+        if id_curso is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Debes filtrar por curso para listar estudiantes")
+        if is_personal_mode(request):
+            await validar_docente_puede_editar_curso(db, id_curso, current_user.id_usuario, id_contexto)
+        else:
+            await validar_usuario_puede_ver_curso(db, id_curso, current_user, id_contexto)
     return await service.listar_estudiantes(
         db=db,
         estado=estado,

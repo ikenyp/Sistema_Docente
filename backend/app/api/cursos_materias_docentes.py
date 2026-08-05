@@ -14,7 +14,11 @@ from app.services import cursos_materias_docentes as service
 from app.auth.dependencies import get_current_user
 from app.schemas.usuarios import RolUsuarioEnum
 from app.models.usuarios import Usuario
-from app.services.authorization import validar_docente_puede_editar_curso
+from app.services.authorization import (
+    validar_docente_puede_editar_curso,
+    validar_usuario_puede_ver_cmd,
+    validar_usuario_puede_ver_curso,
+)
 
 router = APIRouter(
     tags=["Cursos - Materias - Docentes"]
@@ -67,6 +71,13 @@ async def listar_cmd(
 
     if is_personal_mode(request) and current_user.rol == RolUsuarioEnum.docente:
         id_docente = current_user.id_usuario
+    elif current_user.rol != RolUsuarioEnum.administrativo:
+        if id_curso is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Debes filtrar por curso para listar asignaciones",
+            )
+        await validar_usuario_puede_ver_curso(db, id_curso, current_user, id_contexto)
 
     return await service.listar_cmd(
         db=db,
@@ -87,15 +98,8 @@ async def obtener_cmd(
     db: AsyncSession = Depends(get_session)
 ):
     id_contexto = await resolve_contexto_id(db, current_user, request)
-    cmd = await service.obtener_cmd(db, id_cmd, id_contexto)
-
-    if is_personal_mode(request) and current_user.rol == RolUsuarioEnum.docente and cmd.id_docente != current_user.id_usuario:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No puede acceder a asignaciones de otro docente"
-        )
-
-    return cmd
+    await validar_usuario_puede_ver_cmd(db, id_cmd, current_user, id_contexto)
+    return await service.obtener_cmd(db, id_cmd, id_contexto)
 
 
 @router.put("/{id_cmd}", response_model=CMDResponseDetailed)
