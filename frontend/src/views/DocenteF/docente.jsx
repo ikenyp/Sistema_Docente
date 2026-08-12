@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../styles/docente.css";
 import {
@@ -11,6 +11,7 @@ import {
   estructurasAcademicasAPI,
 } from "../../services/api";
 import { notify } from "../../components/notify";
+import CustomSelect from "../../components/admin/CustomSelect";
 
 function Docente() {
   const navigate = useNavigate();
@@ -31,6 +32,11 @@ function Docente() {
     cursosSinTutor: 0,
     aniosSinPeriodizacion: 0,
   });
+  const [filtroAnio, setFiltroAnio] = useState("todos");
+  const [ordenCursos, setOrdenCursos] = useState("colegio-asc");
+  const [menuFiltroAbierto, setMenuFiltroAbierto] = useState(false);
+  const [menuOrdenAbierto, setMenuOrdenAbierto] = useState(false);
+  const toolbarRef = useRef(null);
 
   // WIZARD DE CREACIÓN DE CURSO
   const [mostrarWizard, setMostrarWizard] = useState(false);
@@ -58,16 +64,68 @@ function Docente() {
   const resumenCursos = useMemo(() => {
     const totalCursos = cursos.length;
     const cursosConAnio = cursos.filter((curso) => curso?.anio_lectivo).length;
+    const esTutor = cursos.some(
+      (curso) => datosUsuario && curso?.id_tutor === datosUsuario.id_usuario,
+    );
 
     return {
       totalCursos,
       cursosConAnio,
       modo: appMode === "personal" ? "Personal" : "Institucional",
-      cursosTutor: cursos.filter(
-        (curso) => datosUsuario && curso?.id_tutor === datosUsuario.id_usuario,
-      ).length,
+      esTutor,
     };
   }, [appMode, cursos, datosUsuario]);
+
+  const aniosDisponiblesCursos = useMemo(() => {
+    return [...new Set(cursos.map((curso) => curso?.anio_lectivo).filter(Boolean))].sort();
+  }, [cursos]);
+
+  const cursosVisibles = useMemo(() => {
+    let lista = [...cursos];
+
+    if (filtroAnio !== "todos") {
+      lista = lista.filter((curso) => curso?.anio_lectivo === filtroAnio);
+    }
+
+    const numeroCurso = (nombre = "") => {
+      const texto = String(nombre).toLowerCase();
+      const numero = parseInt(texto.match(/\d+/)?.[0] || "0", 10);
+      return Number.isNaN(numero) ? 0 : numero;
+    };
+
+    const gradoCurso = (nombre = "") => {
+      const texto = String(nombre).toLowerCase();
+      if (texto.includes("8")) return 8;
+      if (texto.includes("9")) return 9;
+      if (texto.includes("10")) return 10;
+      if (texto.includes("1ro") || texto.includes("1er") || texto.includes("primero")) return 11;
+      if (texto.includes("2do") || texto.includes("segundo")) return 12;
+      if (texto.includes("3ro") || texto.includes("tercero")) return 13;
+      return 99;
+    };
+
+    const comparador = {
+      "colegio-asc": (a, b) => gradoCurso(a.nombre) - gradoCurso(b.nombre) || numeroCurso(a.nombre) - numeroCurso(b.nombre) || a.nombre.localeCompare(b.nombre),
+      "colegio-desc": (a, b) => gradoCurso(b.nombre) - gradoCurso(a.nombre) || numeroCurso(b.nombre) - numeroCurso(a.nombre) || b.nombre.localeCompare(a.nombre),
+      "reciente": (a, b) => String(b.anio_lectivo || "").localeCompare(String(a.anio_lectivo || "")) || a.nombre.localeCompare(b.nombre),
+      "antiguo": (a, b) => String(a.anio_lectivo || "").localeCompare(String(b.anio_lectivo || "")) || a.nombre.localeCompare(b.nombre),
+      "alfabetico": (a, b) => a.nombre.localeCompare(b.nombre),
+    }[ordenCursos] || ((a, b) => a.nombre.localeCompare(b.nombre));
+
+    return lista.sort(comparador);
+  }, [cursos, filtroAnio, ordenCursos]);
+
+  useEffect(() => {
+    const cerrarMenus = (event) => {
+      if (toolbarRef.current && !toolbarRef.current.contains(event.target)) {
+        setMenuFiltroAbierto(false);
+        setMenuOrdenAbierto(false);
+      }
+    };
+
+    document.addEventListener("mousedown", cerrarMenus);
+    return () => document.removeEventListener("mousedown", cerrarMenus);
+  }, []);
 
   // ====================== CARGAR CURSOS DEL DOCENTE ======================
   const cargarCursos = useCallback(async () => {
@@ -89,12 +147,23 @@ function Docente() {
       ).toLowerCase();
       setAppMode(modoActual);
 
-      const asignaciones = await cmdAPI.listarPorDocente(usuario.id_usuario);
+      let asignaciones = [];
+      try {
+        asignaciones = await cmdAPI.listarPorDocente(usuario.id_usuario);
+      } catch {
+        asignaciones = [];
+      }
+      const totalMateriasAsignadas = 0;
 
       const cursosUnicos = [];
       const vistos = new Set();
+      const materiasAsignadasDocente = new Set();
 
       (asignaciones || []).forEach((asig) => {
+        const claveMateria = asig?.id_cmd || asig?.cmd?.id_cmd || asig?.id_materia || asig?.materia?.id_materia;
+        if (claveMateria) {
+          materiasAsignadasDocente.add(claveMateria);
+        }
         const curso =
           asig?.curso ||
           (asig?.id_curso
@@ -107,10 +176,15 @@ function Docente() {
         }
       });
 
-      const cursosTutor = await cursosAPI.listar({
-        id_tutor: usuario.id_usuario,
-        size: 100,
-      });
+      let cursosTutor = [];
+      try {
+        cursosTutor = await cursosAPI.listar({
+          id_tutor: usuario.id_usuario,
+          size: 100,
+        });
+      } catch {
+        cursosTutor = [];
+      }
       (cursosTutor || []).forEach((curso) => {
         if (curso && curso.id_curso && !vistos.has(curso.id_curso)) {
           vistos.add(curso.id_curso);
@@ -147,7 +221,7 @@ function Docente() {
       }
 
       setResumenOperacion({
-        asignaciones: (todasAsignaciones || []).length,
+        asignaciones: materiasAsignadasDocente.size || (cursosTutor || []).length || (todasAsignaciones || []).length,
         cursosSinMaterias,
         cursosSinTutor,
         aniosSinPeriodizacion,
@@ -496,95 +570,116 @@ function Docente() {
             <p className="stat-sub">Cargados según tu modo de trabajo</p>
           </div>
           <div className="stat-card">
-            <p className="stat-label">Asignaciones activas</p>
+            <p className="stat-label">Materias asignadas</p>
             <h3 className="stat-value">{resumenOperacion.asignaciones}</h3>
             <p className="stat-sub">Materias que ya puedes gestionar</p>
           </div>
-        <div className="stat-card">
-          <p className="stat-label">Cursos con año lectivo</p>
-          <h3 className="stat-value">{resumenCursos.cursosConAnio}</h3>
-          <p className="stat-sub">Util para periodos y promedios</p>
-        </div>
-        <div className="stat-card">
-          <p className="stat-label">Cursos como tutor</p>
-          <h3 className="stat-value">{resumenCursos.cursosTutor}</h3>
-          <p className="stat-sub">Marcados para seguimiento tutorial</p>
-        </div>
-      </div>
-
-        {(resumenOperacion.cursosSinMaterias > 0 ||
-          resumenOperacion.cursosSinTutor > 0 ||
-          resumenOperacion.aniosSinPeriodizacion > 0) && (
-          <div className="admin-alerts table-container" style={{ marginBottom: 16 }}>
-            <h3>Pendientes del contexto</h3>
-            <ul className="admin-alert-list">
-              {resumenOperacion.aniosSinPeriodizacion > 0 && (
-                <li>
-                  <strong>{resumenOperacion.aniosSinPeriodizacion}</strong> año(s) lectivos sin periodización configurada. {" "}
-                  <button
-                    type="button"
-                    className="admin-link-btn"
-                    onClick={() => navigate("/docente/periodizacion")}
-                  >
-                    Configurar periodización
-                  </button>
-                </li>
-              )}
-              {resumenOperacion.cursosSinMaterias > 0 && (
-                <li>
-                  <strong>{resumenOperacion.cursosSinMaterias}</strong> curso(s) sin materias asignadas. Abre el curso y completa su configuración.
-                </li>
-              )}
-              {appMode === "personal" && resumenOperacion.cursosSinTutor > 0 && (
-                <li>
-                  <strong>{resumenOperacion.cursosSinTutor}</strong> curso(s) sin marcar como tutor. Úsalo solo si realmente haces seguimiento tutorial de ese curso.
-                </li>
-              )}
-            </ul>
+          <div className="stat-card">
+            <p className="stat-label">Cursos con año lectivo</p>
+            <h3 className="stat-value">{resumenCursos.cursosConAnio}</h3>
+            <p className="stat-sub">Util para periodos y promedios</p>
           </div>
-        )}
+          <div className="stat-card">
+            <p className="stat-label">Tutor</p>
+            <h3 className="stat-value">{resumenCursos.esTutor ? "Sí" : "No"}</h3>
+            <p className="stat-sub">Indicador simple de tutoría</p>
+          </div>
+        </div>
 
-        <div className="personal-setup-card docente-quick-card">
-          <div className="panel-header panel-header-compact">
-            <div>
-              <h3>Acciones clave</h3>
-              <p className="panel-sub">
-                Mantén el contexto listo y entra a tus cursos para continuar con la gestión académica.
-              </p>
+        <div className="docente-toolbar-shell" ref={toolbarRef}>
+          <div className="docente-toolbar-main">
+              <button
+                className="toolbar-refresh-btn"
+                type="button"
+                onClick={cargarCursos}
+                aria-label="Recargar"
+              >
+                ↻
+              </button>
+            <div className="docente-toolbar-right">
+              <div className="toolbar-anchor">
+                  <button
+                    className="toolbar-blue-btn"
+                    type="button"
+                    aria-label="Filtrar por año lectivo"
+                  onClick={() => {
+                    setMenuOrdenAbierto(false);
+                    setMenuFiltroAbierto((prev) => !prev);
+                  }}
+                >
+                  <span className="toolbar-filter-icon" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                  <span>Filtrar</span>
+                </button>
+                {menuFiltroAbierto && (
+                  <CustomSelect
+                    value={filtroAnio}
+                    onChange={(value) => {
+                      setFiltroAnio(value);
+                      setMenuFiltroAbierto(false);
+                    }}
+                    options={[
+                      { value: "todos", label: "Todos los años lectivos" },
+                      ...aniosDisponiblesCursos.map((anio) => ({ value: anio, label: anio })),
+                    ]}
+                    placeholder="Filtrar por año lectivo"
+                    className="docente-popover-select docente-popover-select-left"
+                    hideTrigger
+                    open={menuFiltroAbierto}
+                    onToggle={setMenuFiltroAbierto}
+                  />
+                )}
+              </div>
+              <div className="toolbar-anchor">
+                <button
+                  className="toolbar-blue-btn"
+                  type="button"
+                  aria-label="Ordenar cursos"
+                  onClick={() => {
+                    setMenuFiltroAbierto(false);
+                    setMenuOrdenAbierto((prev) => !prev);
+                  }}
+                >
+                  <span className="toolbar-sort-icon" aria-hidden="true">
+                    <span className="arrow-up" />
+                    <span className="arrow-down" />
+                  </span>
+                  <span>Ordenar</span>
+                </button>
+                {menuOrdenAbierto && (
+                  <CustomSelect
+                    value={ordenCursos}
+                    onChange={(value) => {
+                      setOrdenCursos(value);
+                      setMenuOrdenAbierto(false);
+                    }}
+                    options={[
+                      { value: "colegio-asc", label: "Colegio A-Z" },
+                      { value: "colegio-desc", label: "Colegio Z-A" },
+                      { value: "reciente", label: "Más reciente" },
+                      { value: "antiguo", label: "Más antiguo" },
+                      { value: "alfabetico", label: "Alfabético" },
+                    ]}
+                    placeholder="Ordenar cursos"
+                    className="docente-popover-select docente-popover-select-left"
+                    hideTrigger
+                    open={menuOrdenAbierto}
+                    onToggle={setMenuOrdenAbierto}
+                  />
+                )}
+              </div>
             </div>
           </div>
-          <div className="dashboard-grid dashboard-grid-2 docente-quick-actions">
-            {appMode === "personal" && (
-              <button
-                className="personal-action"
-                onClick={() => setMostrarWizard((prev) => !prev)}
-              >
-                {mostrarWizard ? "Ocultar asistente de curso" : "Crear nuevo curso"}
-              </button>
-            )}
-            {appMode === "personal" && (
-              <button
-                className="personal-action"
-                onClick={() => navigate("/docente/estructura-academica")}
-              >
-                Configurar estructura
-              </button>
-            )}
-            {appMode === "personal" && (
-              <button
-                className="personal-action"
-                onClick={() => navigate("/docente/periodizacion")}
-              >
-                Configurar periodizacion
-              </button>
-            )}
-            <button
-              className="btn-ingresar"
-              onClick={cargarCursos}
-              type="button"
-            >
-              Recargar cursos
-            </button>
+          <div className="docente-toolbar-statuses">
+            <div className="toolbar-status-pill">
+              <strong>Mostrando:</strong> {filtroAnio === "todos" ? "Todos los años lectivos" : filtroAnio}
+            </div>
+            <div className="toolbar-status-pill">
+              <strong>Orden:</strong> {ordenCursos === "colegio-asc" ? "Colegio A-Z" : ordenCursos === "colegio-desc" ? "Colegio Z-A" : ordenCursos === "reciente" ? "Más reciente" : ordenCursos === "antiguo" ? "Más antiguo" : "Alfabético"}
+            </div>
           </div>
         </div>
 
@@ -850,7 +945,7 @@ function Docente() {
                   </p>
                 </div>
               ) : (
-                cursos.map((curso) => (
+                cursosVisibles.map((curso) => (
                   <div
                     className="curso-card"
                     key={curso.id_curso}
@@ -899,16 +994,17 @@ function Docente() {
                       )}
                     </div>
 
-                    <p className="curso-nombre">{curso.nombre}</p>
-                    {curso.id_tutor === datosUsuario?.id_usuario && (
-                      <p
-                        className="curso-info"
-                        style={{ color: "#1f91de", fontWeight: 700 }}
-                      >
-                        Tutor del curso
-                      </p>
+                    <div className="curso-title-row">
+                      <p className="curso-nombre">{curso.nombre}</p>
+                      {curso.id_tutor === datosUsuario?.id_usuario && (
+                        <span className="tutor-pill">TUTOR</span>
+                      )}
+                    </div>
+                    {filtroAnio === "todos" ? (
+                      <p className="curso-info">Año: {curso.anio_lectivo}</p>
+                    ) : (
+                      <p className="curso-info curso-info-ghost">Año: {curso.anio_lectivo || " "}</p>
                     )}
-                    <p className="curso-info">Año: {curso.anio_lectivo}</p>
                     <button
                       className="btn-ingresar"
                       onClick={() => irAlCurso(curso)}

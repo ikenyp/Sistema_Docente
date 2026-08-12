@@ -21,6 +21,8 @@ export const TabPromedios = ({
   cursoDetalle,
   periodos = [],
 }) => {
+  if (activeTab !== "promedios") return null;
+
   const consultarPromedioPeriodo = async () => {
     if (!estudiantePromedio) {
       notify("error", "Seleccione un estudiante");

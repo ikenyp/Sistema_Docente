@@ -1,279 +1,146 @@
 import React from "react";
-import { comportamientoAPI } from "../../../services/api";
-import { notify, requestConfirm } from "../../../components/notify";
+import { Trash2, Save } from "lucide-react";
+import CustomSelect from "../../../components/admin/CustomSelect";
 
-const VALORES_COMPORTAMIENTO = ["A", "B", "C", "D"];
+const VALORES = ["A", "B", "C", "D"];
+const PERIODOS = [
+  { value: "1", label: "Trimestre 1" },
+  { value: "2", label: "Trimestre 2" },
+  { value: "3", label: "Trimestre 3" },
+];
 
 export const TabComportamiento = ({
   activeTab,
   estudiantesCurso,
-  comportamientos,
-  cargandoComportamiento,
   mesComportamiento,
   setMesComportamiento,
   valoresTemporales,
   setValoresTemporales,
   observacionesTemporales,
   setObservacionesTemporales,
-  id_curso,
-  cargarComportamientos,
+  comportamientoExistentePorEstudiante,
+  onGuardarUno,
+  onEliminarUno,
+  onGuardarTodo,
 }) => {
-  const obtenerComportamientoEstudiante = (id_estudiante) => {
-    return comportamientos.find(
-      (c) => c.id_estudiante === id_estudiante && c.mes === mesComportamiento,
-    );
-  };
-
-  const cambiarValorTemporal = (id_estudiante, nuevoValor) => {
-    setValoresTemporales((prev) => ({
-      ...prev,
-      [id_estudiante]: nuevoValor,
-    }));
-  };
-
-  const cambiarObservacionTemporal = (id_estudiante, nuevaObservacion) => {
-    setObservacionesTemporales((prev) => ({
-      ...prev,
-      [id_estudiante]: nuevaObservacion,
-    }));
-  };
-
-  const guardarComportamientoEstudiante = async (id_estudiante) => {
-    const valorNuevo = valoresTemporales[id_estudiante];
-    if (!valorNuevo) {
-      notify("error", "Seleccione una valoración");
-      return;
-    }
-
-    const comportamientoExistente =
-      obtenerComportamientoEstudiante(id_estudiante);
-    if (
-      comportamientoExistente &&
-      comportamientoExistente.valor === valorNuevo
-    ) {
-      notify("error", "Seleccione una valoración diferente");
-      return;
-    }
-
-    try {
-      const payload = {
-        id_curso: parseInt(id_curso, 10),
-        id_estudiante: parseInt(id_estudiante, 10),
-        mes: mesComportamiento,
-        valor: valorNuevo,
-        observaciones: observacionesTemporales[id_estudiante] || "",
-      };
-
-      if (comportamientoExistente) {
-        await comportamientoAPI.actualizar(
-          comportamientoExistente.id_comportamiento,
-          payload,
-        );
-      } else {
-        await comportamientoAPI.crear(payload);
-      }
-
-      await cargarComportamientos();
-      setValoresTemporales((prev) => {
-        const nuevo = { ...prev };
-        delete nuevo[id_estudiante];
-        return nuevo;
-      });
-      setObservacionesTemporales((prev) => {
-        const nuevo = { ...prev };
-        delete nuevo[id_estudiante];
-        return nuevo;
-      });
-    } catch (err) {
-      notify("error", "No se pudo guardar: " + err.message);
-    }
-  };
-
-  const eliminarComportamientoEstudiante = async (id_estudiante) => {
-    const ok = await requestConfirm("¿Eliminar registro de comportamiento?");
-    if (!ok) return;
-
-    const comportamientoExistente =
-      obtenerComportamientoEstudiante(id_estudiante);
-    if (!comportamientoExistente) return;
-
-    try {
-      await comportamientoAPI.eliminar(
-        comportamientoExistente.id_comportamiento,
-      );
-      await cargarComportamientos();
-      setValoresTemporales((prev) => {
-        const nuevo = { ...prev };
-        delete nuevo[id_estudiante];
-        return nuevo;
-      });
-      setObservacionesTemporales((prev) => {
-        const nuevo = { ...prev };
-        delete nuevo[id_estudiante];
-        return nuevo;
-      });
-    } catch (err) {
-      notify("error", "Error al eliminar: " + err.message);
-    }
-  };
+  if (activeTab !== "comportamiento") return null;
 
   return (
-    <div
-      className={`panel-card tab-pane ${
-        activeTab === "comportamiento" ? "active" : ""
-      }`}
-    >
+    <div className="panel-card tab-pane active">
       <div className="panel-header">
         <div>
           <h3>🧭 Comportamiento</h3>
-          <p className="panel-sub">Valoraciones mensuales (A-D)</p>
+          <p className="panel-sub">Selecciona un periodo y registra valoraciones A-D</p>
         </div>
-        <div
-          style={{
-            display: "flex",
-            gap: "10px",
-            alignItems: "center",
-          }}
-        >
-          <label style={{ fontWeight: "600", color: "#555" }}>Mes:</label>
-          <input
-            type="month"
+        <div className="periodo-selector-comportamiento">
+          <label className="control-label">Periodo:</label>
+          <CustomSelect
             value={mesComportamiento}
-            onChange={(e) => setMesComportamiento(e.target.value)}
-            style={{
-              padding: "8px 12px",
-              border: "1px solid #ddd",
-              borderRadius: "6px",
-              fontSize: "14px",
-            }}
+            onChange={setMesComportamiento}
+            options={PERIODOS}
+            placeholder="Selecciona trimestre"
+            className="custom-select-white comportamiento-select"
           />
         </div>
       </div>
 
       <div className="table-container">
-        <table>
+        <table className="behavior-table">
+          <colgroup>
+            <col className="behavior-col-student" />
+            <col className="behavior-col-value" />
+            <col className="behavior-col-observation" />
+            <col className="behavior-col-action" />
+          </colgroup>
           <thead>
             <tr>
               <th>Estudiante</th>
-              <th>Valoración</th>
+              <th className="table-th-center">Valor</th>
               <th>Observaciones</th>
-              <th>Acciones</th>
+              <th>Acción</th>
             </tr>
           </thead>
           <tbody>
-            {estudiantesCurso
-              .sort((a, b) => a.apellido.localeCompare(b.apellido))
+            {[...estudiantesCurso]
+              .sort((a, b) => a.apellido.localeCompare(b.apellido, "es"))
               .map((estudiante) => {
-                const comportamientoExistente = obtenerComportamientoEstudiante(
-                  estudiante.id_estudiante,
-                );
-                const valorActual =
-                  valoresTemporales[estudiante.id_estudiante] ||
-                  comportamientoExistente?.valor ||
-                  "";
-                const observacionActual =
-                  observacionesTemporales[estudiante.id_estudiante] ??
-                  comportamientoExistente?.observaciones ??
-                  "";
-
+                const valorActual = valoresTemporales[estudiante.id_estudiante] || "";
+                const observacionActual = observacionesTemporales[estudiante.id_estudiante] || "";
                 return (
                   <tr key={estudiante.id_estudiante}>
+                    <td>{estudiante.apellido} {estudiante.nombre}</td>
                     <td>
-                      {estudiante.apellido} {estudiante.nombre}
-                    </td>
-                    <td>
-                      <select
-                        value={valorActual}
-                        onChange={(e) =>
-                          cambiarValorTemporal(
-                            estudiante.id_estudiante,
-                            e.target.value,
-                          )
-                        }
-                        style={{
-                          padding: "6px 10px",
-                          borderRadius: "6px",
-                          border: "1px solid #ddd",
-                          fontSize: "14px",
-                          backgroundColor: valorActual ? "#f0f4ff" : "white",
-                          fontWeight: valorActual ? "600" : "normal",
-                        }}
-                      >
-                        <option value="">Sin valoración</option>
-                        {VALORES_COMPORTAMIENTO.map((valor) => (
-                          <option key={valor} value={valor}>
-                            {valor}
-                          </option>
+                      <div className="radio-group-horizontal radio-group-behavior">
+                        {VALORES.map((valor) => (
+                          <label key={valor} className="radio-option">
+                            <input
+                              type="radio"
+                              name={`comp-${estudiante.id_estudiante}`}
+                              value={valor}
+                              checked={valorActual === valor}
+                              onChange={() =>
+                                setValoresTemporales((prev) => ({
+                                  ...prev,
+                                  [estudiante.id_estudiante]: valor,
+                                }))
+                              }
+                            />
+                            <span>{valor}</span>
+                          </label>
                         ))}
-                      </select>
+                      </div>
                     </td>
                     <td>
                       <input
                         type="text"
-                        placeholder="Observaciones..."
+                        className="input-observacion-pequeno"
                         value={observacionActual}
                         onChange={(e) =>
-                          cambiarObservacionTemporal(
-                            estudiante.id_estudiante,
-                            e.target.value,
-                          )
+                          setObservacionesTemporales((prev) => ({
+                            ...prev,
+                            [estudiante.id_estudiante]: e.target.value,
+                          }))
                         }
-                        style={{
-                          width: "100%",
-                          padding: "6px 10px",
-                          borderRadius: "6px",
-                          border: "1px solid #ddd",
-                          fontSize: "13px",
-                        }}
+                        placeholder="Observaciones..."
                       />
                     </td>
-                    <td className="actions-cell">
-                      <button
-                        className="btn-notas"
-                        onClick={() =>
-                          guardarComportamientoEstudiante(
-                            estudiante.id_estudiante,
-                          )
-                        }
-                        disabled={cargandoComportamiento || !valorActual}
-                        style={{
-                          padding: "6px 12px",
-                          fontSize: "12px",
-                          opacity: !valorActual ? 0.5 : 1,
-                        }}
-                      >
-                        Guardar
-                      </button>
-                      {comportamientoExistente && (
+                    <td>
+                      <div className="behavior-actions-row">
                         <button
-                          className="btn-eliminar"
-                          onClick={() =>
-                            eliminarComportamientoEstudiante(
-                              estudiante.id_estudiante,
-                            )
-                          }
-                          disabled={cargandoComportamiento}
-                          style={{
-                            padding: "6px 12px",
-                            fontSize: "12px",
-                          }}
+                          className="btn-save btn-save-inline"
+                          type="button"
+                          onClick={() => onGuardarUno(estudiante.id_estudiante)}
+                          aria-label="Guardar comportamiento"
                         >
-                          Eliminar
+                          <Save size={16} />
+                          <span>Guardar</span>
                         </button>
-                      )}
+                        <button
+                          className="btn-delete btn-delete-inline"
+                          type="button"
+                          onClick={() => onEliminarUno(estudiante.id_estudiante)}
+                          aria-label="Eliminar comportamiento"
+                        >
+                          <Trash2 size={16} />
+                          <span>Eliminar</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
               })}
-            {estudiantesCurso.length === 0 && (
-              <tr>
-                <td colSpan={4} style={{ textAlign: "center" }}>
-                  No hay estudiantes en este curso
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
+      </div>
+
+      <div className="tab-footer-actions">
+        <button className="btn-primary btn-save-inline behavior-save-btn" type="button" onClick={onGuardarTodo}>
+          <Save size={16} />
+          <span>
+            <span>Guardar</span>
+            <span>comportamiento</span>
+          </span>
+        </button>
       </div>
     </div>
   );

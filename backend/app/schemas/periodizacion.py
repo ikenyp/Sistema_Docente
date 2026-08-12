@@ -29,7 +29,7 @@ class PeriodoAcademicoResponse(PeriodoAcademicoBase):
 
 
 class ConfiguracionPeriodizacionBase(BaseModel):
-    anio_lectivo: str = Field(..., min_length=9, max_length=20)
+    anio_lectivo: str = Field(..., min_length=4, max_length=20)
     tipo_periodizacion: str
     cantidad_periodos: int = Field(..., ge=1)
     nombre_periodo_singular: Optional[str] = None
@@ -58,7 +58,7 @@ class ConfiguracionPeriodizacionResponse(ConfiguracionPeriodizacionBase):
 
 class ConfiguracionCompletaCreate(BaseModel):
     id_contexto: Optional[int] = None
-    anio_lectivo: str = Field(..., min_length=9, max_length=20)
+    anio_lectivo: str = Field(..., min_length=4, max_length=20)
     tipo_periodizacion: str
     cantidad_periodos: int = Field(..., ge=1)
     nombre_periodo_singular: Optional[str] = None

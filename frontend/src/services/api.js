@@ -100,10 +100,6 @@ const apiCall = async (endpoint, method = "GET", body = null) => {
         // Si no hay JSON, usar el status
       }
 
-      if (response.status === 401) {
-        endSession("unauthorized");
-      }
-
       throw new Error(errorMessage);
     }
 
