@@ -173,14 +173,11 @@ export const CursoInfoPanel = ({
 
       <div className="materia-selector">
         <label>Selecciona Materia:</label>
-        <CustomSelect
-          value={materiaSeleccionada?.id_cmd ? String(materiaSeleccionada.id_cmd) : ""}
-          onChange={async (value) => {
-            const selected = materiasCurso.find(
-              (m) => String(m.id_cmd) === String(value),
-            );
-            // La actualización del estado se delega al padre por callback
-          }}
+          <CustomSelect
+            value={materiaSeleccionada?.id_cmd ? String(materiaSeleccionada.id_cmd) : ""}
+            onChange={async (value) => {
+              // La actualización del estado se delega al padre por callback
+            }}
           options={materiasOptions}
           placeholder={materiaSeleccionada ? materiaNombre(materiaSeleccionada) : "Selecciona materia"}
           className="custom-select-white"

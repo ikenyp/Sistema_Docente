@@ -369,12 +369,6 @@ textarea:focus,
   flex: 0 0 auto;
 }
 
-.insumos-toolbar .toolbar-anchor .custom-select {
-  position: relative;
-  width: auto;
-  min-width: 0;
-}
-
 .insumos-toolbar-actions {
   display: flex;
   justify-content: flex-end;
@@ -432,8 +426,8 @@ textarea:focus,
 }
 
 .toolbar-filter-icon span {
-  width: 4px;
-  height: 4px;
+  width: 3px;
+  height: 3px;
   border-radius: 50%;
   background: #fff;
   display: block;
@@ -518,24 +512,37 @@ textarea:focus,
   background: #e9f1ff;
 }
 
-.toolbar-anchor {
-  position: relative;
+.docente-toolbar-right {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  width: fit-content;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+  width: max-content;
+  margin-left: auto;
+  flex-wrap: nowrap;
+  overflow: visible;
 }
 
-.toolbar-anchor-filter .custom-select-menu,
-.toolbar-anchor-order .custom-select-menu {
+.docente-toolbar-right .toolbar-anchor {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: fit-content;
+  min-width: 0;
+}
+
+.docente-toolbar-right .toolbar-anchor > .toolbar-blue-btn {
+  flex: 0 0 auto;
+}
+
+.insumos-toolbar .toolbar-dropdown-menu {
   position: absolute;
   top: calc(100% + 6px);
-  right: 0;
-  left: auto;
-  width: max-content;
   min-width: 230px;
-  margin-top: 0;
   padding: 0.4rem;
+  margin: 0;
   list-style: none;
   background: #ffffff;
   border: 1px solid #d9e3f2;
@@ -546,12 +553,17 @@ textarea:focus,
   z-index: 30;
 }
 
-.toolbar-anchor > .toolbar-blue-btn {
-  flex: 0 0 auto;
+.insumos-toolbar .toolbar-dropdown-menu-left {
+  left: 0;
+  right: auto;
 }
 
-.toolbar-anchor-filter .custom-select-option,
-.toolbar-anchor-order .custom-select-option {
+.insumos-toolbar .toolbar-dropdown-menu-right {
+  right: 0;
+  left: auto;
+}
+
+.insumos-toolbar .toolbar-dropdown-option {
   padding: 0.55rem 0.75rem;
   border-radius: 10px;
   color: #21314d;
@@ -559,10 +571,8 @@ textarea:focus,
   background: transparent;
 }
 
-.toolbar-anchor-filter .custom-select-option:hover,
-.toolbar-anchor-filter .custom-select-option.active,
-.toolbar-anchor-order .custom-select-option:hover,
-.toolbar-anchor-order .custom-select-option.active {
+.insumos-toolbar .toolbar-dropdown-option:hover,
+.insumos-toolbar .toolbar-dropdown-option.active {
   background: #e9f1ff;
 }
 
@@ -713,7 +723,8 @@ textarea:focus,
 .actions-cell {
   display: flex;
   gap: 0.42rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
 .radio-group-horizontal {
@@ -1092,7 +1103,7 @@ textarea:focus,
 }
 
 .modal-notas {
-  width: min(100%, 900px);
+  width: min(100%, 840px);
   max-height: 90vh;
   overflow: auto;
   background: #fff;
@@ -1132,6 +1143,57 @@ textarea:focus,
   width: 100%;
   border-collapse: collapse;
   background: #fff;
+}
+
+.tabla-notas-col-estudiante {
+  width: 52%;
+}
+
+.tabla-notas-col-nota {
+  width: 18%;
+}
+
+.tabla-notas-col-accion {
+  width: 30%;
+}
+
+.modal-insumo-edit {
+  width: min(100%, 660px);
+}
+
+.modal-insumo-edit-body {
+  display: grid;
+  gap: 0.7rem;
+  padding: 1rem;
+}
+
+.modal-insumo-edit-grid {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.modal-insumo-edit-grid-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.modal-insumo-edit-body input {
+  width: 100%;
+}
+
+.modal-insumo-edit-full {
+  width: 100%;
+}
+
+.modal-insumo-edit-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: 0 1rem 1rem;
+}
+
+.modal-insumo-edit-footer .btn-cancel,
+.modal-insumo-edit-footer .btn-save {
+  flex: 1 1 0;
 }
 
 .tabla-notas th {
@@ -1236,6 +1298,144 @@ textarea:focus,
   line-height: 1;
 }
 
+.promedios-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.promedios-table th {
+  background: #edf2ff;
+  color: #2b3d61;
+  padding: 0.72rem 0.75rem;
+  text-align: left;
+  font-size: 0.92rem;
+}
+
+.promedios-table td {
+  border-bottom: 1px solid #e7edf8;
+  padding: 0.72rem 0.75rem;
+}
+
+.promedios-detail-row {
+  background: #fff;
+}
+
+.promedios-detail-row td {
+  padding: 0.5rem 0.75rem 0.7rem !important;
+  border-bottom: 1px solid #e7edf8;
+  background: #fff;
+}
+
+.promedios-row {
+  cursor: pointer;
+}
+
+.promedios-row:hover {
+  background: #f7faff;
+}
+
+.promedios-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+  width: 100%;
+}
+
+.promedios-detail-grid-inline {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.promedios-detail-grid-inline > * {
+  min-width: 0;
+}
+
+.promedios-detail-periodo {
+  background: #fff;
+  border: 1px solid #d7e1ef;
+  border-radius: 12px;
+  padding: 0.42rem 0.38rem;
+}
+
+.promedios-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.2rem;
+}
+
+.promedios-detail-head h4 {
+  margin: 0;
+  color: #20314f;
+  font-size: 0.8rem;
+}
+
+.promedios-detail-head span {
+  padding: 0.08rem 0.28rem;
+  border-radius: 999px;
+  background: #e9f1ff;
+  color: #224a96;
+  font-weight: 700;
+  font-size: 0.68rem;
+}
+
+.promedios-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+}
+
+.promedios-detail-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.22rem 0.28rem;
+  border-radius: 9px;
+  background: #fff;
+  border: 1px solid #e0e8f5;
+}
+
+.promedios-pill-badge {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #4f7fe0 0%, #2f64d0 100%);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55rem;
+  font-weight: 800;
+}
+
+.promedios-pill-left {
+  display: flex;
+  flex-direction: row;
+  gap: 0.22rem;
+  min-width: 0;
+  align-items: center;
+  flex: 1 1 auto;
+}
+
+.promedios-pill-left strong {
+  color: #243756;
+  font-size: 0.66rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.promedios-pill-score {
+  flex: 0 0 auto;
+  font-weight: 700;
+  color: #224a96;
+  font-size: 0.66rem;
+}
+
 @media (max-width: 760px) {
   .periodo-notas-header {
     flex-direction: column;
@@ -1305,6 +1505,10 @@ textarea:focus,
   .table-container,
   .tabla-notas {
     overflow-x: auto;
+  }
+
+  .promedios-detail-grid {
+    grid-template-columns: 1fr;
   }
 }
 

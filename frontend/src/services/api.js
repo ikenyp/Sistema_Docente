@@ -280,7 +280,7 @@ export const periodizacionAPI = {
     return config?.periodos || [];
   },
   obtenerConfiguracionActual: (anio_lectivo) =>
-    apiCall(`/periodizacion/actual/${encodeURIComponent(anio_lectivo)}`),
+    apiCall(`/periodizacion/actual/${encodeURIComponent(anio_lectivo)}/`),
   obtenerConfiguracion: (id_contexto, anio_lectivo) =>
     apiCall(
       `/periodizacion/contexto/${id_contexto}/${encodeURIComponent(anio_lectivo)}`,

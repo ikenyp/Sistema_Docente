@@ -118,7 +118,6 @@ function EstudiantesAdmin() {
       cargarConFiltros(filtros);
     }, 250);
     return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtros]);
 
   const limpiarFiltros = () => {

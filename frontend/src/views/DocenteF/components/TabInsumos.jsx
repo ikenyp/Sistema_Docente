@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpen, PencilLine, Trash2, Save } from "lucide-react";
+import { BookOpen, PencilLine, Trash2 } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
 
 export const TabInsumos = ({
@@ -22,6 +22,7 @@ export const TabInsumos = ({
   soloLecturaTutor,
   agregarInsumo,
   abrirInsumosNotas,
+  abrirEdicionInsumo,
   eliminarInsumo,
   cargarInsumos,
   requestConfirm,
@@ -128,26 +129,28 @@ export const TabInsumos = ({
               <span>Filtrar</span>
             </button>
             {menuFiltroPeriodoAbierto && (
-              <CustomSelect
-                value={filtroPeriodo}
-                onChange={(value) => {
-                  setFiltroPeriodo(value);
-                  setMenuFiltroPeriodoAbierto(false);
-                }}
-                options={[
+              <ul className="toolbar-dropdown-menu toolbar-dropdown-menu-right" role="listbox">
+                {[
                   { value: "todos", label: "Todos los Trimestres" },
                   ...periodosVisibles.map((p) => ({
                     value: String(p.numero_periodo),
                     label: `Trimestre ${p.numero_periodo}`,
                   })),
-                ]}
-                placeholder="Filtrar por trimestre"
-                className="docente-popover-select docente-popover-select-left"
-                hideTrigger
-                open={menuFiltroPeriodoAbierto}
-                onToggle={setMenuFiltroPeriodoAbierto}
-                menuAlign="left"
-              />
+                ].map((option) => (
+                  <li
+                    key={option.value}
+                    role="option"
+                    aria-selected={option.value === filtroPeriodo}
+                    className={`toolbar-dropdown-option ${option.value === filtroPeriodo ? "active" : ""}`}
+                    onClick={() => {
+                      setFiltroPeriodo(option.value);
+                      setMenuFiltroPeriodoAbierto(false);
+                    }}
+                  >
+                    {option.label}
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
           <div className="toolbar-anchor toolbar-anchor-order">
@@ -167,24 +170,25 @@ export const TabInsumos = ({
               <span>Ordenar</span>
             </button>
             {menuOrdenInsumosAbierto && (
-              <CustomSelect
-                value={ordenInsumos}
-                onChange={(value) => {
-                  setOrdenInsumos(value);
-                  setMenuOrdenInsumosAbierto(false);
-                }}
-                options={[
+              <ul className="toolbar-dropdown-menu toolbar-dropdown-menu-right" role="listbox">
+                {[
                   { value: "a-z", label: "A-Z" },
                   { value: "z-a", label: "Z-A" },
-                ]}
-                placeholder="Ordenar insumos"
-                className="docente-popover-select docente-popover-select-left"
-                hideTrigger
-                open={menuOrdenInsumosAbierto}
-                onToggle={setMenuOrdenInsumosAbierto}
-                key="orden-select"
-                menuAlign="left"
-              />
+                ].map((option) => (
+                  <li
+                    key={option.value}
+                    role="option"
+                    aria-selected={option.value === ordenInsumos}
+                    className={`toolbar-dropdown-option ${option.value === ordenInsumos ? "active" : ""}`}
+                    onClick={() => {
+                      setOrdenInsumos(option.value);
+                      setMenuOrdenInsumosAbierto(false);
+                    }}
+                  >
+                    {option.label}
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>
@@ -228,7 +232,7 @@ export const TabInsumos = ({
                         </button>
                         <button
                           className="btn-icon btn-edit"
-                          onClick={() => {}}
+                          onClick={() => abrirEdicionInsumo(insumo)}
                           aria-label="Editar insumo"
                         >
                           <PencilLine size={16} />

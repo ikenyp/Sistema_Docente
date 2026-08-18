@@ -398,31 +398,15 @@
 .toolbar-anchor {
   position: relative;
   display: inline-flex;
+  width: max-content;
 }
 
-.toolbar-anchor .custom-select {
+.toolbar-dropdown-menu {
   position: absolute;
   top: calc(100% + 6px);
-  right: 0;
-  left: auto;
-  z-index: 30;
   min-width: 230px;
-}
-
-.toolbar-anchor .custom-select:has(.custom-select-menu) {
-  padding-top: 0;
-}
-
-.toolbar-anchor .custom-select-trigger {
-  border-radius: 14px;
-  background: #fff;
-  border: 1px solid #d9e3f2;
-  box-shadow: 0 12px 28px rgba(23, 39, 72, 0.14);
-}
-
-.toolbar-anchor .custom-select-menu {
-  margin-top: 0.45rem;
   padding: 0.4rem;
+  margin: 0;
   list-style: none;
   background: #ffffff;
   border: 1px solid #d9e3f2;
@@ -430,9 +414,20 @@
   box-shadow: 0 16px 34px rgba(23, 39, 72, 0.14);
   max-height: 260px;
   overflow-y: auto;
+  z-index: 30;
 }
 
-.toolbar-anchor .custom-select-option {
+.toolbar-dropdown-menu-left {
+  left: auto;
+  right: 0;
+}
+
+.toolbar-dropdown-menu-right {
+  left: 0;
+  right: auto;
+}
+
+.toolbar-dropdown-option {
   padding: 0.55rem 0.75rem;
   border-radius: 10px;
   color: #21314d;
@@ -440,8 +435,8 @@
   background: transparent;
 }
 
-.toolbar-anchor .custom-select-option:hover,
-.toolbar-anchor .custom-select-option.active {
+.toolbar-dropdown-option:hover,
+.toolbar-dropdown-option.active {
   background: #e9f1ff;
 }
 
@@ -449,25 +444,6 @@
   visibility: hidden;
   user-select: none;
   min-height: 1.2em;
-}
-
-.toolbar-anchor:first-child .custom-select,
-.toolbar-anchor:first-child .custom-select-menu,
-.toolbar-anchor:last-child .custom-select,
-.toolbar-anchor:last-child .custom-select-menu {
-  left: auto;
-  right: 0;
-}
-
-.docente-popover-select {
-  min-width: 230px;
-}
-
-.docente-popover-select-left,
-.docente-popover-select-left .custom-select-menu,
-.docente-popover-select-left .custom-select {
-  left: 0;
-  right: auto;
 }
 
 .toolbar-status-pill {
@@ -576,7 +552,7 @@
   font-weight: 700;
 }
 
-.modal input,
+.modal input:not([type="checkbox"]),
 .modal textarea,
 .modal select {
   width: 100%;
@@ -588,7 +564,7 @@
   box-sizing: border-box;
 }
 
-.modal input:focus,
+.modal input:not([type="checkbox"]):focus,
 .modal textarea:focus,
 .modal select:focus {
   outline: none;
@@ -808,7 +784,7 @@
   font-size: 1rem;
 }
 
-.wizard-step input,
+.wizard-step input:not([type="checkbox"]),
 .wizard-step select {
   margin-bottom: 0.8rem;
   width: 100%;

@@ -11,7 +11,6 @@ import {
   estructurasAcademicasAPI,
 } from "../../services/api";
 import { notify } from "../../components/notify";
-import CustomSelect from "../../components/admin/CustomSelect";
 
 function Docente() {
   const navigate = useNavigate();
@@ -74,6 +73,18 @@ function Docente() {
       modo: appMode === "personal" ? "Personal" : "Institucional",
       esTutor,
     };
+  }, [appMode, cursos, datosUsuario]);
+
+  const cursoTutorActual = useMemo(() => {
+    if (appMode !== "personal" || !datosUsuario) return null;
+
+    return (
+      cursos.find(
+        (curso) =>
+          Number(curso?.id_tutor) === Number(datosUsuario.id_usuario) ||
+          Number(curso?.tutor?.id_usuario) === Number(datosUsuario.id_usuario),
+      ) || null
+    );
   }, [appMode, cursos, datosUsuario]);
 
   const aniosDisponiblesCursos = useMemo(() => {
@@ -153,11 +164,37 @@ function Docente() {
       } catch {
         asignaciones = [];
       }
-      const totalMateriasAsignadas = 0;
 
-      const cursosUnicos = [];
-      const vistos = new Set();
+      const cursosMap = new Map();
       const materiasAsignadasDocente = new Set();
+
+      const fusionarCurso = (cursoBase, cursoNuevo) => {
+        if (!cursoNuevo?.id_curso) return cursoBase;
+        if (!cursoBase) return { ...cursoNuevo };
+
+        return {
+          ...cursoBase,
+          ...cursoNuevo,
+          id_tutor: cursoBase.id_tutor ?? cursoNuevo.id_tutor,
+          tutor: cursoBase.tutor ?? cursoNuevo.tutor,
+        };
+      };
+
+      let cursosTutor = [];
+      try {
+        cursosTutor = await cursosAPI.listar({
+          id_tutor: usuario.id_usuario,
+          size: 100,
+        });
+      } catch {
+        cursosTutor = [];
+      }
+
+      (cursosTutor || []).forEach((curso) => {
+        if (curso?.id_curso) {
+          cursosMap.set(curso.id_curso, fusionarCurso(null, curso));
+        }
+      });
 
       (asignaciones || []).forEach((asig) => {
         const claveMateria = asig?.id_cmd || asig?.cmd?.id_cmd || asig?.id_materia || asig?.materia?.id_materia;
@@ -170,27 +207,67 @@ function Docente() {
             ? { id_curso: asig.id_curso, nombre: "Curso", anio_lectivo: "" }
             : null);
 
-        if (curso && curso.id_curso && !vistos.has(curso.id_curso)) {
-          vistos.add(curso.id_curso);
-          cursosUnicos.push(curso);
+        if (curso?.id_curso) {
+          const cursoActual = cursosMap.get(curso.id_curso);
+          cursosMap.set(curso.id_curso, fusionarCurso(cursoActual, curso));
         }
       });
 
-      let cursosTutor = [];
-      try {
-        cursosTutor = await cursosAPI.listar({
-          id_tutor: usuario.id_usuario,
-          size: 100,
-        });
-      } catch {
-        cursosTutor = [];
-      }
-      (cursosTutor || []).forEach((curso) => {
-        if (curso && curso.id_curso && !vistos.has(curso.id_curso)) {
-          vistos.add(curso.id_curso);
-          cursosUnicos.push(curso);
+      if (modoActual === "personal") {
+        try {
+          const cursosPropios = await cursosAPI.listar({
+            id_tutor: usuario.id_usuario,
+            size: 100,
+          });
+          (cursosPropios || []).forEach((curso) => {
+            if (curso?.id_curso) {
+              const cursoActual = cursosMap.get(curso.id_curso);
+              cursosMap.set(curso.id_curso, fusionarCurso(cursoActual, curso));
+            }
+          });
+        } catch {
+          // ya se intenta más abajo con cursosTutor
         }
-      });
+      }
+
+      const cursosUnicos = Array.from(cursosMap.values());
+
+      if (modoActual === "personal") {
+        const cursosTutorActual = cursosUnicos.filter(
+          (curso) =>
+            Number(curso?.id_tutor) === Number(usuario.id_usuario) ||
+            Number(curso?.tutor?.id_usuario) === Number(usuario.id_usuario),
+        );
+
+        if (cursosTutorActual.length > 1) {
+          const cursoTutorPrincipal = cursosTutor?.find(
+            (curso) => curso?.id_curso,
+          )?.id_curso;
+
+          let tutorAsignado = false;
+          cursosUnicos.forEach((curso) => {
+            const esTutorDelDocente =
+              Number(curso?.id_tutor) === Number(usuario.id_usuario) ||
+              Number(curso?.tutor?.id_usuario) === Number(usuario.id_usuario);
+
+            if (!esTutorDelDocente) return;
+
+            const conservarTutor =
+              (!tutorAsignado && curso.id_curso === cursoTutorPrincipal) ||
+              (!tutorAsignado && !cursoTutorPrincipal);
+
+            if (conservarTutor) {
+              tutorAsignado = true;
+              return;
+            }
+
+            curso.id_tutor = null;
+            if (curso.tutor?.id_usuario === usuario.id_usuario) {
+              curso.tutor = null;
+            }
+          });
+        }
+      }
 
       const todasAsignaciones =
         modoActual === "personal"
@@ -343,10 +420,15 @@ function Docente() {
     }
 
     setBloqueoEstructuraEdicion(bloqueo);
+    const cursoActual = cursos.find((c) => c.id_curso === curso.id_curso) || curso;
     setEditarCursoData({
-      ...curso,
-      soyTutor: !!(datosUsuario && curso.id_tutor === datosUsuario.id_usuario),
-      id_estructura_academica: curso.id_estructura_academica || "",
+      ...cursoActual,
+      soyTutor: !!(
+        datosUsuario &&
+        (cursoActual.id_tutor === datosUsuario.id_usuario ||
+          cursoActual.tutor?.id_usuario === datosUsuario.id_usuario)
+      ),
+      id_estructura_academica: cursoActual.id_estructura_academica || "",
     });
     setMostrarEditarModal(true);
     setOpenMenuId(null);
@@ -383,6 +465,19 @@ function Docente() {
         anio_lectivo,
       };
 
+      if (
+        appMode === "personal" &&
+        editarCursoData.soyTutor &&
+        cursoTutorActual &&
+        Number(cursoTutorActual.id_curso) !== Number(id_curso)
+      ) {
+        notify(
+          "error",
+          `Ya tienes un curso como tutor (${cursoTutorActual.nombre}). Debes quitar ese curso antes de marcar otro como tutor.`,
+        );
+        return;
+      }
+
       if (appMode === "personal") {
         payload.id_tutor = editarCursoData.soyTutor
           ? datosUsuario.id_usuario
@@ -392,11 +487,19 @@ function Docente() {
           : null;
       }
 
-      await cursosAPI.actualizar(id_curso, payload);
+      const cursoActualizado = await cursosAPI.actualizar(id_curso, payload);
+      const cursoRecargado = await cursosAPI.obtenerCurso(id_curso);
+      const cursoFinal = { ...(cursoActualizado || {}), ...(cursoRecargado || {}) };
+      setCursos((prevCursos) =>
+        prevCursos.map((curso) =>
+          curso.id_curso === id_curso
+            ? { ...curso, ...cursoFinal }
+            : curso,
+        ),
+      );
       setMostrarEditarModal(false);
       setEditarCursoData(null);
       setBloqueoEstructuraEdicion("");
-      await cargarCursos();
     } catch (err) {
       notify("error", "Error al actualizar curso: " + err.message);
     } finally {
@@ -473,6 +576,13 @@ function Docente() {
     const errorAnio = validarAnioLectivo(nuevoCurso.anio_lectivo);
     if (errorAnio) {
       setErrorWizard(errorAnio);
+      return;
+    }
+
+    if (appMode === "personal" && nuevoCurso.soyTutor && cursoTutorActual) {
+      setErrorWizard(
+        `Ya tienes un curso como tutor (${cursoTutorActual.nombre}). Debes quitar ese curso antes de crear otro como tutor.`,
+      );
       return;
     }
 
@@ -582,7 +692,7 @@ function Docente() {
           <div className="stat-card">
             <p className="stat-label">Tutor</p>
             <h3 className="stat-value">{resumenCursos.esTutor ? "Sí" : "No"}</h3>
-            <p className="stat-sub">Indicador simple de tutoría</p>
+            <p className="stat-sub">Indicador de tutoría</p>
           </div>
         </div>
 
@@ -597,7 +707,7 @@ function Docente() {
                 ↻
               </button>
             <div className="docente-toolbar-right">
-              <div className="toolbar-anchor">
+              <div className="toolbar-anchor toolbar-anchor-filter">
                   <button
                     className="toolbar-blue-btn"
                     type="button"
@@ -615,25 +725,25 @@ function Docente() {
                   <span>Filtrar</span>
                 </button>
                 {menuFiltroAbierto && (
-                  <CustomSelect
-                    value={filtroAnio}
-                    onChange={(value) => {
-                      setFiltroAnio(value);
-                      setMenuFiltroAbierto(false);
-                    }}
-                    options={[
-                      { value: "todos", label: "Todos los años lectivos" },
-                      ...aniosDisponiblesCursos.map((anio) => ({ value: anio, label: anio })),
-                    ]}
-                    placeholder="Filtrar por año lectivo"
-                    className="docente-popover-select docente-popover-select-left"
-                    hideTrigger
-                    open={menuFiltroAbierto}
-                    onToggle={setMenuFiltroAbierto}
-                  />
+                  <ul className="toolbar-dropdown-menu toolbar-dropdown-menu-left" role="listbox">
+                    {[{ value: "todos", label: "Todos los años lectivos" }, ...aniosDisponiblesCursos.map((anio) => ({ value: anio, label: anio }))].map((option) => (
+                      <li
+                        key={option.value}
+                        role="option"
+                        aria-selected={option.value === filtroAnio}
+                        className={`toolbar-dropdown-option ${option.value === filtroAnio ? "active" : ""}`}
+                        onClick={() => {
+                          setFiltroAnio(option.value);
+                          setMenuFiltroAbierto(false);
+                        }}
+                      >
+                        {option.label}
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
-              <div className="toolbar-anchor">
+              <div className="toolbar-anchor toolbar-anchor-order">
                 <button
                   className="toolbar-blue-btn"
                   type="button"
@@ -650,25 +760,28 @@ function Docente() {
                   <span>Ordenar</span>
                 </button>
                 {menuOrdenAbierto && (
-                  <CustomSelect
-                    value={ordenCursos}
-                    onChange={(value) => {
-                      setOrdenCursos(value);
-                      setMenuOrdenAbierto(false);
-                    }}
-                    options={[
+                  <ul className="toolbar-dropdown-menu toolbar-dropdown-menu-left" role="listbox">
+                    {[
                       { value: "colegio-asc", label: "Colegio A-Z" },
                       { value: "colegio-desc", label: "Colegio Z-A" },
                       { value: "reciente", label: "Más reciente" },
                       { value: "antiguo", label: "Más antiguo" },
                       { value: "alfabetico", label: "Alfabético" },
-                    ]}
-                    placeholder="Ordenar cursos"
-                    className="docente-popover-select docente-popover-select-left"
-                    hideTrigger
-                    open={menuOrdenAbierto}
-                    onToggle={setMenuOrdenAbierto}
-                  />
+                    ].map((option) => (
+                      <li
+                        key={option.value}
+                        role="option"
+                        aria-selected={option.value === ordenCursos}
+                        className={`toolbar-dropdown-option ${option.value === ordenCursos ? "active" : ""}`}
+                        onClick={() => {
+                          setOrdenCursos(option.value);
+                          setMenuOrdenAbierto(false);
+                        }}
+                      >
+                        {option.label}
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
             </div>
@@ -706,7 +819,7 @@ function Docente() {
                 borderRadius: "12px",
                 padding: "2rem",
                 width: "90%",
-                maxWidth: "300px",
+                maxWidth: "380px",
                 textAlign: "center",
                 boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
               }}
@@ -824,28 +937,54 @@ function Docente() {
                           💡 Formato: YYYY-YYYY (ej: 2026-2027)
                         </p>
                         {appMode === "personal" && (
-                          <label
+                          <div
                             style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "0.6rem",
-                              marginBottom: "1rem",
-                              color: "#223553",
+                              display: "inline-block",
+                              width: "fit-content",
+                              maxWidth: "100%",
+                              marginBottom: "0.35rem",
+                              color:
+                                cursoTutorActual && !nuevoCurso.soyTutor
+                                  ? "#7a869a"
+                                  : "#223553",
                               fontSize: "0.92rem",
+                              textAlign: "left",
                             }}
                           >
-                            <input
-                              type="checkbox"
-                              checked={!!nuevoCurso.soyTutor}
-                              onChange={(e) =>
-                                setNuevoCurso((p) => ({
-                                  ...p,
-                                  soyTutor: e.target.checked,
-                                }))
-                              }
-                            />
-                            Este es uno de mis cursos como tutor
-                          </label>
+                            <label
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                width: "fit-content",
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={!!nuevoCurso.soyTutor}
+                                disabled={!!cursoTutorActual && !nuevoCurso.soyTutor}
+                                style={{ marginRight: "0.25rem", flexShrink: 0 }}
+                                onChange={(e) =>
+                                  setNuevoCurso((p) => ({
+                                    ...p,
+                                    soyTutor: e.target.checked,
+                                  }))
+                                }
+                              />
+                              Este es uno de mis cursos como tutor
+                            </label>
+                          </div>
+                        )}
+                        {appMode === "personal" && cursoTutorActual && !nuevoCurso.soyTutor && (
+                            <p
+                              style={{
+                                fontSize: "0.85rem",
+                                color: "#8a1538",
+                                marginTop: "-0.4rem",
+                                marginBottom: "1rem",
+                              }}
+                            >
+                            Ya tienes el curso {cursoTutorActual.nombre} como tutor. Debes quitarlo primero para asignar otro.
+                          </p>
                         )}
                       </div>
 
@@ -996,7 +1135,7 @@ function Docente() {
 
                     <div className="curso-title-row">
                       <p className="curso-nombre">{curso.nombre}</p>
-                      {curso.id_tutor === datosUsuario?.id_usuario && (
+                      {appMode === "personal" && (curso.id_tutor === datosUsuario?.id_usuario || curso.tutor?.id_usuario === datosUsuario?.id_usuario) && (
                         <span className="tutor-pill">TUTOR</span>
                       )}
                     </div>
@@ -1030,10 +1169,10 @@ function Docente() {
                   style={{
                     background: "rgba(255, 255, 255, 0.95)",
                     borderRadius: "12px",
-                    padding: "2rem",
+                    padding: "1.5rem",
                     width: "90%",
-                    maxWidth: "320px",
-                    textAlign: "center",
+                    maxWidth: "400px",
+                    textAlign: "left",
                     boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
                   }}
                   onClick={(e) => e.stopPropagation()}
@@ -1133,13 +1272,20 @@ function Docente() {
                             {bloqueoEstructuraEdicion}
                           </p>
                         )}
-                        <label
+                        <div
                           style={{
-                            display: "flex",
+                            display: "inline-flex",
                             alignItems: "center",
-                            gap: "0.6rem",
-                            marginBottom: "1.25rem",
-                            color: "#223553",
+                            width: "fit-content",
+                            maxWidth: "100%",
+                            gap: "0.2rem",
+                            marginBottom: "0.4rem",
+                            color:
+                              cursoTutorActual &&
+                              Number(cursoTutorActual.id_curso) !== Number(editarCursoData.id_curso) &&
+                              !editarCursoData.soyTutor
+                                ? "#7a869a"
+                                : "#223553",
                             fontSize: "0.92rem",
                             textAlign: "left",
                           }}
@@ -1147,6 +1293,12 @@ function Docente() {
                           <input
                             type="checkbox"
                             checked={!!editarCursoData.soyTutor}
+                            disabled={
+                              !!cursoTutorActual &&
+                              Number(cursoTutorActual.id_curso) !== Number(editarCursoData.id_curso) &&
+                              !editarCursoData.soyTutor
+                            }
+                            style={{ marginRight: "0.2rem", flexShrink: 0 }}
                             onChange={(e) =>
                               setEditarCursoData((p) => ({
                                 ...p,
@@ -1154,8 +1306,23 @@ function Docente() {
                               }))
                             }
                           />
-                          Este es uno de mis cursos como tutor
-                        </label>
+                          <span style={{ whiteSpace: "nowrap" }}>Este es uno de mis cursos como tutor</span>
+                        </div>
+                        {cursoTutorActual &&
+                          Number(cursoTutorActual.id_curso) !== Number(editarCursoData.id_curso) &&
+                          !editarCursoData.soyTutor && (
+                            <p
+                              style={{
+                                fontSize: "0.85rem",
+                                color: "#8a1538",
+                                marginTop: "-0.4rem",
+                                marginBottom: "1rem",
+                                textAlign: "left",
+                              }}
+                            >
+                              Ya tienes el curso {cursoTutorActual.nombre} como tutor. Debes quitarlo primero para asignar otro.
+                            </p>
+                          )}
                       </>
                     )}
 
@@ -1225,7 +1392,7 @@ function Docente() {
                     borderRadius: "12px",
                     padding: "2rem",
                     width: "90%",
-                    maxWidth: "320px",
+                    maxWidth: "420px",
                     textAlign: "center",
                     boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
                   }}

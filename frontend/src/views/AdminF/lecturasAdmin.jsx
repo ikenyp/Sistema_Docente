@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Search, ArrowLeft } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import {
   cursosAPI,
@@ -59,14 +58,12 @@ function LecturasAdmin() {
 
   useEffect(() => {
     cargarCursos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     cargarEstudiantes(cursoSel);
     setEstSel("");
     setSearchTerm("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursoSel]);
 
   const estudiantesFiltrados = estudiantes.filter((e) =>
@@ -95,7 +92,6 @@ function LecturasAdmin() {
       setAsistencias([]);
       setComportamientos([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estSel]);
 
   return (

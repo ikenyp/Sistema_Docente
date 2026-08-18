@@ -8,23 +8,17 @@ import {
   insumosAPI,
   notasAPI,
 } from "../../services/api";
+import { Save } from "lucide-react";
 import CustomSelect from "../../components/admin/CustomSelect";
 import { TabInsumos } from "./components/TabInsumos";
 import { TabAsistencia } from "./components/TabAsistencia";
 import { TabComportamiento } from "./components/TabComportamiento";
 import { TabNotasEstudiante } from "./components/TabNotasEstudiante";
+import { TabModalNotasInsumo } from "./components/TabModalNotasInsumo";
 import { TabPromedios } from "./components/TabPromedios";
 import { TabPeriodizacion } from "./components/TabPeriodizacion";
 import "../../styles/cursoPrincipal.css";
 import { notify, requestConfirm } from "../../components/notify";
-
-const ESTADOS_ASISTENCIA = [
-  { value: "presente", label: "Presente" },
-  { value: "ausente", label: "Ausente" },
-  { value: "justificado", label: "Justificado" },
-];
-
-const VALORES_COMPORTAMIENTO = ["A", "B", "C", "D"];
 
 function CursoPrincipal() {
   const navigate = useNavigate();
@@ -64,54 +58,31 @@ function CursoPrincipal() {
     tipo_insumo: "",
     id_periodo: "",
   });
+  const [insumoEditando, setInsumoEditando] = useState(null);
+  const [editandoInsumo, setEditandoInsumo] = useState(false);
   const [cargandoInsumo, setCargandoInsumo] = useState(false);
-
-  // Vista de notas por insumo (modal)
-  const [insumosSeleccionado, setInsumosSeleccionado] = useState(null);
-  const [estudiantesInsumo, setEstudiantesInsumo] = useState([]);
-  const [notasEstudiantes, setNotasEstudiantes] = useState({});
 
   // Tabs
   const [activeTab, setActiveTab] = useState("insumos");
 
   // Asistencia
   const [asistencias, setAsistencias] = useState([]);
-  const [cargandoAsistencia, setCargandoAsistencia] = useState(false);
   const [fechaAsistencia, setFechaAsistencia] = useState(fechaHoy);
   const [estadosTemporales, setEstadosTemporales] = useState({});
-  const [asistenciaForm, setAsistenciaForm] = useState({
-    id_estudiante: "",
-    fecha: fechaHoy,
-    estado: ESTADOS_ASISTENCIA[0].value,
-  });
-  const [asistenciaEditando, setAsistenciaEditando] = useState(null);
 
   // Comportamiento
   const [comportamientos, setComportamientos] = useState([]);
-  const [cargandoComportamiento, setCargandoComportamiento] = useState(false);
   const [valoresTemporales, setValoresTemporales] = useState({});
   const [observacionesTemporales, setObservacionesTemporales] = useState({});
-  const [comportamientoForm, setComportamientoForm] = useState({
-    id_estudiante: "",
-    mes: "",
-    valor: VALORES_COMPORTAMIENTO[0],
-    observaciones: "",
-  });
-  const [comportamientoEditando, setComportamientoEditando] = useState(null);
+  const [comportamientoMes, setComportamientoMes] = useState("");
 
   // Notas por estudiante
   const [estudianteSeleccionado, setEstudianteSeleccionado] = useState("");
   const [notasIndividuales, setNotasIndividuales] = useState([]);
   const [cargandoNotasIndividual, setCargandoNotasIndividual] = useState(false);
+  const [notasPorEstudiante, setNotasPorEstudiante] = useState({});
 
   // Promedios
-  const [promedioPeriodo, setPromedioPeriodo] = useState(null);
-  const [promedioAcumulado, setPromedioAcumulado] = useState(null);
-  const [periodoSeleccionado, setPeriodoSeleccionado] = useState("");
-  const [estudiantePromedio, setEstudiantePromedio] = useState("");
-  const [loadingPromedios, setLoadingPromedios] = useState(false);
-  const [errorPromedios, setErrorPromedios] = useState(null);
-
   const [errorPeriodos, setErrorPeriodos] = useState(null);
 
   const soloLecturaTutor = false;
@@ -180,25 +151,19 @@ function CursoPrincipal() {
   const cargarAsistencia = useCallback(async (id_cmd) => {
     if (!id_cmd) return;
     try {
-      setCargandoAsistencia(true);
       const data = await asistenciaAPI.listar({ id_cmd, size: 100 });
       setAsistencias(data || []);
     } catch (err) {
       console.error("Error al cargar asistencia:", err);
-    } finally {
-      setCargandoAsistencia(false);
     }
   }, []);
 
   const cargarComportamientos = useCallback(async () => {
     try {
-      setCargandoComportamiento(true);
       const data = await comportamientoAPI.listar({ id_curso, size: 100 });
       setComportamientos(data || []);
     } catch (err) {
       console.error("Error al cargar comportamiento:", err);
-    } finally {
-      setCargandoComportamiento(false);
     }
   }, [id_curso]);
 
@@ -254,7 +219,6 @@ function CursoPrincipal() {
             nombre_periodo: periodo.nombre_periodo,
           }));
           setPeriodos(periodos);
-          setPeriodoSeleccionado(periodos[0]?.numero_periodo?.toString() || "");
 
           if (periodos.length === 0) {
             setErrorPeriodos(
@@ -364,25 +328,61 @@ function CursoPrincipal() {
     }
   };
 
+  const [insumoNotasAbierto, setInsumoNotasAbierto] = useState(null);
+
   const abrirInsumosNotas = async (insumo) => {
-    try {
-      setInsumosSeleccionado(insumo);
+    setInsumoNotasAbierto(insumo);
+  };
 
-      const estudiantes =
-        estudiantesCurso.length > 0
-          ? estudiantesCurso
-          : await estudiantesAPI.obtenerPorCurso(id_curso);
-      setEstudiantesInsumo(estudiantes || []);
+  const abrirEdicionInsumo = (insumo) => {
+    setInsumoEditando({
+      id_insumo: insumo.id_insumo,
+      nombre: insumo.nombre || "",
+      descripcion: insumo.descripcion || "",
+      ponderacion: insumo.ponderacion ?? "",
+      tipo_insumo: insumo.tipo_insumo || "",
+      id_periodo: insumo.id_periodo ? String(insumo.id_periodo) : "",
+    });
+  };
 
-      const notas = await notasAPI.listarPorInsumo(insumo.id_insumo);
-      const notasMap = {};
-      notas.forEach((nota) => {
-        notasMap[nota.id_estudiante] = nota;
-      });
-      setNotasEstudiantes(notasMap);
-    } catch (err) {
-      notify("error", "Error al cargar notas: " + err.message);
+  const guardarEdicionInsumo = async () => {
+    if (!insumoEditando) return;
+    if (!insumoEditando.nombre.trim() || !insumoEditando.ponderacion) {
+      notify("error", "Debe completar nombre y ponderación");
+      return;
     }
+
+    setEditandoInsumo(true);
+    try {
+      await insumosAPI.actualizar(insumoEditando.id_insumo, {
+        nombre: insumoEditando.nombre.trim(),
+        descripcion: insumoEditando.descripcion.trim(),
+        ponderacion: parseFloat(insumoEditando.ponderacion),
+        tipo_insumo: insumoEditando.tipo_insumo,
+        id_periodo: parseInt(insumoEditando.id_periodo, 10),
+      });
+      await cargarInsumos(materiaSeleccionada.id_cmd);
+      setInsumoEditando(null);
+    } catch (err) {
+      notify("error", "No se pudo actualizar el insumo: " + err.message);
+    } finally {
+      setEditandoInsumo(false);
+    }
+  };
+
+  const cargarEstudiantesPorCurso = async () => {
+    return estudiantesCurso.length > 0 ? estudiantesCurso : estudiantesAPI.obtenerPorCurso(id_curso);
+  };
+
+  const cargarNotasPorInsumo = async (id_insumo) => {
+    return notasAPI.listarPorInsumo(id_insumo);
+  };
+
+  const cerrarModalInsumo = () => setInsumoNotasAbierto(null);
+
+  const cerrarModalEdicionInsumo = () => {
+    if (editandoInsumo) return;
+    setInsumoEditando(null);
   };
 
   const asistenciaExistentePorEstudiante = useCallback(
@@ -449,13 +449,10 @@ function CursoPrincipal() {
     }
   };
 
-  const comportamientoExistentePorEstudiante = useCallback(
-    (id_estudiante) =>
-      comportamientos.find(
-        (c) => c.id_estudiante === id_estudiante && c.mes === comportamientoForm.mes,
-      ),
-    [comportamientos, comportamientoForm.mes],
-  );
+  const comportamientoExistentePorEstudiante = (id_estudiante) =>
+    comportamientos.find(
+      (c) => c.id_estudiante === id_estudiante && c.mes === comportamientoMes,
+    );
 
   const guardarComportamientoUno = async (id_estudiante) => {
     const valor = valoresTemporales[id_estudiante];
@@ -465,7 +462,7 @@ function CursoPrincipal() {
     const payload = {
       id_curso: parseInt(id_curso, 10),
       id_estudiante: parseInt(id_estudiante, 10),
-      mes: comportamientoForm.mes,
+      mes: comportamientoMes,
       valor,
       observaciones: observacionesTemporales[id_estudiante] || "",
     };
@@ -480,27 +477,6 @@ function CursoPrincipal() {
     } catch (err) {
       notify("error", "No se pudo guardar: " + err.message);
     }
-  };
-
-  // ====================== ASISTENCIA ======================
-  const resetAsistenciaForm = () => {
-    setAsistenciaForm({
-      id_estudiante: "",
-      fecha: fechaHoy,
-      estado: ESTADOS_ASISTENCIA[0].value,
-    });
-    setAsistenciaEditando(null);
-  };
-
-  // ====================== COMPORTAMIENTO ======================
-  const resetComportamientoForm = () => {
-    setComportamientoForm({
-      id_estudiante: "",
-      mes: "",
-      valor: VALORES_COMPORTAMIENTO[0],
-      observaciones: "",
-    });
-    setComportamientoEditando(null);
   };
 
   // ====================== NOTAS POR ESTUDIANTE ======================
@@ -534,7 +510,41 @@ function CursoPrincipal() {
     [insumosMateria, materiaSeleccionada],
   );
 
-  const guardarNotaIndividual = async (registro, nuevoValor) => {
+  const cargarNotasCurso = useCallback(async () => {
+    if (!materiaSeleccionada || estudiantesCurso.length === 0) return;
+
+    try {
+      const acumulado = {};
+      for (const estudiante of estudiantesCurso) {
+        const notas = await notasAPI.listar({ id_estudiante: estudiante.id_estudiante });
+        const mapNotas = {};
+        (notas || []).forEach((nota) => {
+          mapNotas[nota.id_insumo] = nota;
+        });
+        acumulado[estudiante.id_estudiante] = (insumosMateria || []).map((insumo) => ({
+          insumo,
+          id_nota: mapNotas[insumo.id_insumo]?.id_nota || null,
+          valor: mapNotas[insumo.id_insumo]?.calificacion ?? "",
+          id_estudiante: estudiante.id_estudiante,
+        }));
+      }
+      setNotasPorEstudiante(acumulado);
+    } catch (err) {
+      console.error("Error al cargar notas del curso:", err);
+    }
+  }, [estudiantesCurso, insumosMateria, materiaSeleccionada]);
+
+  const guardarNotaIndividual = async (registro, nuevoValor, idNotaAEliminar = null) => {
+    if (idNotaAEliminar) {
+      try {
+        await notasAPI.eliminar(idNotaAEliminar);
+        await cargarNotasEstudiante(estudianteSeleccionado);
+      } catch (err) {
+        notify("error", "No se pudo eliminar la nota: " + err.message);
+      }
+      return;
+    }
+
     if (nuevoValor === "" || nuevoValor === null || nuevoValor === undefined) return;
 
     try {
@@ -603,6 +613,10 @@ function CursoPrincipal() {
       cargarNotasEstudiante(estudianteSeleccionado);
     }
   }, [cargarNotasEstudiante, estudianteSeleccionado]);
+
+  useEffect(() => {
+    cargarNotasCurso();
+  }, [cargarNotasCurso]);
 
   const cerrarSesion = () => {
     const appMode = localStorage.getItem("app_mode") || "institucional";
@@ -818,6 +832,7 @@ function CursoPrincipal() {
                   soloLecturaTutor={soloLecturaTutor}
                   agregarInsumo={agregarInsumo}
                   abrirInsumosNotas={abrirInsumosNotas}
+                  abrirEdicionInsumo={abrirEdicionInsumo}
                   eliminarInsumo={eliminarInsumo}
                   requestConfirm={requestConfirm}
                   notasAPI={notasAPI}
@@ -842,10 +857,8 @@ function CursoPrincipal() {
             <TabComportamiento
                 activeTab={activeTab}
                 estudiantesCurso={estudiantesCurso}
-                mesComportamiento={comportamientoForm.mes}
-                setMesComportamiento={(mes) =>
-                  setComportamientoForm((prev) => ({ ...prev, mes }))
-                }
+                mesComportamiento={comportamientoMes}
+                setMesComportamiento={setComportamientoMes}
                 valoresTemporales={valoresTemporales}
                 setValoresTemporales={setValoresTemporales}
                 observacionesTemporales={observacionesTemporales}
@@ -871,21 +884,9 @@ function CursoPrincipal() {
             <TabPromedios
                 activeTab={activeTab}
                 estudiantesCurso={estudiantesCurso}
-                estudiantePromedio={estudiantePromedio}
-                setEstudiantePromedio={setEstudiantePromedio}
-                periodoSeleccionado={periodoSeleccionado}
-                setPeriodoSeleccionado={setPeriodoSeleccionado}
-                promedioPeriodo={promedioPeriodo}
-                setPromedioPeriodo={setPromedioPeriodo}
-                promedioAcumulado={promedioAcumulado}
-                setPromedioAcumulado={setPromedioAcumulado}
-                loadingPromedios={loadingPromedios}
-                setLoadingPromedios={setLoadingPromedios}
-                errorPromedios={errorPromedios}
-                setErrorPromedios={setErrorPromedios}
-                id_curso={id_curso}
-                cursoDetalle={cursoDetalle}
                 periodos={periodos}
+                insumosMateria={insumosMateria}
+                notasPorEstudiante={notasPorEstudiante}
             />
 
             {/* TAB: PERIODIZACION */}
@@ -894,6 +895,117 @@ function CursoPrincipal() {
                 errorPeriodos={errorPeriodos}
                 periodos={periodos}
             />
+            {insumoNotasAbierto && (
+              <TabModalNotasInsumo
+                insumo={insumoNotasAbierto}
+                estudiantesCurso={estudiantesCurso}
+                soloLecturaTutor={soloLecturaTutor}
+                cargarEstudiantesPorCurso={cargarEstudiantesPorCurso}
+                cargarNotasPorInsumo={cargarNotasPorInsumo}
+                guardarNota={async (id_estudiante, valor) => {
+                  if (!insumoNotasAbierto) return;
+                  const existente = await notasAPI.listarPorInsumo(insumoNotasAbierto.id_insumo);
+                  const notaExistente = (existente || []).find(
+                    (n) => String(n.id_estudiante) === String(id_estudiante),
+                  );
+                  if (notaExistente) {
+                    if (valor === null) {
+                      await notasAPI.eliminar(notaExistente.id_nota);
+                    } else {
+                      await notasAPI.actualizar(notaExistente.id_nota, {
+                        calificacion: parseFloat(valor),
+                      });
+                    }
+                  } else if (valor !== null) {
+                    await notasAPI.crear({
+                      id_estudiante: parseInt(id_estudiante, 10),
+                      id_insumo: insumoNotasAbierto.id_insumo,
+                      calificacion: parseFloat(valor),
+                    });
+                  }
+                  await abrirInsumosNotas(insumoNotasAbierto);
+                }}
+                onClose={cerrarModalInsumo}
+              />
+            )}
+
+            {insumoEditando && (
+              <div className="modal-overlay">
+                <div className="modal-notas modal-insumo-edit">
+                  <div className="modal-header">
+                    <h3>Editar Insumo</h3>
+                    <button className="btn-cerrar" onClick={cerrarModalEdicionInsumo} disabled={editandoInsumo}>
+                      ✕
+                    </button>
+                  </div>
+                  <div className="modal-body modal-insumo-edit-body">
+                    <div className="modal-insumo-edit-grid modal-insumo-edit-grid-two">
+                      <input
+                        type="text"
+                        placeholder="Nombre del insumo"
+                        value={insumoEditando.nombre}
+                        onChange={(e) =>
+                          setInsumoEditando((prev) => ({ ...prev, nombre: e.target.value }))
+                        }
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        max="10"
+                        step="0.1"
+                        placeholder="Ponderación (0-10)"
+                        value={insumoEditando.ponderacion}
+                        onChange={(e) =>
+                          setInsumoEditando((prev) => ({ ...prev, ponderacion: e.target.value }))
+                        }
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Descripción"
+                      value={insumoEditando.descripcion}
+                      onChange={(e) =>
+                        setInsumoEditando((prev) => ({ ...prev, descripcion: e.target.value }))
+                      }
+                      className="modal-insumo-edit-full"
+                    />
+                    <div className="modal-insumo-edit-grid modal-insumo-edit-grid-two">
+                      <CustomSelect
+                        value={insumoEditando.tipo_insumo}
+                        onChange={(value) =>
+                          setInsumoEditando((prev) => ({ ...prev, tipo_insumo: value }))
+                        }
+                        placeholder="Tipo de Insumo"
+                        options={[
+                          { value: "actividad", label: "Actividad" },
+                          { value: "proyecto_periodo", label: "Proyecto del periodo" },
+                          { value: "examen_periodo", label: "Examen del periodo" },
+                        ]}
+                        className="custom-select-white"
+                      />
+                      <CustomSelect
+                        value={insumoEditando.id_periodo}
+                        onChange={(value) =>
+                          setInsumoEditando((prev) => ({ ...prev, id_periodo: value }))
+                        }
+                        placeholder="Periodo"
+                        options={periodosOptions}
+                        className="custom-select-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="modal-footer modal-insumo-edit-footer">
+                    <button className="btn-cancel" type="button" onClick={cerrarModalEdicionInsumo} disabled={editandoInsumo}>
+                      Cancelar
+                    </button>
+                    <button className="btn-save btn-save-inline" type="button" onClick={guardarEdicionInsumo} disabled={editandoInsumo}>
+                      <Save size={16} />
+                      <span>{editandoInsumo ? "Guardando..." : "Guardar"}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

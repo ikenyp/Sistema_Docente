@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pencil, Trash2, Search, Save, X, ArrowLeft } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import { estructurasAcademicasAPI, materiasAPI } from "../../services/api";
@@ -33,7 +33,7 @@ function MateriasAdmin() {
     [data, filtros.size],
   );
 
-  const cargar = async () => {
+  const cargar = useCallback(async () => {
     setCargando(true);
     setError("");
     try {
@@ -48,11 +48,11 @@ function MateriasAdmin() {
     } finally {
       setCargando(false);
     }
-  };
+  }, [filtros.nombre, filtros.page, filtros.size]);
 
   useEffect(() => {
-    cargar(); // eslint-disable-next-line
-  }, [filtros.page, filtros.size]);
+    cargar();
+  }, [cargar]);
 
   const buscar = (e) => {
     e.preventDefault();
