@@ -20,6 +20,7 @@ import {
   getSessionExpiration,
   scheduleSessionWatch,
   subscribeSession,
+  refreshSession,
 } from "./services/session";
 
 // Admin sub-rutas
@@ -29,7 +30,6 @@ import UsuariosAdmin from "./views/AdminF/usuariosAdmin";
 import CursosAdmin from "./views/AdminF/cursosAdmin";
 import CursoHubAdmin from "./views/AdminF/cursoHubAdmin";
 import ConsultasAdmin from "./views/AdminF/consultasAdmin";
-import PeriodizacionAdmin from "./views/AdminF/periodizacionAdmin";
 import PeriodizacionPage from "./views/Periodizacion/PeriodizacionPage";
 
 function ProtectedRoute({ children, allowRoles = [], allowModes = [] }) {
@@ -62,6 +62,14 @@ function RedirectCursoEstudiantes() {
 function App() {
   const [sessionState, setSessionState] = useState(null);
 
+  const getLoginRedirect = () => {
+    const appMode = (localStorage.getItem("app_mode") || "").toLowerCase();
+    if (appMode === "personal" || appMode === "institucional") {
+      return `/?mode=${encodeURIComponent(appMode)}`;
+    }
+    return "/";
+  };
+
   useEffect(() => {
     if (localStorage.getItem("token") && getSessionExpiration()) {
       scheduleSessionWatch();
@@ -75,14 +83,20 @@ function App() {
   }, []);
 
   const handleLogout = () => {
+    const redirectTo = getLoginRedirect();
     clearSessionStorage();
     setSessionState(null);
-    window.location.replace("/");
+    window.location.replace(redirectTo);
   };
 
   const handleStay = () => {
-    setSessionState(null);
-    scheduleSessionWatch();
+    refreshSession()
+      .then(() => {
+        setSessionState(null);
+      })
+      .catch(() => {
+        handleLogout();
+      });
   };
 
   return (
@@ -234,7 +248,7 @@ function App() {
               allowRoles={["administrativo"]}
               allowModes={["institucional"]}
             >
-              <PeriodizacionAdmin />
+              <Navigate to="/admin" replace />
             </ProtectedRoute>
           }
         />

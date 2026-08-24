@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, BookOpen } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
+import CustomSelect from "../../components/admin/CustomSelect";
 import { cursosAPI } from "../../services/api";
 
 function AsignacionesAdmin() {
@@ -47,17 +48,16 @@ function AsignacionesAdmin() {
           </span>
           <span className="admin-action-sub">Selecciona el curso y entra directo a su pestaña de materias</span>
           <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-            <select
+            <CustomSelect
               value={cursoSel}
-              onChange={(e) => setCursoSel(e.target.value)}
-            >
-              <option value="">Curso</option>
-              {cursos.map((c) => (
-                <option key={c.id_curso} value={c.id_curso}>
-                  {c.nombre}
-                </option>
-              ))}
-            </select>
+              onChange={setCursoSel}
+              options={cursos.map((c) => ({
+                value: String(c.id_curso),
+                label: c.nombre,
+              }))}
+              placeholder="Curso"
+              className="custom-select-white"
+            />
             <button
               className="btn-view"
               type="button"

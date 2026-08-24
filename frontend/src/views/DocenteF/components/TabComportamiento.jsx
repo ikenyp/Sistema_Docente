@@ -57,7 +57,7 @@ export const TabComportamiento = ({
               <th>Estudiante</th>
               <th className="table-th-center">Valor</th>
               <th>Observaciones</th>
-              <th>Acción</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>

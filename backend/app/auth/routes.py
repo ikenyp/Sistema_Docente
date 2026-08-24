@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.auth.dependencies import get_current_user, require_role
 from app.core.app_mode import resolve_app_mode
 from app.core.database import get_session
+from app.auth.jwt import crear_access_token
 from app.services.auth import (
     autenticar_usuario,
     confirmar_recuperacion_contrasena,
@@ -71,6 +72,18 @@ async def leer_usuario_actual(
     usuario = Depends(get_current_user)
 ):
     return usuario
+
+
+@router.post("/refresh")
+async def refresh_session(
+    usuario = Depends(get_current_user)
+):
+    token = crear_access_token({"sub": str(usuario.id_usuario), "rol": usuario.rol.value})
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "role": usuario.rol.value,
+    }
 
 # Ruta protegida que solo permite acceso a usuarios con rol ADMINISTRATIVO
 @router.get("/admin-only")

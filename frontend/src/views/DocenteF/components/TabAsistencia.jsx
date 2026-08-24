@@ -49,7 +49,7 @@ export const TabAsistencia = ({
             <tr>
               <th>Estudiante</th>
               <th className="table-th-center">Asistencia del día</th>
-              <th>Acción</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>

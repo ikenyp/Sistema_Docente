@@ -7,7 +7,8 @@ from app.core.context_manager import resolve_contexto_id
 from app.schemas.materias import (
     MateriaCreate,
     MateriaUpdate,
-    MateriaResponse
+    MateriaResponse,
+    MateriaCatalogoResponse,
 )
 from app.services import materias as service
 from app.auth.dependencies import get_current_user
@@ -48,6 +49,7 @@ async def crear_materia(
 @router.get("/", response_model=list[MateriaResponse])
 async def listar_materias(
     nombre: str | None = Query(None, description="Búsqueda parcial por nombre"),
+    codigo: str | None = Query(None, description="Búsqueda parcial por código"),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
     request: Request = None,
@@ -59,9 +61,20 @@ async def listar_materias(
         db=db,
         id_contexto=id_contexto,
         nombre=nombre,
+        codigo=codigo,
         page=page,
         size=size
     )
+
+
+@router.get("/catalogo", response_model=list[MateriaCatalogoResponse])
+async def listar_catalogo_materias(
+    request: Request,
+    current_user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session)
+):
+    id_contexto = await resolve_contexto_id(db, current_user, request)
+    return await service.listar_catalogo_materias(db, id_contexto)
 
 
 @router.get("/{id_materia}", response_model=MateriaResponse)

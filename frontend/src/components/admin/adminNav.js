@@ -7,7 +7,6 @@ export const ADMIN_NAV = [
   { kind: "link", to: "/admin/cursos", label: "Cursos" },
   { kind: "link", to: "/admin/estudiantes", label: "Estudiantes" },
   { kind: "heading", label: "Consultas" },
-  { kind: "link", to: "/admin/cursos", label: "Cursos" },
   { kind: "link", to: "/admin/consultas", label: "Consulta de curso" },
 ];
 

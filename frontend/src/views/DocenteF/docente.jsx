@@ -1,5 +1,12 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { useNavigate } from "react-router-dom";
+import { Save } from "lucide-react";
 import "../../styles/docente.css";
 import {
   cmdAPI,
@@ -88,7 +95,9 @@ function Docente() {
   }, [appMode, cursos, datosUsuario]);
 
   const aniosDisponiblesCursos = useMemo(() => {
-    return [...new Set(cursos.map((curso) => curso?.anio_lectivo).filter(Boolean))].sort();
+    return [
+      ...new Set(cursos.map((curso) => curso?.anio_lectivo).filter(Boolean)),
+    ].sort();
   }, [cursos]);
 
   const cursosVisibles = useMemo(() => {
@@ -109,19 +118,37 @@ function Docente() {
       if (texto.includes("8")) return 8;
       if (texto.includes("9")) return 9;
       if (texto.includes("10")) return 10;
-      if (texto.includes("1ro") || texto.includes("1er") || texto.includes("primero")) return 11;
+      if (
+        texto.includes("1ro") ||
+        texto.includes("1er") ||
+        texto.includes("primero")
+      )
+        return 11;
       if (texto.includes("2do") || texto.includes("segundo")) return 12;
       if (texto.includes("3ro") || texto.includes("tercero")) return 13;
       return 99;
     };
 
-    const comparador = {
-      "colegio-asc": (a, b) => gradoCurso(a.nombre) - gradoCurso(b.nombre) || numeroCurso(a.nombre) - numeroCurso(b.nombre) || a.nombre.localeCompare(b.nombre),
-      "colegio-desc": (a, b) => gradoCurso(b.nombre) - gradoCurso(a.nombre) || numeroCurso(b.nombre) - numeroCurso(a.nombre) || b.nombre.localeCompare(a.nombre),
-      "reciente": (a, b) => String(b.anio_lectivo || "").localeCompare(String(a.anio_lectivo || "")) || a.nombre.localeCompare(b.nombre),
-      "antiguo": (a, b) => String(a.anio_lectivo || "").localeCompare(String(b.anio_lectivo || "")) || a.nombre.localeCompare(b.nombre),
-      "alfabetico": (a, b) => a.nombre.localeCompare(b.nombre),
-    }[ordenCursos] || ((a, b) => a.nombre.localeCompare(b.nombre));
+    const comparador =
+      {
+        "colegio-asc": (a, b) =>
+          gradoCurso(a.nombre) - gradoCurso(b.nombre) ||
+          numeroCurso(a.nombre) - numeroCurso(b.nombre) ||
+          a.nombre.localeCompare(b.nombre),
+        "colegio-desc": (a, b) =>
+          gradoCurso(b.nombre) - gradoCurso(a.nombre) ||
+          numeroCurso(b.nombre) - numeroCurso(a.nombre) ||
+          b.nombre.localeCompare(a.nombre),
+        reciente: (a, b) =>
+          String(b.anio_lectivo || "").localeCompare(
+            String(a.anio_lectivo || ""),
+          ) || a.nombre.localeCompare(b.nombre),
+        antiguo: (a, b) =>
+          String(a.anio_lectivo || "").localeCompare(
+            String(b.anio_lectivo || ""),
+          ) || a.nombre.localeCompare(b.nombre),
+        alfabetico: (a, b) => a.nombre.localeCompare(b.nombre),
+      }[ordenCursos] || ((a, b) => a.nombre.localeCompare(b.nombre));
 
     return lista.sort(comparador);
   }, [cursos, filtroAnio, ordenCursos]);
@@ -197,7 +224,11 @@ function Docente() {
       });
 
       (asignaciones || []).forEach((asig) => {
-        const claveMateria = asig?.id_cmd || asig?.cmd?.id_cmd || asig?.id_materia || asig?.materia?.id_materia;
+        const claveMateria =
+          asig?.id_cmd ||
+          asig?.cmd?.id_cmd ||
+          asig?.id_materia ||
+          asig?.materia?.id_materia;
         if (claveMateria) {
           materiasAsignadasDocente.add(claveMateria);
         }
@@ -285,12 +316,15 @@ function Docente() {
       ).length;
 
       const aniosUnicos = [
-        ...new Set(cursosUnicos.map((curso) => curso?.anio_lectivo).filter(Boolean)),
+        ...new Set(
+          cursosUnicos.map((curso) => curso?.anio_lectivo).filter(Boolean),
+        ),
       ];
       let aniosSinPeriodizacion = 0;
       for (const anio of aniosUnicos) {
         try {
-          const config = await periodizacionAPI.obtenerConfiguracionActual(anio);
+          const config =
+            await periodizacionAPI.obtenerConfiguracionActual(anio);
           if (!config?.periodos?.length) aniosSinPeriodizacion += 1;
         } catch {
           aniosSinPeriodizacion += 1;
@@ -298,7 +332,10 @@ function Docente() {
       }
 
       setResumenOperacion({
-        asignaciones: materiasAsignadasDocente.size || (cursosTutor || []).length || (todasAsignaciones || []).length,
+        asignaciones:
+          materiasAsignadasDocente.size ||
+          (cursosTutor || []).length ||
+          (todasAsignaciones || []).length,
         cursosSinMaterias,
         cursosSinTutor,
         aniosSinPeriodizacion,
@@ -420,7 +457,8 @@ function Docente() {
     }
 
     setBloqueoEstructuraEdicion(bloqueo);
-    const cursoActual = cursos.find((c) => c.id_curso === curso.id_curso) || curso;
+    const cursoActual =
+      cursos.find((c) => c.id_curso === curso.id_curso) || curso;
     setEditarCursoData({
       ...cursoActual,
       soyTutor: !!(
@@ -482,19 +520,21 @@ function Docente() {
         payload.id_tutor = editarCursoData.soyTutor
           ? datosUsuario.id_usuario
           : null;
-        payload.id_estructura_academica = editarCursoData.id_estructura_academica
-          ? Number(editarCursoData.id_estructura_academica)
-          : null;
+        payload.id_estructura_academica =
+          editarCursoData.id_estructura_academica
+            ? Number(editarCursoData.id_estructura_academica)
+            : null;
       }
 
       const cursoActualizado = await cursosAPI.actualizar(id_curso, payload);
       const cursoRecargado = await cursosAPI.obtenerCurso(id_curso);
-      const cursoFinal = { ...(cursoActualizado || {}), ...(cursoRecargado || {}) };
+      const cursoFinal = {
+        ...(cursoActualizado || {}),
+        ...(cursoRecargado || {}),
+      };
       setCursos((prevCursos) =>
         prevCursos.map((curso) =>
-          curso.id_curso === id_curso
-            ? { ...curso, ...cursoFinal }
-            : curso,
+          curso.id_curso === id_curso ? { ...curso, ...cursoFinal } : curso,
         ),
       );
       setMostrarEditarModal(false);
@@ -569,7 +609,9 @@ function Docente() {
       !nuevoCurso.anio_lectivo ||
       !nuevoCurso.id_estructura_academica
     ) {
-      setErrorWizard("Nombre, año lectivo y estructura académica son obligatorios");
+      setErrorWizard(
+        "Nombre, año lectivo y estructura académica son obligatorios",
+      );
       return;
     }
 
@@ -595,10 +637,9 @@ function Docente() {
         id_estructura_academica: Number(nuevoCurso.id_estructura_academica),
       });
 
-      const materiasEstructura =
-        await estructurasAcademicasAPI.listarMaterias(
-          Number(nuevoCurso.id_estructura_academica),
-        );
+      const materiasEstructura = await estructurasAcademicasAPI.listarMaterias(
+        Number(nuevoCurso.id_estructura_academica),
+      );
 
       for (const item of materiasEstructura || []) {
         await asignacionesAPI.crear({
@@ -691,27 +732,29 @@ function Docente() {
           </div>
           <div className="stat-card">
             <p className="stat-label">Tutor</p>
-            <h3 className="stat-value">{resumenCursos.esTutor ? "Sí" : "No"}</h3>
+            <h3 className="stat-value">
+              {resumenCursos.esTutor ? "Sí" : "No"}
+            </h3>
             <p className="stat-sub">Indicador de tutoría</p>
           </div>
         </div>
 
         <div className="docente-toolbar-shell" ref={toolbarRef}>
           <div className="docente-toolbar-main">
-              <button
-                className="toolbar-refresh-btn"
-                type="button"
-                onClick={cargarCursos}
-                aria-label="Recargar"
-              >
-                ↻
-              </button>
+            <button
+              className="toolbar-refresh-btn"
+              type="button"
+              onClick={cargarCursos}
+              aria-label="Recargar"
+            >
+              ↻
+            </button>
             <div className="docente-toolbar-right">
               <div className="toolbar-anchor toolbar-anchor-filter">
-                  <button
-                    className="toolbar-blue-btn"
-                    type="button"
-                    aria-label="Filtrar por año lectivo"
+                <button
+                  className="toolbar-blue-btn"
+                  type="button"
+                  aria-label="Filtrar por año lectivo"
                   onClick={() => {
                     setMenuOrdenAbierto(false);
                     setMenuFiltroAbierto((prev) => !prev);
@@ -725,8 +768,17 @@ function Docente() {
                   <span>Filtrar</span>
                 </button>
                 {menuFiltroAbierto && (
-                  <ul className="toolbar-dropdown-menu toolbar-dropdown-menu-left" role="listbox">
-                    {[{ value: "todos", label: "Todos los años lectivos" }, ...aniosDisponiblesCursos.map((anio) => ({ value: anio, label: anio }))].map((option) => (
+                  <ul
+                    className="toolbar-dropdown-menu toolbar-dropdown-menu-left"
+                    role="listbox"
+                  >
+                    {[
+                      { value: "todos", label: "Todos los años lectivos" },
+                      ...aniosDisponiblesCursos.map((anio) => ({
+                        value: anio,
+                        label: anio,
+                      })),
+                    ].map((option) => (
                       <li
                         key={option.value}
                         role="option"
@@ -760,7 +812,10 @@ function Docente() {
                   <span>Ordenar</span>
                 </button>
                 {menuOrdenAbierto && (
-                  <ul className="toolbar-dropdown-menu toolbar-dropdown-menu-left" role="listbox">
+                  <ul
+                    className="toolbar-dropdown-menu toolbar-dropdown-menu-left"
+                    role="listbox"
+                  >
                     {[
                       { value: "colegio-asc", label: "Colegio A-Z" },
                       { value: "colegio-desc", label: "Colegio Z-A" },
@@ -788,10 +843,20 @@ function Docente() {
           </div>
           <div className="docente-toolbar-statuses">
             <div className="toolbar-status-pill">
-              <strong>Mostrando:</strong> {filtroAnio === "todos" ? "Todos los años lectivos" : filtroAnio}
+              <strong>Mostrando:</strong>{" "}
+              {filtroAnio === "todos" ? "Todos los años lectivos" : filtroAnio}
             </div>
             <div className="toolbar-status-pill">
-              <strong>Orden:</strong> {ordenCursos === "colegio-asc" ? "Colegio A-Z" : ordenCursos === "colegio-desc" ? "Colegio Z-A" : ordenCursos === "reciente" ? "Más reciente" : ordenCursos === "antiguo" ? "Más antiguo" : "Alfabético"}
+              <strong>Orden:</strong>{" "}
+              {ordenCursos === "colegio-asc"
+                ? "Colegio A-Z"
+                : ordenCursos === "colegio-desc"
+                  ? "Colegio Z-A"
+                  : ordenCursos === "reciente"
+                    ? "Más reciente"
+                    : ordenCursos === "antiguo"
+                      ? "Más antiguo"
+                      : "Alfabético"}
             </div>
           </div>
         </div>
@@ -874,202 +939,212 @@ function Docente() {
           <>
             {appMode === "personal" && mostrarWizard && (
               <div className="wizard-container">
-                  <div className="personal-card wizard-card">
-                    <div className="wizard-header">
-                      <h3>Crear curso desde estructura</h3>
-                      <div className="wizard-progress">
-                        <div className="step activo">1. Curso</div>
-                        <div className="step activo">2. Estructura</div>
-                        <div className="step activo">3. Crear</div>
-                      </div>
+                <div className="personal-card wizard-card">
+                  <div className="wizard-header">
+                    <h3>Crear curso desde estructura</h3>
+                    <div className="wizard-progress">
+                      <div className="step activo">1. Curso</div>
+                      <div className="step activo">2. Estructura</div>
+                      <div className="step activo">3. Crear</div>
                     </div>
+                  </div>
 
-                    {errorWizard && (
+                  {errorWizard && (
+                    <div
+                      style={{
+                        background: "#ffebee",
+                        color: "#c62828",
+                        padding: "0.8rem",
+                        borderRadius: "8px",
+                        marginBottom: "1rem",
+                        fontSize: "0.9rem",
+                      }}
+                    >
+                      ⚠️ {errorWizard}
+                    </div>
+                  )}
+
+                  <div className="wizard-step">
+                    <h4>Información del Curso</h4>
+                    <input
+                      className="personal-input"
+                      type="text"
+                      placeholder="Nombre del curso (ej: 4to A)"
+                      value={nuevoCurso.nombre}
+                      onChange={(e) =>
+                        setNuevoCurso((p) => ({
+                          ...p,
+                          nombre: e.target.value,
+                        }))
+                      }
+                      style={{ marginBottom: "0.8rem" }}
+                    />
+                    <input
+                      className="personal-input"
+                      type="text"
+                      placeholder="Año lectivo (ej: 2026-2027)"
+                      value={nuevoCurso.anio_lectivo}
+                      onChange={(e) =>
+                        setNuevoCurso((p) => ({
+                          ...p,
+                          anio_lectivo: formatarAnioLectivo(e.target.value),
+                        }))
+                      }
+                      style={{ marginBottom: "0.5rem" }}
+                    />
+                    <p
+                      style={{
+                        fontSize: "0.85rem",
+                        color: "#6b7a99",
+                        marginBottom: "1rem",
+                      }}
+                    >
+                      💡 Formato: YYYY-YYYY (ej: 2026-2027)
+                    </p>
+                    {appMode === "personal" && (
                       <div
                         style={{
-                          background: "#ffebee",
-                          color: "#c62828",
-                          padding: "0.8rem",
-                          borderRadius: "8px",
-                          marginBottom: "1rem",
-                          fontSize: "0.9rem",
+                          display: "inline-block",
+                          width: "fit-content",
+                          maxWidth: "100%",
+                          marginBottom: "0.35rem",
+                          color:
+                            cursoTutorActual && !nuevoCurso.soyTutor
+                              ? "#7a869a"
+                              : "#223553",
+                          fontSize: "0.92rem",
+                          textAlign: "left",
                         }}
                       >
-                        ⚠️ {errorWizard}
+                        <label
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            width: "fit-content",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={!!nuevoCurso.soyTutor}
+                            disabled={
+                              !!cursoTutorActual && !nuevoCurso.soyTutor
+                            }
+                            style={{ marginRight: "0.25rem", flexShrink: 0 }}
+                            onChange={(e) =>
+                              setNuevoCurso((p) => ({
+                                ...p,
+                                soyTutor: e.target.checked,
+                              }))
+                            }
+                          />
+                          Tutor de curso
+                        </label>
                       </div>
                     )}
-
-                      <div className="wizard-step">
-                        <h4>Información del Curso</h4>
-                    <input
-                          className="personal-input"
-                          type="text"
-                          placeholder="Nombre del curso (ej: 4to A)"
-                          value={nuevoCurso.nombre}
-                          onChange={(e) =>
-                            setNuevoCurso((p) => ({
-                              ...p,
-                              nombre: e.target.value,
-                            }))
-                          }
-                          style={{ marginBottom: "0.8rem" }}
-                        />
-                        <input
-                          className="personal-input"
-                          type="text"
-                          placeholder="Año lectivo (ej: 2026-2027)"
-                          value={nuevoCurso.anio_lectivo}
-                          onChange={(e) =>
-                            setNuevoCurso((p) => ({
-                              ...p,
-                              anio_lectivo: formatarAnioLectivo(e.target.value),
-                            }))
-                          }
-                          style={{ marginBottom: "0.5rem" }}
-                        />
+                    {appMode === "personal" &&
+                      cursoTutorActual &&
+                      !nuevoCurso.soyTutor && (
                         <p
                           style={{
                             fontSize: "0.85rem",
-                            color: "#6b7a99",
+                            color: "#8a1538",
+                            marginTop: "-0.4rem",
                             marginBottom: "1rem",
                           }}
                         >
-                          💡 Formato: YYYY-YYYY (ej: 2026-2027)
+                          Ya tienes el curso {cursoTutorActual.nombre} como
+                          tutor. Debes quitarlo primero para asignar otro.
                         </p>
-                        {appMode === "personal" && (
-                          <div
-                            style={{
-                              display: "inline-block",
-                              width: "fit-content",
-                              maxWidth: "100%",
-                              marginBottom: "0.35rem",
-                              color:
-                                cursoTutorActual && !nuevoCurso.soyTutor
-                                  ? "#7a869a"
-                                  : "#223553",
-                              fontSize: "0.92rem",
-                              textAlign: "left",
-                            }}
-                          >
-                            <label
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                width: "fit-content",
-                              }}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={!!nuevoCurso.soyTutor}
-                                disabled={!!cursoTutorActual && !nuevoCurso.soyTutor}
-                                style={{ marginRight: "0.25rem", flexShrink: 0 }}
-                                onChange={(e) =>
-                                  setNuevoCurso((p) => ({
-                                    ...p,
-                                    soyTutor: e.target.checked,
-                                  }))
-                                }
-                              />
-                              Este es uno de mis cursos como tutor
-                            </label>
-                          </div>
-                        )}
-                        {appMode === "personal" && cursoTutorActual && !nuevoCurso.soyTutor && (
-                            <p
-                              style={{
-                                fontSize: "0.85rem",
-                                color: "#8a1538",
-                                marginTop: "-0.4rem",
-                                marginBottom: "1rem",
-                              }}
-                            >
-                            Ya tienes el curso {cursoTutorActual.nombre} como tutor. Debes quitarlo primero para asignar otro.
-                          </p>
-                        )}
-                      </div>
-
-                    <div className="wizard-step">
-                      <h4>Estructura académica</h4>
-                      <select
-                        className="personal-input"
-                        value={nuevoCurso.id_estructura_academica}
-                        onChange={(e) =>
-                          setNuevoCurso((p) => ({
-                            ...p,
-                            id_estructura_academica: e.target.value,
-                          }))
-                        }
-                        style={{ marginBottom: "0.8rem" }}
-                      >
-                        <option value="">Seleccione estructura académica</option>
-                        {estructuras.map((estructura) => (
-                          <option
-                            key={estructura.id_estructura_academica}
-                            value={estructura.id_estructura_academica}
-                          >
-                            {estructura.nombre}
-                          </option>
-                        ))}
-                      </select>
-                      <p
-                        style={{
-                          fontSize: "0.9rem",
-                          color: "#4b5f84",
-                          marginBottom: "1rem",
-                        }}
-                      >
-                        Primero configura la estructura académica y la periodización del contexto. Después crea el curso y continúa su gestión igual que en el modo institucional.
-                      </p>
-                      {estructuras.length === 0 && (
-                        <div className="empty-state" style={{ marginTop: 8 }}>
-                          <h3>Falta estructura académica</h3>
-                          <p>
-                            Antes de crear cursos, configura al menos una estructura académica en tu contexto personal.
-                          </p>
-                          <button
-                            className="personal-action"
-                            onClick={() => navigate("/docente/estructura-academica")}
-                          >
-                            Ir a estructura académica
-                          </button>
-                        </div>
                       )}
-                    </div>
+                  </div>
 
-                    <div
-                      className="wizard-actions"
+                  <div className="wizard-step">
+                    <h4>Estructura académica</h4>
+                    <select
+                      className="personal-input"
+                      value={nuevoCurso.id_estructura_academica}
+                      onChange={(e) => 
+                        setNuevoCurso((p) => ({
+                          ...p,
+                          id_estructura_academica: e.target.value,
+                        }))
+                      }
+                      style={{ marginBottom: "0.8rem" }}
+                    >
+                      <option value="">Seleccione estructura académica</option>
+                      {estructuras.map((estructura) => (
+                        <option
+                          key={estructura.id_estructura_academica}
+                          value={estructura.id_estructura_academica}
+                        >
+                          {estructura.nombre}
+                        </option>
+                      ))}
+                    </select>
+                    <p
                       style={{
-                        display: "flex",
-                        gap: "0.6rem",
-                        marginTop: "1.5rem",
-                        justifyContent: "flex-end",
+                        fontSize: "0.9rem",
+                        color: "#4b5f84",
+                        marginBottom: "1rem",
                       }}
                     >
-                      <button
-                        onClick={cancelarWizard}
-                        disabled={guardandoWizard}
-                        style={{
-                          padding: "0.56rem 0.86rem",
-                          border: "1px solid #dce5f4",
-                          borderRadius: "10px",
-                          background: "#fff",
-                          color: "#223553",
-                          cursor: "pointer",
-                          fontWeight: "600",
-                          fontSize: "0.84rem",
-                        }}
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        className="personal-action"
-                        onClick={crearCursoPersonal}
-                        disabled={guardandoWizard || estructuras.length === 0}
-                      >
-                        {guardandoWizard ? "Guardando..." : "Crear curso"}
-                      </button>
-                    </div>
+                      Primero configura la estructura académica y la
+                      periodización del contexto. Después crea el curso y
+                      continúa su gestión igual que en el modo institucional.
+                    </p>
+                    {estructuras.length === 0 && (
+                      <div className="empty-state" style={{ marginTop: 8 }}>
+                        <h3>Falta estructura académica</h3>
+                        <p>
+                          Antes de crear cursos, configura al menos una
+                          estructura académica en tu contexto personal.
+                        </p>
+                        <button
+                          className="personal-action"
+                          onClick={() =>
+                            navigate("/docente/estructura-academica")
+                          }
+                        >
+                          Ir a estructura académica
+                        </button>
+                      </div>
+                    )}
                   </div>
+
+                  <div
+                    className="wizard-actions"
+                    style={{
+                      display: "flex",
+                      gap: "0.6rem",
+                      marginTop: "1.5rem",
+                      justifyContent: "flex-end",
+                    }}
+                  >
+                    <button
+                      onClick={cancelarWizard}
+                      disabled={guardandoWizard}
+                      style={{
+                        padding: "0.56rem 0.86rem",
+                        border: "1px solid #dce5f4",
+                        borderRadius: "10px",
+                        background: "#fff",
+                        color: "#223553",
+                        cursor: "pointer",
+                        fontWeight: "600",
+                        fontSize: "0.84rem",
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      className="personal-action"
+                      onClick={crearCursoPersonal}
+                      disabled={guardandoWizard || estructuras.length === 0}
+                    >
+                      {guardandoWizard ? "Guardando..." : "Crear curso"}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1135,14 +1210,19 @@ function Docente() {
 
                     <div className="curso-title-row">
                       <p className="curso-nombre">{curso.nombre}</p>
-                      {appMode === "personal" && (curso.id_tutor === datosUsuario?.id_usuario || curso.tutor?.id_usuario === datosUsuario?.id_usuario) && (
-                        <span className="tutor-pill">TUTOR</span>
-                      )}
+                      {appMode === "personal" &&
+                        (curso.id_tutor === datosUsuario?.id_usuario ||
+                          curso.tutor?.id_usuario ===
+                            datosUsuario?.id_usuario) && (
+                          <span className="tutor-pill">TUTOR</span>
+                        )}
                     </div>
                     {filtroAnio === "todos" ? (
                       <p className="curso-info">Año: {curso.anio_lectivo}</p>
                     ) : (
-                      <p className="curso-info curso-info-ghost">Año: {curso.anio_lectivo || " "}</p>
+                      <p className="curso-info curso-info-ghost">
+                        Año: {curso.anio_lectivo || " "}
+                      </p>
                     )}
                     <button
                       className="btn-ingresar"
@@ -1225,109 +1305,150 @@ function Docente() {
                         anio_lectivo: e.target.value,
                       }))
                     }
-                    />
-                    {appMode === "personal" && (
-                      <>
-                        <select
-                          style={{
-                            width: "100%",
-                            marginBottom: "0.75rem",
-                            padding: "0.7rem 0.8rem",
-                            borderRadius: "8px",
-                            border: "1px solid #d7e2f2",
-                            fontSize: "0.95rem",
-                            boxSizing: "border-box",
-                          }}
-                          value={editarCursoData.id_estructura_academica || ""}
-                          onChange={(e) =>
-                            setEditarCursoData((p) => ({
-                              ...p,
-                              id_estructura_academica: e.target.value,
-                            }))
-                          }
-                          disabled={!!bloqueoEstructuraEdicion}
-                        >
-                          <option value="">Seleccione estructura académica</option>
-                          {estructuras.map((estructura) => (
-                            <option
-                              key={estructura.id_estructura_academica}
-                              value={estructura.id_estructura_academica}
-                            >
-                              {estructura.nombre}
-                            </option>
-                          ))}
-                        </select>
-                        {bloqueoEstructuraEdicion && (
-                          <p
-                            style={{
-                              marginBottom: "0.75rem",
-                              color: "#9a5a00",
-                              background: "#fff4db",
-                              borderRadius: "8px",
-                              padding: "0.7rem 0.8rem",
-                              fontSize: "0.88rem",
-                              textAlign: "left",
-                            }}
+                  />
+                  {appMode === "personal" && (
+                    <>
+                      <select
+                        style={{
+                          width: "100%",
+                          marginBottom: "0.75rem",
+                          padding: "0.7rem 0.8rem",
+                          borderRadius: "8px",
+                          border: "1px solid #d7e2f2",
+                          fontSize: "0.95rem",
+                          boxSizing: "border-box",
+                        }}
+                        value={editarCursoData.id_estructura_academica || ""}
+                        onChange={(e) =>
+                          setEditarCursoData((p) => ({
+                            ...p,
+                            id_estructura_academica: e.target.value,
+                          }))
+                        }
+                        disabled={!!bloqueoEstructuraEdicion}
+                      >
+                        <option value="">
+                          Seleccione estructura académica
+                        </option>
+                        {estructuras.map((estructura) => (
+                          <option
+                            key={estructura.id_estructura_academica}
+                            value={estructura.id_estructura_academica}
                           >
-                            {bloqueoEstructuraEdicion}
-                          </p>
-                        )}
-                        <div
+                            {estructura.nombre}
+                          </option>
+                        ))}
+                      </select>
+                      {bloqueoEstructuraEdicion && (
+                        <p
                           style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            width: "fit-content",
-                            maxWidth: "100%",
-                            gap: "0.2rem",
-                            marginBottom: "0.4rem",
-                            color:
-                              cursoTutorActual &&
-                              Number(cursoTutorActual.id_curso) !== Number(editarCursoData.id_curso) &&
-                              !editarCursoData.soyTutor
-                                ? "#7a869a"
-                                : "#223553",
-                            fontSize: "0.92rem",
+                            marginBottom: "0.75rem",
+                            color: "#9a5a00",
+                            background: "#fff4db",
+                            borderRadius: "8px",
+                            padding: "0.7rem 0.8rem",
+                            fontSize: "0.88rem",
                             textAlign: "left",
                           }}
                         >
-                          <input
-                            type="checkbox"
-                            checked={!!editarCursoData.soyTutor}
-                            disabled={
+                          {bloqueoEstructuraEdicion}
+                        </p>
+                      )}
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            width: "100%",
+                            justifyContent: "center",
+                            gap: "0.5rem",
+                            marginBottom: "0.4rem",
+                          color:
+                            cursoTutorActual &&
+                            Number(cursoTutorActual.id_curso) !==
+                              Number(editarCursoData.id_curso) &&
+                            !editarCursoData.soyTutor
+                              ? "#7a869a"
+                              : "#223553",
+                          fontSize: "0.92rem",
+                          textAlign: "left",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditarCursoData((p) => ({
+                              ...p,
+                              soyTutor: !p.soyTutor,
+                            }))
+                          }
+                          disabled={
+                            !!cursoTutorActual &&
+                            Number(cursoTutorActual.id_curso) !==
+                              Number(editarCursoData.id_curso) &&
+                            !editarCursoData.soyTutor
+                          }
+                          style={{
+                            width: "30px",
+                            height: "30px",
+                            padding: 0,
+                            border: "1px solid #cfd9ea",
+                            borderRadius: "6px",
+                            background: editarCursoData.soyTutor
+                              ? "#4c6fdc"
+                              : "#fff",
+                            color: editarCursoData.soyTutor
+                              ? "#fff"
+                              : "transparent",
+                            fontSize: "18px",
+                            lineHeight: 1,
+                            fontWeight: 700,
+                            cursor:
                               !!cursoTutorActual &&
-                              Number(cursoTutorActual.id_curso) !== Number(editarCursoData.id_curso) &&
+                              Number(cursoTutorActual.id_curso) !==
+                                Number(editarCursoData.id_curso) &&
                               !editarCursoData.soyTutor
-                            }
-                            style={{ marginRight: "0.2rem", flexShrink: 0 }}
-                            onChange={(e) =>
-                              setEditarCursoData((p) => ({
-                                ...p,
-                                soyTutor: e.target.checked,
-                              }))
-                            }
-                          />
-                          <span style={{ whiteSpace: "nowrap" }}>Este es uno de mis cursos como tutor</span>
+                                ? "not-allowed"
+                                : "pointer",
+                            flex: "0 0 auto",
+                            alignSelf: "center",
+                          }}
+                        >
+                          ✓
+                        </button>
+                          <span
+                            style={{
+                              whiteSpace: "normal",
+                              lineHeight: 1.25,
+                              flex: "0 1 auto",
+                              alignSelf: "center",
+                              textAlign: "center",
+                            }}
+                          >
+                            Tutor de curso
+                          </span>
                         </div>
-                        {cursoTutorActual &&
-                          Number(cursoTutorActual.id_curso) !== Number(editarCursoData.id_curso) &&
-                          !editarCursoData.soyTutor && (
-                            <p
-                              style={{
-                                fontSize: "0.85rem",
-                                color: "#8a1538",
-                                marginTop: "-0.4rem",
-                                marginBottom: "1rem",
-                                textAlign: "left",
-                              }}
-                            >
-                              Ya tienes el curso {cursoTutorActual.nombre} como tutor. Debes quitarlo primero para asignar otro.
-                            </p>
-                          )}
-                      </>
-                    )}
+                      {cursoTutorActual &&
+                        Number(cursoTutorActual.id_curso) !==
+                          Number(editarCursoData.id_curso) &&
+                        !editarCursoData.soyTutor && (
+                          <p
+                            style={{
+                              fontSize: "0.85rem",
+                              color: "#8a1538",
+                              marginTop: "0.15rem",
+                              marginBottom: "1rem",
+                              textAlign: "left",
+                            }}
+                          >
+                            Ya tienes el curso {cursoTutorActual.nombre} como
+                            tutor. Debes quitarlo primero para asignar otro.
+                          </p>
+                        )}
+                    </>
+                  )}
 
-                    <div
-                      style={{
+                  <div
+                    style={{
                       display: "flex",
                       gap: "0.75rem",
                       justifyContent: "center",
@@ -1354,6 +1475,10 @@ function Docente() {
                     </button>
                     <button
                       style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "0.4rem",
                         padding: "0.75rem 1.2rem",
                         border: "none",
                         borderRadius: "8px",
@@ -1366,7 +1491,8 @@ function Docente() {
                       onClick={guardarEdicionCurso}
                       disabled={guardandoCurso}
                     >
-                      {guardandoCurso ? "Guardando..." : "Guardar"}
+                      <Save size={16} />
+                      <span>{guardandoCurso ? "Guardando..." : "Guardar"}</span>
                     </button>
                   </div>
                 </div>

@@ -69,7 +69,7 @@ export const TabModalNotasInsumo = ({
               <tr>
                 <th>Estudiante</th>
                 <th>Nota</th>
-                <th>Acción</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>

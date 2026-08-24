@@ -42,7 +42,8 @@ async def crear_estructura_academica(
 ):
     _validar_gestion(current_user, request)
     id_contexto = await resolve_contexto_id(db, current_user, request)
-    return await service.crear_estructura_academica(db, data, id_contexto)
+    anio_lectivo = request.headers.get("x-anio-lectivo")
+    return await service.crear_estructura_academica(db, data, id_contexto, anio_lectivo)
 
 
 @router.get("/", response_model=list[EstructuraAcademicaResponse])
@@ -55,7 +56,8 @@ async def listar_estructuras_academicas(
     db: AsyncSession = Depends(get_session),
 ):
     id_contexto = await resolve_contexto_id(db, current_user, request)
-    return await service.listar_estructuras_academicas(db, id_contexto, nombre, page, size)
+    anio_lectivo = request.headers.get("x-anio-lectivo")
+    return await service.listar_estructuras_academicas(db, id_contexto, nombre, page, size, anio_lectivo)
 
 
 @router.get("/{id_estructura_academica}", response_model=EstructuraAcademicaResponse)
@@ -66,7 +68,8 @@ async def obtener_estructura_academica(
     db: AsyncSession = Depends(get_session),
 ):
     id_contexto = await resolve_contexto_id(db, current_user, request)
-    return await service.obtener_estructura_academica(db, id_estructura_academica, id_contexto)
+    anio_lectivo = request.headers.get("x-anio-lectivo")
+    return await service.obtener_estructura_academica(db, id_estructura_academica, id_contexto, anio_lectivo)
 
 
 @router.put("/{id_estructura_academica}", response_model=EstructuraAcademicaResponse)
@@ -79,12 +82,27 @@ async def actualizar_estructura_academica(
 ):
     _validar_gestion(current_user, request)
     id_contexto = await resolve_contexto_id(db, current_user, request)
+    anio_lectivo = request.headers.get("x-anio-lectivo")
     return await service.actualizar_estructura_academica(
         db,
         id_estructura_academica,
         data,
         id_contexto,
+        anio_lectivo,
     )
+
+
+@router.delete("/{id_estructura_academica}", status_code=status.HTTP_200_OK)
+async def eliminar_estructura_academica(
+    id_estructura_academica: int,
+    request: Request,
+    current_user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+):
+    _validar_gestion(current_user, request)
+    id_contexto = await resolve_contexto_id(db, current_user, request)
+    anio_lectivo = request.headers.get("x-anio-lectivo")
+    return await service.eliminar_estructura_academica(db, id_estructura_academica, id_contexto, anio_lectivo)
 
 
 @router.get("/{id_estructura_academica}/materias", response_model=list[EstructuraMateriaResponse])
@@ -95,7 +113,8 @@ async def listar_materias_de_estructura(
     db: AsyncSession = Depends(get_session),
 ):
     id_contexto = await resolve_contexto_id(db, current_user, request)
-    return await service.listar_materias_de_estructura(db, id_estructura_academica, id_contexto)
+    anio_lectivo = request.headers.get("x-anio-lectivo")
+    return await service.listar_materias_de_estructura(db, id_estructura_academica, id_contexto, anio_lectivo)
 
 
 @router.post("/{id_estructura_academica}/materias", response_model=EstructuraMateriaResponse)
@@ -108,11 +127,13 @@ async def agregar_materia_a_estructura(
 ):
     _validar_gestion(current_user, request)
     id_contexto = await resolve_contexto_id(db, current_user, request)
+    anio_lectivo = request.headers.get("x-anio-lectivo")
     return await service.agregar_materia_a_estructura(
         db,
         id_estructura_academica,
         data,
         id_contexto,
+        anio_lectivo,
     )
 
 
@@ -126,9 +147,11 @@ async def eliminar_materia_de_estructura(
 ):
     _validar_gestion(current_user, request)
     id_contexto = await resolve_contexto_id(db, current_user, request)
+    anio_lectivo = request.headers.get("x-anio-lectivo")
     return await service.eliminar_materia_de_estructura(
         db,
         id_estructura_academica,
         id_materia,
         id_contexto,
+        anio_lectivo,
     )

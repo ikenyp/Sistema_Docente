@@ -69,6 +69,36 @@
   overflow-x: auto;
 }
 
+.table-container table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.table-container th {
+  background: linear-gradient(135deg, #2f72b5 0%, #4f5ebf 100%);
+  color: white;
+  padding: 0.72rem 0.62rem;
+  text-align: left;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.table-container td {
+  padding: 0.7rem 0.62rem;
+  border-bottom: 1px solid #e7edf8;
+  color: #2a3a57;
+  font-size: 0.89rem;
+}
+
+.table-container tr:hover {
+  background: #f5f8ff;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import AdminLayout from "../../components/admin/AdminLayout";
+import CustomSelect from "../../components/admin/CustomSelect";
 import {
   cursosAPI,
   estudiantesAPI,
@@ -142,17 +143,16 @@ function LecturasAdmin() {
           marginBottom: 16,
         }}
       >
-        <select
+        <CustomSelect
           value={cursoSel}
-          onChange={(e) => setCursoSel(e.target.value)}
-        >
-          <option value="">Curso (opcional)</option>
-          {cursos.map((c) => (
-            <option key={c.id_curso} value={c.id_curso}>
-              {c.nombre}
-            </option>
-          ))}
-        </select>
+          onChange={setCursoSel}
+          options={cursos.map((c) => ({
+            value: String(c.id_curso),
+            label: c.nombre,
+          }))}
+          placeholder="Curso (opcional)"
+          className="custom-select-white"
+        />
         {cursoSel ? (
           <div style={{ position: "relative" }}>
             <input

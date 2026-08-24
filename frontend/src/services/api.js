@@ -1,5 +1,3 @@
-import { endSession } from "./session";
-
 // Configuración base de la API
 const API_BASE_URL = "http://localhost:8000/api";
 
@@ -10,6 +8,10 @@ const getToken = () => {
 
 const getAppMode = () => {
   return (localStorage.getItem("app_mode") || "institucional").toLowerCase();
+};
+
+const getAnioLectivoActivo = () => {
+  return localStorage.getItem("anio_lectivo_activo") || "";
 };
 
 // Construir querystring desde un objeto de filtros
@@ -38,6 +40,11 @@ const apiCall = async (endpoint, method = "GET", body = null) => {
     "X-App-Mode": getAppMode(),
   };
 
+  const anioLectivoActivo = getAnioLectivoActivo();
+  if (anioLectivoActivo) {
+    headers["X-Anio-Lectivo"] = anioLectivoActivo;
+  }
+
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
@@ -59,11 +66,9 @@ const apiCall = async (endpoint, method = "GET", body = null) => {
     // separar path y query
     const [pathPart, queryPart] = endpoint.split("?");
     const path = pathPart.startsWith("/") ? pathPart : `/${pathPart}`;
-    // agregar slash final si el último segmento no es numérico
     const segments = path.split("/").filter(Boolean);
-    const last = segments.length ? segments[segments.length - 1] : null;
     const normalizedPath =
-      last && !/^\d+$/.test(last) && !path.endsWith("/") ? `${path}/` : path;
+      segments.length === 1 && !path.endsWith("/") ? `${path}/` : path;
     const finalUrl = `${base}${normalizedPath}${
       queryPart ? `?${queryPart}` : ""
     }`;
@@ -203,6 +208,7 @@ export const notasAPI = {
 // ==================== MATERIAS ====================
 export const materiasAPI = {
   listar: (filtros = {}) => apiCall(`/materias${buildQuery(filtros)}`),
+  catalogo: () => apiCall(`/materias/catalogo`),
   obtener: (id_materia) => apiCall(`/materias/${id_materia}`),
   crear: (data) => apiCall(`/materias`, "POST", data),
   actualizar: (id_materia, data) =>
@@ -218,6 +224,8 @@ export const estructurasAcademicasAPI = {
   crear: (data) => apiCall(`/estructuras-academicas`, "POST", data),
   actualizar: (id_estructura_academica, data) =>
     apiCall(`/estructuras-academicas/${id_estructura_academica}`, "PUT", data),
+  eliminar: (id_estructura_academica) =>
+    apiCall(`/estructuras-academicas/${id_estructura_academica}`, "DELETE"),
   listarMaterias: (id_estructura_academica) =>
     apiCall(`/estructuras-academicas/${id_estructura_academica}/materias`),
   agregarMateria: (id_estructura_academica, data) =>
@@ -280,13 +288,26 @@ export const periodizacionAPI = {
     return config?.periodos || [];
   },
   obtenerConfiguracionActual: (anio_lectivo) =>
-    apiCall(`/periodizacion/actual/${encodeURIComponent(anio_lectivo)}/`),
+    apiCall(`/periodizacion/actual/${encodeURIComponent(anio_lectivo)}`),
   obtenerConfiguracion: (id_contexto, anio_lectivo) =>
     apiCall(
       `/periodizacion/contexto/${id_contexto}/${encodeURIComponent(anio_lectivo)}`,
     ),
   guardarConfiguracionCompleta: (data) =>
     apiCall(`/periodizacion/configuracion-completa`, "POST", data),
+  eliminarConfiguracionActual: (anio_lectivo) =>
+    apiCall(`/periodizacion/actual/${encodeURIComponent(anio_lectivo)}`, "DELETE"),
+};
+
+// ==================== AÑOS LECTIVOS ====================
+export const aniosLectivosAPI = {
+  listar: () => apiCall(`/anios-lectivos/`),
+  crear: (data) => apiCall(`/anios-lectivos/`, "POST", data),
+  actualizar: (id_anio_lectivo, data) =>
+    apiCall(`/anios-lectivos/${id_anio_lectivo}`, "PUT", data),
+  actualizarPorAnio: (anio_lectivo, data) =>
+    apiCall(`/anios-lectivos/anio/${encodeURIComponent(anio_lectivo)}`, "PUT", data),
+  eliminar: (id_anio_lectivo) => apiCall(`/anios-lectivos/${id_anio_lectivo}`, "DELETE"),
 };
 
 // ==================== USUARIOS ====================

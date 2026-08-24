@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Pencil, Trash2, Save, X, UserPlus } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
+import CustomSelect from "../../components/admin/CustomSelect";
 import { usuariosAPI } from "../../services/api";
 import { notify, requestConfirm } from "../../components/notify";
 
@@ -108,7 +109,14 @@ function UsuariosAdmin() {
 
   const eliminarUsuario = async (usuario) => {
     const ok = await requestConfirm(
-      `¿Eliminar a ${usuario.nombre} ${usuario.apellido}?`,
+      "Eliminar usuario",
+      {
+        title: "Eliminar Usuario",
+        role: rolLabel(usuario.rol),
+        name: `${usuario.apellido} ${usuario.nombre}`,
+        description: "Estas seguro de eliminarlo?",
+        note: "Si el usuario tiene información relacionada en la app, no podrá ser eliminado.",
+      },
     );
     if (!ok) return;
     try {
@@ -163,24 +171,25 @@ function UsuariosAdmin() {
     >
       <div className="table-container">
         <div className="docentes-header">
-          <h2 className="section-title">Directorio</h2>
-          <div className="header-actions">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 className="section-title">Directorio</h2>
             <input
               className="table-search"
               type="text"
               placeholder="Buscar por nombre, correo o rol"
               value={busquedaUsuarios}
               onChange={(e) => setBusquedaUsuarios(e.target.value)}
+              style={{ marginTop: 8, maxWidth: 420 }}
             />
-<button
-                type="button"
-                className="btn-add-docente"
-                onClick={() => setModalAgregarOpen(true)}
-              >
-                <UserPlus size={16} style={{ verticalAlign: "middle", marginRight: 4 }} />
-                Añadir usuario
-              </button>
           </div>
+          <button
+            type="button"
+            className="btn-add-docente"
+            onClick={() => setModalAgregarOpen(true)}
+          >
+            <UserPlus size={16} style={{ verticalAlign: "middle", marginRight: 4 }} />
+            Añadir usuario
+          </button>
         </div>
 
         {cargandoUsuarios && <p>Cargando usuarios...</p>}
@@ -189,16 +198,16 @@ function UsuariosAdmin() {
         )}
 
         {!cargandoUsuarios && !errorUsuarios && (
-          <table>
-            <thead>
-              <tr>
-                <th>Nombres</th>
-                <th>Apellidos</th>
-                <th>Correo</th>
-                <th>Rol</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
+            <table className="usuarios-table">
+              <thead>
+                <tr>
+                  <th>Nombres</th>
+                  <th>Apellidos</th>
+                  <th>Correo</th>
+                  <th>Rol</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
             <tbody>
               {usuariosFiltrados.map((u) => (
                 <tr key={u.id_usuario}>
@@ -209,19 +218,19 @@ function UsuariosAdmin() {
                   <td>
                     <button
                       type="button"
-                      className="btn-view"
+                      className="btn-view btn-inline-icon"
                       onClick={() => abrirEditarModal(u)}
                       style={{ marginRight: 8 }}
                     >
-                      <Pencil size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                      <Pencil size={14} />
                       Editar
                     </button>
                     <button
                       type="button"
-                      className="btn-danger"
+                      className="btn-danger btn-inline-icon"
                       onClick={() => eliminarUsuario(u)}
                     >
-                      <Trash2 size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                      <Trash2 size={14} />
                       Eliminar
                     </button>
                   </td>
@@ -243,7 +252,15 @@ function UsuariosAdmin() {
 
       {modalEditarOpen && usuarioEditar && (
         <div className="admin-modal">
-          <div className="admin-modal-content">
+          <div className="admin-modal-content admin-modal-tight usuarios-modal">
+            <button
+              type="button"
+              className="admin-modal-close-btn"
+              onClick={cerrarEditarModal}
+              aria-label="Cerrar modal"
+            >
+              <X size={14} />
+            </button>
             <h3>Editar usuario</h3>
             <input
               type="text"
@@ -280,30 +297,33 @@ function UsuariosAdmin() {
                 })
               }
             />
-            <select
+            <CustomSelect
               value={usuarioEditar.rol}
-              onChange={(e) =>
-                setUsuarioEditar({ ...usuarioEditar, rol: e.target.value })
+              onChange={(value) =>
+                setUsuarioEditar({ ...usuarioEditar, rol: value })
               }
-            >
-              <option value="docente">Docente</option>
-              <option value="administrativo">Administrador</option>
-            </select>
+              options={[
+                { value: "docente", label: "Docente" },
+                { value: "administrativo", label: "Administrador" },
+              ]}
+              placeholder="Rol"
+              className="custom-select-white"
+            />
             <div className="modal-buttons">
               <button
                 type="button"
-                className="btn-cancel"
+                className="btn-view btn-inline-icon"
                 onClick={cerrarEditarModal}
               >
-                <X size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                <X size={14} />
                 Cancelar
               </button>
               <button
                 type="button"
-                className="btn-save"
+                className="btn-success btn-inline-icon"
                 onClick={editarUsuario}
               >
-                <Save size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                <Save size={14} />
                 Guardar
               </button>
             </div>
@@ -313,7 +333,15 @@ function UsuariosAdmin() {
 
       {modalAgregarOpen && (
         <div className="admin-modal">
-          <div className="admin-modal-content">
+          <div className="admin-modal-content admin-modal-tight usuarios-modal">
+            <button
+              type="button"
+              className="admin-modal-close-btn"
+              onClick={() => setModalAgregarOpen(false)}
+              aria-label="Cerrar modal"
+            >
+              <X size={14} />
+            </button>
             <h3>Añadir usuario</h3>
             <input
               type="text"
@@ -347,26 +375,29 @@ function UsuariosAdmin() {
                 setNuevoUsuario({ ...nuevoUsuario, contrasena: e.target.value })
               }
             />
-            <select
+            <CustomSelect
               value={nuevoUsuario.rol}
-              onChange={(e) =>
-                setNuevoUsuario({ ...nuevoUsuario, rol: e.target.value })
+              onChange={(value) =>
+                setNuevoUsuario({ ...nuevoUsuario, rol: value })
               }
-            >
-              <option value="docente">Docente</option>
-              <option value="administrativo">Administrador</option>
-            </select>
+              options={[
+                { value: "docente", label: "Docente" },
+                { value: "administrativo", label: "Administrador" },
+              ]}
+              placeholder="Rol"
+              className="custom-select-white"
+            />
             <div className="modal-buttons">
               <button
                 type="button"
-                className="btn-cancel"
+                className="btn-view btn-inline-icon"
                 onClick={() => setModalAgregarOpen(false)}
               >
-                <X size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                <X size={14} />
                 Cancelar
               </button>
-              <button type="button" className="btn-save" onClick={agregarUsuario}>
-                <Save size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+              <button type="button" className="btn-success btn-inline-icon" onClick={agregarUsuario}>
+                <Save size={14} />
                 Guardar
               </button>
             </div>

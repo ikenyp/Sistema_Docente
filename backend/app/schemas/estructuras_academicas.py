@@ -5,6 +5,7 @@ from app.schemas.materias import MateriaResponse
 
 
 class EstructuraAcademicaBase(BaseModel):
+    anio_lectivo: Optional[str] = Field(None, max_length=9)
     nombre: str = Field(..., max_length=120)
     nivel: str = Field(..., max_length=80)
     subnivel: Optional[str] = Field(None, max_length=80)

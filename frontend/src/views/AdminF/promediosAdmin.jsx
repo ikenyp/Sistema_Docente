@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Search, Save, X, Brush, Calculator, ArrowLeft } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
+import CustomSelect from "../../components/admin/CustomSelect";
 import { cursosAPI, estudiantesAPI, periodizacionAPI, promediosAPI } from "../../services/api";
 import { notify } from "../../components/notify";
 
@@ -143,34 +144,41 @@ function PromediosAdmin() {
           marginBottom: 16,
         }}
       >
-        <select
+        <CustomSelect
           value={cursoSel}
-          onChange={(e) => setCursoSel(e.target.value)}
-        >
-          <option value="">Curso</option>
-          {cursos.map((c) => (
-            <option key={c.id_curso} value={c.id_curso}>
-              {c.nombre}
-            </option>
-          ))}
-        </select>
-        <select value={estSel} onChange={(e) => setEstSel(e.target.value)}>
-          <option value="">Estudiante</option>
-          {estudiantes.map((e) => (
-            <option key={e.id_estudiante} value={e.id_estudiante}>
-              {e.nombre} {e.apellido}
-            </option>
-          ))}
-        </select>
+          onChange={setCursoSel}
+          options={cursos.map((c) => ({
+            value: String(c.id_curso),
+            label: c.nombre,
+          }))}
+          placeholder="Curso"
+          className="custom-select-white"
+        />
+        <CustomSelect
+          value={estSel}
+          onChange={setEstSel}
+          options={estudiantes.map((e) => ({
+            value: String(e.id_estudiante),
+            label: `${e.nombre} ${e.apellido}`,
+          }))}
+          placeholder="Estudiante"
+          className="custom-select-white"
+        />
         <input
           placeholder="Año lectivo (ej. 2025-2026)"
           value={anio}
           onChange={(e) => setAnio(e.target.value)}
         />
-        <select value={modo} onChange={(e) => setModo(e.target.value)}>
-          <option value="periodo">Por periodo</option>
-          <option value="final">Acumulado</option>
-        </select>
+        <CustomSelect
+          value={modo}
+          onChange={setModo}
+          options={[
+            { value: "periodo", label: "Por periodo" },
+            { value: "final", label: "Acumulado" },
+          ]}
+          placeholder="Modo"
+          className="custom-select-white"
+        />
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -186,17 +194,16 @@ function PromediosAdmin() {
 
       {modo === "periodo" && (
         <div style={{ marginBottom: 16 }}>
-          <select
+          <CustomSelect
             value={periodoSeleccionado}
-            onChange={(e) => setPeriodoSeleccionado(e.target.value)}
-          >
-            <option value="" disabled>Seleccione periodo</option>
-            {periodosConfigurados.map((periodo) => (
-              <option key={periodo.id_periodo} value={periodo.numero_periodo}>
-                {periodo.nombre_periodo || `Periodo ${periodo.numero_periodo}`}
-              </option>
-            ))}
-          </select>
+            onChange={setPeriodoSeleccionado}
+            options={periodosConfigurados.map((periodo) => ({
+              value: String(periodo.numero_periodo),
+              label: periodo.nombre_periodo || `Periodo ${periodo.numero_periodo}`,
+            }))}
+            placeholder="Seleccione periodo"
+            className="custom-select-white"
+          />
         </div>
       )}
 

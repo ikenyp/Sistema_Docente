@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ArrowRight, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AdminLayout from "../../components/admin/AdminLayout";
+import CustomSelect from "../../components/admin/CustomSelect";
 import { cursosAPI } from "../../services/api";
 
 function MatriculacionAdmin() {
@@ -43,18 +44,20 @@ function MatriculacionAdmin() {
           </span>
           <span className="admin-action-sub">Crear, editar y asignar curso desde el mismo formulario</span>
         </button>
-        <div className="admin-action-card" style={{ cursor: "default" }}>
-          <span className="admin-action-title">Abrir curso</span>
-          <span className="admin-action-sub">Selecciona un curso y entra a su ficha para revisar su grupo actual</span>
-          <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-            <select value={cursoSel} onChange={(e) => setCursoSel(e.target.value)}>
-              <option value="">Curso</option>
-              {cursos.map((c) => (
-                <option key={c.id_curso} value={c.id_curso}>
-                  {c.nombre}
-                </option>
-              ))}
-            </select>
+          <div className="admin-action-card" style={{ cursor: "default" }}>
+            <span className="admin-action-title">Abrir curso</span>
+            <span className="admin-action-sub">Selecciona un curso y entra a su ficha para revisar su grupo actual</span>
+            <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+              <CustomSelect
+                value={cursoSel}
+                onChange={setCursoSel}
+                options={cursos.map((c) => ({
+                  value: String(c.id_curso),
+                  label: c.nombre,
+                }))}
+                placeholder="Curso"
+                className="custom-select-white"
+              />
             <button
               type="button"
               className="btn-view"

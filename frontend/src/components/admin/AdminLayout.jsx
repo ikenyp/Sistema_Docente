@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { ADMIN_NAV, PERSONAL_DOCENTE_NAV } from "./adminNav";
 import "../../styles/admin.css";
 
-function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel }) {
+function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, headerActions }) {
   const navigate = useNavigate();
   const [menuUsuario, setMenuUsuario] = useState(false);
   const [datosUsuario, setDatosUsuario] = useState(null);
@@ -100,8 +100,11 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel }) 
           <div className="admin-container admin-container-wide">
             {(title || subtitle) && (
               <header className="admin-page-head">
-                {title && <h1 className="admin-page-title">{title}</h1>}
-                {subtitle && <p className="panel-sub">{subtitle}</p>}
+                <div className="admin-page-head-main">
+                  {title && <h1 className="admin-page-title">{title}</h1>}
+                  {subtitle && <p className="panel-sub">{subtitle}</p>}
+                </div>
+                {headerActions && <div className="admin-page-head-actions">{headerActions}</div>}
               </header>
             )}
             {children}

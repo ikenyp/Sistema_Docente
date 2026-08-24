@@ -2,14 +2,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Pencil, Brush, Save, X, UserPlus } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
+import CustomSelect from "../../components/admin/CustomSelect";
 import { estudiantesAPI, cursosAPI } from "../../services/api";
 import { notify } from "../../components/notify";
 
 function EstudiantesAdmin() {
   const [searchParams] = useSearchParams();
   const [filtros, setFiltros] = useState({
-    nombre: "",
-    apellido: "",
+    busqueda: "",
     estado: "",
     id_curso: "",
     page: 1,
@@ -53,8 +53,8 @@ function EstudiantesAdmin() {
     setError("");
     try {
       const res = await estudiantesAPI.buscar({
-        nombre: filtrosAplicados.nombre || undefined,
-        apellido: filtrosAplicados.apellido || undefined,
+        nombre: filtrosAplicados.busqueda || undefined,
+        apellido: filtrosAplicados.busqueda || undefined,
         estado: filtrosAplicados.estado || undefined,
         id_curso: filtrosAplicados.id_curso || undefined,
         page: filtrosAplicados.page,
@@ -122,8 +122,7 @@ function EstudiantesAdmin() {
 
   const limpiarFiltros = () => {
     const base = {
-      nombre: "",
-      apellido: "",
+      busqueda: "",
       estado: "",
       id_curso: "",
       page: 1,
@@ -196,89 +195,76 @@ function EstudiantesAdmin() {
 
   return (
     <AdminLayout
-      title="Estudiantes"
-      subtitle="Registre y gestione estudiantes. La vinculación al curso ya se hace directamente aquí."
+      title=""
+      subtitle=""
     >
       <div className="docentes-header">
-        <h2 className="section-title">Estudiantes</h2>
-        <button className="btn-add-docente" onClick={abrirCrear}>
-          <UserPlus size={16} style={{ verticalAlign: "middle", marginRight: 4 }} />
-          Añadir Estudiante
+        <h2 className="section-title">Directorio de estudiantes</h2>
+        <button className="btn-add-docente btn-inline-icon btn-add-student-wrap" onClick={abrirCrear}>
+          <UserPlus size={16} />
+          <span>Añadir<br />Estudiante</span>
         </button>
       </div>
 
       <div className="panel-sub" style={{ marginBottom: 12 }}>
-        Busca, filtra y asigna curso desde el mismo flujo sin una pantalla separada de matrícula.
+        Registre, busque, filtre y gestione estudiantes
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(5, 1fr)",
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
+      <div className="estudiantes-filters">
         <input
-          placeholder="Nombre"
-          value={filtros.nombre}
+          placeholder="Buscar por nombre o apellido"
+          value={filtros.busqueda}
           onChange={(e) =>
             setFiltros((prev) => ({
               ...prev,
-              nombre: e.target.value,
+              busqueda: e.target.value,
               page: 1,
             }))
           }
         />
-        <input
-          placeholder="Apellido"
-          value={filtros.apellido}
-          onChange={(e) =>
-            setFiltros((prev) => ({
-              ...prev,
-              apellido: e.target.value,
-              page: 1,
-            }))
-          }
-        />
-        <select
+        <CustomSelect
           value={filtros.estado}
-          onChange={(e) =>
+          onChange={(value) =>
             setFiltros((prev) => ({
               ...prev,
-              estado: e.target.value,
+              estado: value,
               page: 1,
             }))
           }
-        >
-          <option value="">Todos</option>
-          <option value="matriculado">Matriculado</option>
-          <option value="retirado">Retirado</option>
-          <option value="graduado">Graduado</option>
-        </select>
-        <select
+          options={[
+            { value: "", label: "Todos los estados" },
+            { value: "matriculado", label: "Matriculado" },
+            { value: "retirado", label: "Retirado" },
+            { value: "graduado", label: "Graduado" },
+          ]}
+          placeholder="Todos los estados"
+          className="custom-select-white"
+        />
+        <CustomSelect
           value={filtros.id_curso}
-          onChange={(e) =>
+          onChange={(value) =>
             setFiltros((prev) => ({
               ...prev,
-              id_curso: e.target.value,
+              id_curso: value,
               page: 1,
             }))
           }
-        >
-          <option value="">Curso (todos)</option>
-          {cursos.map((c) => (
-            <option key={c.id_curso} value={c.id_curso}>
-              {c.nombre}
-            </option>
-          ))}
-        </select>
+          options={[
+            { value: "", label: "Todos los cursos" },
+            ...cursos.map((c) => ({
+              value: String(c.id_curso),
+              label: c.nombre,
+            })),
+          ]}
+          placeholder="Todos los cursos"
+          className="custom-select-white"
+        />
         <button
-          className="btn-secondary"
+          className="btn-neutral btn-inline-icon estudiantes-clear-btn"
           type="button"
           onClick={limpiarFiltros}
         >
-          <Brush size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+          <Brush size={14} />
           Limpiar
         </button>
       </div>
@@ -315,10 +301,10 @@ function EstudiantesAdmin() {
                   </td>
                   <td>
                     <button
-                      className="btn-view"
+                      className="btn-view btn-inline-icon"
                       onClick={() => abrirEditar(est)}
                     >
-                      <Pencil size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                      <Pencil size={14} />
                       Editar
                     </button>
                   </td>
@@ -360,7 +346,10 @@ function EstudiantesAdmin() {
 
       {modalOpen && (
         <div className="admin-modal">
-          <div className="admin-modal-content">
+          <div className="admin-modal-content admin-modal-tight estudiantes-modal">
+            <button type="button" className="admin-modal-close-btn" onClick={() => setModalOpen(false)} aria-label="Cerrar modal">
+              <X size={14} />
+            </button>
             <h3>{editando ? "Editar Estudiante" : "Crear Estudiante"}</h3>
             <input
               placeholder="Nombre"
@@ -386,40 +375,45 @@ function EstudiantesAdmin() {
               }
             />
             {editando ? (
-              <select
+              <CustomSelect
                 value={form.estado}
-                onChange={(e) => setForm({ ...form, estado: e.target.value })}
-              >
-                <option value="matriculado">Matriculado</option>
-                <option value="retirado">Retirado</option>
-                <option value="graduado">Graduado</option>
-              </select>
+                onChange={(value) => setForm({ ...form, estado: value })}
+                options={[
+                  { value: "matriculado", label: "Matriculado" },
+                  { value: "retirado", label: "Retirado" },
+                  { value: "graduado", label: "Graduado" },
+                ]}
+                placeholder="Estado"
+                className="custom-select-white estudiantes-modal-select"
+              />
             ) : (
               <input type="hidden" value="matriculado" />
             )}
-            <select
+            <CustomSelect
               value={form.id_curso_actual}
-              onChange={(e) =>
-                setForm({ ...form, id_curso_actual: e.target.value })
+              onChange={(value) =>
+                setForm({ ...form, id_curso_actual: value })
               }
-            >
-              <option value="">Sin curso</option>
-              {cursos.map((c) => (
-                <option key={c.id_curso} value={c.id_curso}>
-                  {c.nombre}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: "", label: "Sin curso" },
+                ...cursos.map((c) => ({
+                  value: String(c.id_curso),
+                  label: c.nombre,
+                })),
+              ]}
+              placeholder="Sin curso"
+              className="custom-select-white estudiantes-modal-select"
+            />
             <div className="modal-buttons">
               <button
-                className="btn-cancel"
+                className="btn-neutral btn-inline-icon"
                 onClick={() => setModalOpen(false)}
               >
-                <X size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                <X size={14} />
                 Cancelar
               </button>
-              <button className="btn-save" onClick={guardar}>
-                <Save size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+              <button className="btn-success btn-inline-icon" onClick={guardar}>
+                <Save size={14} />
                 Guardar
               </button>
             </div>

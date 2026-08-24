@@ -9,6 +9,7 @@ class EstructuraAcademica(Base):
 
     id_estructura_academica = Column(Integer, primary_key=True)
     id_contexto = Column(Integer, ForeignKey("contextos.id_contexto"), nullable=False)
+    anio_lectivo = Column(String(9), nullable=False)
     nombre = Column(String(120), nullable=False)
     nivel = Column(String(80), nullable=False)
     subnivel = Column(String(80), nullable=True)
@@ -19,8 +20,9 @@ class EstructuraAcademica(Base):
     __table_args__ = (
         UniqueConstraint(
             "id_contexto",
+            "anio_lectivo",
             "nombre",
-            name="uq_estructura_academica_contexto_nombre",
+            name="uq_estructura_academica_contexto_anio_nombre",
         ),
     )
 

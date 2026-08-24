@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Trash2, X } from "lucide-react";
 import { subscribeNotify, setConfirmHandler } from "./notify";
 import "../styles/notifications.css";
 
@@ -38,26 +39,58 @@ export default function NotificationCenter() {
 
       {confirm && (
         <div className="confirm-backdrop" onClick={() => {}}>
-          <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <p style={{ marginBottom: 12 }}>{confirm.message}</p>
-            <div
-              style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}
+          <div className="confirm-modal confirm-modal-wide" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="confirm-close-btn"
+              aria-label="Cerrar confirmación"
+              onClick={() => {
+                confirm.resolve(false);
+                setConfirm(null);
+              }}
             >
+              <X size={14} />
+            </button>
+            <h3 style={{ marginBottom: 10 }}>{confirm.options?.title || "Confirmar acción"}</h3>
+            {confirm.options?.role && confirm.options?.name ? (
+              <div className="confirm-entity">
+                <span className="confirm-entity-role">{confirm.options.role}</span>
+                <strong className="confirm-entity-name">{confirm.options.name}</strong>
+              </div>
+            ) : (
+              <p style={{ marginBottom: 10, whiteSpace: "pre-line" }}>
+                {confirm.options?.description || confirm.message}
+              </p>
+            )}
+            {confirm.options?.description && confirm.options?.role && confirm.options?.name && (
+              <p style={{ marginBottom: 10, whiteSpace: "pre-line" }}>
+                {confirm.options.description}
+              </p>
+            )}
+            {confirm.options?.note && (
+              <p className="confirm-note" style={{ marginBottom: 14 }}>
+                {confirm.options.note}
+              </p>
+            )}
+            <div className="confirm-actions">
               <button
+                className="btn-cancel btn-inline-icon confirm-action-btn"
                 onClick={() => {
                   confirm.resolve(false);
                   setConfirm(null);
                 }}
               >
+                <X size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
                 Cancelar
               </button>
               <button
-                className="btn-danger"
+                className="btn-danger btn-inline-icon confirm-action-btn"
                 onClick={() => {
                   confirm.resolve(true);
                   setConfirm(null);
                 }}
               >
+                <Trash2 size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
                 Eliminar
               </button>
             </div>

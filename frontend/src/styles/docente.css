@@ -546,7 +546,9 @@
 }
 
 .modal h3 {
-  margin: 0 0 1rem;
+  margin: 0 0 0.85rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #dfe8f5;
   font-size: 1.25rem;
   color: #223553;
   font-weight: 700;

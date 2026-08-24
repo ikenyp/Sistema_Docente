@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Clipboard } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
+import CustomSelect from "../../components/admin/CustomSelect";
 import { cursosAPI } from "../../services/api";
 
 function ConsultasAdmin() {
@@ -39,14 +40,16 @@ function ConsultasAdmin() {
         </div>
 
         <div className="admin-consulta-filters">
-          <select value={cursoSel} onChange={(e) => setCursoSel(e.target.value)}>
-            <option value="">Curso</option>
-            {cursos.map((c) => (
-              <option key={c.id_curso} value={c.id_curso}>
-                {c.nombre} ({c.anio_lectivo})
-              </option>
-            ))}
-          </select>
+          <CustomSelect
+            value={cursoSel}
+            onChange={setCursoSel}
+            options={cursos.map((c) => ({
+              value: String(c.id_curso),
+              label: `${c.nombre} (${c.anio_lectivo})`,
+            }))}
+            placeholder="Curso"
+            className="custom-select-white"
+          />
           <button
             type="button"
             className="btn-view"

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { refreshSession } from "../services/session";
 
 function formatRemaining(ms) {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
@@ -44,14 +45,14 @@ export default function SessionModal({ state, onStay, onLogout }) {
       <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
         <h3 style={{ marginTop: 0, marginBottom: 12 }}>{content.title}</h3>
         <p style={{ marginBottom: 16 }}>{content.message}</p>
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          {state.type === "warning" ? (
-            <>
-              <button onClick={onLogout}>Cerrar sesion</button>
-              <button className="btn-view" onClick={onStay}>
-                Mantener sesion
-              </button>
-            </>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            {state.type === "warning" ? (
+              <>
+                <button onClick={onLogout}>Cerrar sesion</button>
+                <button className="btn-view" onClick={onStay}>
+                  Mantener sesion
+                </button>
+              </>
           ) : (
             <button className="btn-view" onClick={onLogout}>
               Ir al inicio de sesion

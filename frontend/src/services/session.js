@@ -104,6 +104,34 @@ export function getSessionWatchState() {
   return { warningShown, expiryShown };
 }
 
+export async function refreshSession() {
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+
+  const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:8000";
+  const response = await fetch(`${apiUrl}/auth/refresh`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("No se pudo renovar la sesión");
+  }
+
+  const data = await response.json();
+  if (!data?.access_token) {
+    throw new Error("La sesión renovada no devolvió token");
+  }
+
+  localStorage.setItem("token", data.access_token);
+  if (data.role) localStorage.setItem("role", data.role.toLowerCase());
+  scheduleSessionWatch(data.access_token);
+  return data.access_token;
+}
+
 export function markSessionWarningHandled() {
   warningShown = false;
 }

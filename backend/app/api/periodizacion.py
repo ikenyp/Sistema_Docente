@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
@@ -9,6 +9,7 @@ from app.core.database import get_session
 from app.models.configuracion_periodizacion import ConfiguracionPeriodizacion
 from app.models.contextos import Contexto
 from app.models.enums import RolUsuarioEnum
+from app.models.insumos import Insumo
 from app.models.periodos_academicos import PeriodoAcademico
 from app.models.usuarios import Usuario
 from app.schemas.periodizacion import (
@@ -78,7 +79,7 @@ def _validar_payload(data: ConfiguracionCompletaCreate):
         previo = periodos_ordenados[indice - 1]
         actual = periodos_ordenados[indice]
         if previo.fecha_fin >= actual.fecha_inicio:
-            raise HTTPException(status_code=400, detail="Hay periodos solapados")
+            raise HTTPException(status_code=400, detail="Hay periodos solapados o invertidos")
 
     return singular
 
@@ -198,3 +199,38 @@ async def crear_o_reemplazar_periodizacion(
     await db.refresh(config)
     await db.refresh(config, attribute_names=["periodos"])
     return await _serializar_config(config)
+
+
+@router.delete("/actual/{anio_lectivo}", status_code=status.HTTP_200_OK)
+async def eliminar_periodizacion_actual(
+    anio_lectivo: str,
+    request: Request,
+    db: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user),
+):
+    id_contexto = await _validar_contexto(request, db, current_user)
+    result = await db.execute(
+        select(ConfiguracionPeriodizacion).where(
+            ConfiguracionPeriodizacion.id_contexto == id_contexto,
+            ConfiguracionPeriodizacion.anio_lectivo == anio_lectivo,
+        )
+    )
+    config = result.scalar_one_or_none()
+    if not config:
+        raise HTTPException(status_code=404, detail="No existe configuracion para este ano")
+
+    insumos_result = await db.execute(
+        select(func.count(Insumo.id_insumo))
+        .join(PeriodoAcademico, PeriodoAcademico.id_periodo == Insumo.id_periodo)
+        .where(PeriodoAcademico.id_config_periodizacion == config.id_config_periodizacion)
+    )
+    total_insumos = insumos_result.scalar_one() or 0
+    if total_insumos > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se puede eliminar la periodizacion porque tiene insumos asociados",
+        )
+
+    await db.delete(config)
+    await db.commit()
+    return {"detail": "Periodizacion eliminada correctamente"}
