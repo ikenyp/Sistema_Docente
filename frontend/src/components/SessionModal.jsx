@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { refreshSession } from "../services/session";
 
 function formatRemaining(ms) {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
@@ -48,7 +47,9 @@ export default function SessionModal({ state, onStay, onLogout }) {
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             {state.type === "warning" ? (
               <>
-                <button onClick={onLogout}>Cerrar sesion</button>
+                <button type="button" className="session-warning-logout" onClick={onLogout}>
+                  Cerrar sesion
+                </button>
                 <button className="btn-view" onClick={onStay}>
                   Mantener sesion
                 </button>

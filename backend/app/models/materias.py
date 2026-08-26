@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Index, text
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -14,7 +14,13 @@ class Materia(Base):
     eliminado = Column(Boolean, default=False)
 
     __table_args__ = (
-        UniqueConstraint("id_contexto", "codigo", name="uq_materia_contexto_codigo"),
+        Index(
+            "ix_materia_contexto_codigo_activo",
+            "id_contexto",
+            "codigo",
+            unique=True,
+            postgresql_where=text("eliminado = false"),
+        ),
     )
 
     contexto = relationship("Contexto", back_populates="materias")

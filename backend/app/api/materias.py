@@ -50,6 +50,7 @@ async def crear_materia(
 async def listar_materias(
     nombre: str | None = Query(None, description="Búsqueda parcial por nombre"),
     codigo: str | None = Query(None, description="Búsqueda parcial por código"),
+    incluir_eliminadas: bool = Query(False, description="Incluir materias eliminadas lógicamente"),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
     request: Request = None,
@@ -62,6 +63,7 @@ async def listar_materias(
         id_contexto=id_contexto,
         nombre=nombre,
         codigo=codigo,
+        incluir_eliminadas=incluir_eliminadas,
         page=page,
         size=size
     )

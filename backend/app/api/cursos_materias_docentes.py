@@ -69,7 +69,7 @@ async def listar_cmd(
 ):
     id_contexto = await resolve_contexto_id(db, current_user, request)
 
-    if is_personal_mode(request) and current_user.rol == RolUsuarioEnum.docente:
+    if current_user.rol == RolUsuarioEnum.docente:
         id_docente = current_user.id_usuario
     elif current_user.rol != RolUsuarioEnum.administrativo:
         if id_curso is None:

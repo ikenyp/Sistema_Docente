@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 
 export default function CustomSelect({
   value,
@@ -12,9 +12,14 @@ export default function CustomSelect({
   onToggle,
   menuAlign = "right",
   variant = "field",
+  menuMaxHeight = 260,
+  searchable = false,
+  searchPlaceholder = "Buscar...",
 }) {
   const [openState, setOpenState] = useState(false);
+  const [search, setSearch] = useState("");
   const ref = useRef(null);
+  const searchRef = useRef(null);
   const onToggleRef = useRef(onToggle);
   const open = controlledOpen ?? openState;
 
@@ -24,6 +29,14 @@ export default function CustomSelect({
 
   const selectedLabel =
     options.find((option) => option.value === value)?.label || placeholder;
+
+  const filteredOptions = useMemo(() => {
+    if (!searchable || !search.trim()) return options;
+    const term = search.trim().toLowerCase();
+    return options.filter((option) =>
+      String(option.label || "").toLowerCase().includes(term),
+    );
+  }, [options, search, searchable]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -35,6 +48,16 @@ export default function CustomSelect({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!open) setSearch("");
+  }, [open]);
+
+  useEffect(() => {
+    if (open && searchable) {
+      searchRef.current?.focus();
+    }
+  }, [open, searchable]);
 
   return (
     <div
@@ -84,11 +107,44 @@ export default function CustomSelect({
             border: "1px solid #d9e3f2",
             borderRadius: "14px",
             boxShadow: "0 16px 34px rgba(23, 39, 72, 0.14)",
-            maxHeight: "260px",
+            maxHeight: `${menuMaxHeight}px`,
             overflowY: "auto",
           }}
         >
-          {options.map((option) => (
+          {searchable && (
+            <li style={{ position: "sticky", top: 0, zIndex: 1, background: "#fff", paddingBottom: 6 }}>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={searchPlaceholder}
+                onClick={(e) => e.stopPropagation()}
+                ref={searchRef}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: "0.55rem 0.7rem",
+                  border: "1px solid #d9e3f2",
+                  borderRadius: 10,
+                  fontSize: "0.9rem",
+                  outline: "none",
+                  background: "#f8fbff",
+                }}
+              />
+            </li>
+          )}
+          {searchable && filteredOptions.length === 0 && (
+            <li
+              style={{
+                padding: "0.7rem 0.75rem",
+                color: "#6b7a99",
+                fontSize: "0.88rem",
+              }}
+            >
+              Sin resultados
+            </li>
+          )}
+          {filteredOptions.map((option) => (
             <li
               key={option.value}
               role="option"

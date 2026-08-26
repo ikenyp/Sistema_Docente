@@ -5,6 +5,7 @@ from sqlalchemy import select
 from app.models.cursos_materias_docentes import CursoMateriaDocente
 from app.models.cursos import Curso
 from app.models.estructuras_academicas import EstructuraMateria
+from app.models.insumos import Insumo
 from app.models.materias import Materia
 from app.models.usuarios import Usuario
 from app.models.enums import RolUsuarioEnum
@@ -232,4 +233,13 @@ async def actualizar_cmd(
 # Eliminar asignación (eliminación física)
 async def eliminar_cmd(db: AsyncSession, id_cmd: int, id_contexto: int):
     cmd = await obtener_cmd(db, id_cmd, id_contexto)
+    insumos_existentes = await db.execute(
+        select(Insumo.id_insumo).where(Insumo.id_cmd == id_cmd).limit(1)
+    )
+    if insumos_existentes.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se puede quitar la materia porque ya tiene insumos asociados",
+        )
+
     await crud.eliminar(db, id_cmd)

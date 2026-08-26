@@ -95,13 +95,6 @@ function CursosAdmin() {
     );
   }, [cursos, filtroAnio]);
 
-  const opcionesAnio = useMemo(() => {
-    return [
-      { value: "__todos__", label: "Todos" },
-      ...aniosDisponibles.map((a) => ({ value: a, label: a })),
-    ];
-  }, [aniosDisponibles]);
-
   const anioLectivoCurso = useMemo(
     () => localStorage.getItem("anio_lectivo_activo") || aniosDisponibles[0] || "",
     [aniosDisponibles],
@@ -147,8 +140,13 @@ function CursosAdmin() {
       });
       cargar();
       notify("success", "Curso creado");
-    } catch {
-      notify("error", "No se pudo crear el curso");
+    } catch (e) {
+      const msg = e?.message || "";
+      if (msg.includes("Ya existe un curso con ese nombre")) {
+        notify("error", "Ese curso ya existe en el año lectivo actual");
+        return;
+      }
+      notify("error", msg || "No se pudo crear el curso");
     }
   };
 
@@ -233,12 +231,6 @@ function CursosAdmin() {
                 setNuevoCurso({ ...nuevoCurso, nombre: e.target.value })
               }
             />
-            <div className="cursos-year-display cursos-year-display-modal">
-              <span>{anioLectivoCurso || "Sin año lectivo activo"}</span>
-            </div>
-            <p style={{ marginTop: -2, marginBottom: 10, fontSize: "0.85rem", color: "#6b7a99" }}>
-              Se tomará automáticamente como año del curso.
-            </p>
             <CustomSelect
               value={nuevoCurso.id_estructura_academica}
               onChange={(value) =>
@@ -253,6 +245,9 @@ function CursosAdmin() {
               }))}
               placeholder="Estructura académica"
               className="custom-select-white cursos-form-select"
+              searchable
+              searchPlaceholder="Buscar estructura..."
+              menuMaxHeight={220}
             />
             <CustomSelect
               value={nuevoCurso.id_tutor}
@@ -270,6 +265,9 @@ function CursosAdmin() {
               ]}
               placeholder="Tutor a cargo (opcional)"
               className="custom-select-white cursos-form-select"
+              searchable
+              searchPlaceholder="Buscar docente..."
+              menuMaxHeight={220}
             />
             <div className="modal-buttons cursos-modal-buttons">
               <button

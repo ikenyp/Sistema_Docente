@@ -15,6 +15,40 @@ from app.models.insumos import Insumo
 from app.models.cursos_materias_docentes import CursoMateriaDocente
 from app.models.cursos import Curso
 
+# Compatibilidad con pruebas y validación puntual en memoria.
+def validar_tutor_unico_por_contexto(curso_actual_id, id_tutor, cursos_existentes):
+    for curso in cursos_existentes:
+        if curso.id_curso != curso_actual_id and curso.id_tutor == id_tutor:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El docente solo puede ser tutor de un curso",
+            )
+
+
+# Un tutor solo puede estar asignado a un curso por año lectivo dentro del mismo contexto.
+async def _validar_tutor_unico_en_db(
+    db: AsyncSession,
+    id_contexto: int,
+    id_tutor: int,
+    anio_lectivo: str,
+    curso_actual_id: int | None = None,
+):
+    query = select(Curso).where(
+        Curso.id_contexto == id_contexto,
+        Curso.anio_lectivo == anio_lectivo,
+        Curso.id_tutor == id_tutor,
+    )
+    if curso_actual_id is not None:
+        query = query.where(Curso.id_curso != curso_actual_id)
+
+    result = await db.execute(query)
+    curso_existente = result.scalar_one_or_none()
+    if curso_existente:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El docente solo puede ser tutor de un curso por año lectivo",
+        )
+
 # Crear curso
 async def crear_curso(db: AsyncSession, data: CursoCreate, id_contexto: int):
     if data.id_estructura_academica is not None:
@@ -48,6 +82,13 @@ async def crear_curso(db: AsyncSession, data: CursoCreate, id_contexto: int):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El tutor debe tener rol de docente"
             )
+
+        await _validar_tutor_unico_en_db(
+            db=db,
+            id_contexto=id_contexto,
+            id_tutor=data.id_tutor,
+            anio_lectivo=data.anio_lectivo,
+        )
         
         # VALIDACIÓN: El docente tutor debe imparter al menos una materia en el curso
         # (Esta validación se puede relajar según políticas de negocio)
@@ -165,6 +206,14 @@ async def actualizar_curso(db: AsyncSession, id_curso: int, data: CursoUpdate, i
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El tutor debe tener rol de docente"
             )
+
+        await _validar_tutor_unico_en_db(
+            db=db,
+            id_contexto=id_contexto,
+            id_tutor=values["id_tutor"],
+            anio_lectivo=values.get("anio_lectivo", curso.anio_lectivo),
+            curso_actual_id=curso.id_curso,
+        )
         
         # VALIDACIÓN MEJORADA: El docente debe imparter en el curso actual
         # (Comentado por defecto, descomentar si se requiere política estricta)
@@ -199,21 +248,31 @@ async def actualizar_curso(db: AsyncSession, id_curso: int, data: CursoUpdate, i
 
 async def eliminar_curso(db: AsyncSession, id_curso: int, id_contexto: int):
     curso = await obtener_curso(db, id_curso, id_contexto)
-    # Verificar si existen notas asociadas a insumos del curso
-    query = (
-        select(Nota)
+    # Bloquear borrado si ya hay notas asociadas al curso
+    notas_existentes = await db.execute(
+        select(Nota.id_nota)
         .join(Insumo, Insumo.id_insumo == Nota.id_insumo)
         .join(CursoMateriaDocente, CursoMateriaDocente.id_cmd == Insumo.id_cmd)
-        .join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
-        .where(Curso.id_curso == id_curso)
+        .where(CursoMateriaDocente.id_curso == id_curso)
         .limit(1)
     )
-    result = await db.execute(query)
-    nota_existente = result.scalar_one_or_none()
-    if nota_existente:
+    if notas_existentes.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No se puede eliminar el curso porque existen notas asociadas a sus insumos"
+        )
+
+    # Bloquear borrado si ya hay insumos creados para el curso
+    insumos_existentes = await db.execute(
+        select(Insumo.id_insumo)
+        .join(CursoMateriaDocente, CursoMateriaDocente.id_cmd == Insumo.id_cmd)
+        .where(CursoMateriaDocente.id_curso == id_curso)
+        .limit(1)
+    )
+    if insumos_existentes.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se puede eliminar el curso porque existen insumos asociados"
         )
 
     return await crud.eliminar(db, curso)

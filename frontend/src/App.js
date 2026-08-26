@@ -5,6 +5,7 @@ import {
   Route,
   Navigate,
   useParams,
+  useLocation,
 } from "react-router-dom";
 
 import Login from "./views/LoginF/login";
@@ -59,54 +60,25 @@ function RedirectCursoEstudiantes() {
   );
 }
 
-function App() {
-  const [sessionState, setSessionState] = useState(null);
-
-  const getLoginRedirect = () => {
-    const appMode = (localStorage.getItem("app_mode") || "").toLowerCase();
-    if (appMode === "personal" || appMode === "institucional") {
-      return `/?mode=${encodeURIComponent(appMode)}`;
-    }
-    return "/";
-  };
+function AppShell({ sessionState, handleStay, handleLogout, clearSessionState }) {
+  const location = useLocation();
 
   useEffect(() => {
-    if (localStorage.getItem("token") && getSessionExpiration()) {
-      scheduleSessionWatch();
+    if (location.pathname === "/" && sessionState) {
+      clearSessionState(null);
     }
-
-    const unsubscribe = subscribeSession((event) => {
-      setSessionState(event);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const handleLogout = () => {
-    const redirectTo = getLoginRedirect();
-    clearSessionStorage();
-    setSessionState(null);
-    window.location.replace(redirectTo);
-  };
-
-  const handleStay = () => {
-    refreshSession()
-      .then(() => {
-        setSessionState(null);
-      })
-      .catch(() => {
-        handleLogout();
-      });
-  };
+  }, [location.pathname, sessionState, clearSessionState]);
 
   return (
-    <Router>
+    <>
       <NotificationCenter />
-      <SessionModal
-        state={sessionState}
-        onStay={handleStay}
-        onLogout={handleLogout}
-      />
+      {location.pathname !== "/" && (
+        <SessionModal
+          state={sessionState}
+          onStay={handleStay}
+          onLogout={handleLogout}
+        />
+      )}
       <Routes>
         <Route path="/" element={<Login />} />
         <Route
@@ -231,100 +203,6 @@ function App() {
           }
         />
         <Route
-          path="/admin/consultas"
-          element={
-            <ProtectedRoute
-              allowRoles={["administrativo"]}
-              allowModes={["institucional"]}
-            >
-              <ConsultasAdmin />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/periodizacion"
-          element={
-            <ProtectedRoute
-              allowRoles={["administrativo"]}
-              allowModes={["institucional"]}
-            >
-              <Navigate to="/admin" replace />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/lecturas"
-          element={
-            <ProtectedRoute
-              allowRoles={["administrativo"]}
-              allowModes={["institucional"]}
-            >
-              <Navigate to="/admin/consultas" replace />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/promedios"
-          element={
-            <ProtectedRoute
-              allowRoles={["administrativo"]}
-              allowModes={["institucional"]}
-            >
-              <Navigate to="/admin/consultas" replace />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/reportes"
-          element={
-            <ProtectedRoute
-              allowRoles={["administrativo"]}
-              allowModes={["institucional"]}
-            >
-              <Navigate to="/admin/consultas" replace />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/docente"
-          element={
-            <ProtectedRoute allowRoles={["docente"]}>
-              <Docente />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/curso/:id_curso"
-          element={
-            <ProtectedRoute allowRoles={["docente"]}>
-              <CursoPrincipal />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/docente/estructura-academica"
-          element={
-            <ProtectedRoute
-              allowRoles={["docente"]}
-              allowModes={["personal"]}
-            >
-              <MateriasAdmin />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/docente/periodizacion"
-          element={
-            <ProtectedRoute
-              allowRoles={["docente"]}
-              allowModes={["personal"]}
-            >
-              <PeriodizacionPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/admin/cursos/:id/estudiantes"
           element={
             <ProtectedRoute
@@ -336,14 +214,113 @@ function App() {
           }
         />
         <Route
-          path="/curso/:id/notas"
+          path="/admin/consultas"
           element={
-            <ProtectedRoute allowRoles={["docente"]}>
+            <ProtectedRoute
+              allowRoles={["administrativo"]}
+              allowModes={["institucional"]}
+            >
+              <ConsultasAdmin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/docente"
+          element={
+            <ProtectedRoute
+              allowRoles={["docente", "administrativo"]}
+              allowModes={["institucional", "personal"]}
+            >
+              <Docente />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/curso/:id_curso"
+          element={
+            <ProtectedRoute
+              allowRoles={["docente", "administrativo"]}
+              allowModes={["institucional", "personal"]}
+            >
+              <CursoPrincipal />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/curso/:id_curso/notas"
+          element={
+            <ProtectedRoute
+              allowRoles={["docente", "administrativo"]}
+              allowModes={["institucional", "personal"]}
+            >
               <NotasCurso />
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/docente/periodizacion"
+          element={
+            <ProtectedRoute
+              allowRoles={["docente", "administrativo"]}
+              allowModes={["institucional", "personal"]}
+            >
+              <PeriodizacionPage />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
+    </>
+  );
+}
+
+function App() {
+  const [sessionState, setSessionState] = useState(null);
+
+  const getLoginRedirect = () => {
+    const appMode = (localStorage.getItem("app_mode") || "").toLowerCase();
+    if (appMode === "personal" || appMode === "institucional") {
+      return `/?mode=${encodeURIComponent(appMode)}`;
+    }
+    return "/";
+  };
+
+  useEffect(() => {
+    if (localStorage.getItem("token") && getSessionExpiration()) {
+      scheduleSessionWatch();
+    }
+
+    const unsubscribe = subscribeSession((event) => {
+      setSessionState(event);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogout = () => {
+    const redirectTo = getLoginRedirect();
+    clearSessionStorage();
+    setSessionState(null);
+    window.location.replace(redirectTo);
+  };
+
+  const handleStay = () => {
+    refreshSession()
+      .then(() => {
+        setSessionState(null);
+      })
+      .catch(() => {
+        handleLogout();
+      });
+  };
+
+  return (
+    <Router>
+      <AppShell
+        sessionState={sessionState}
+        handleStay={handleStay}
+        handleLogout={handleLogout}
+        clearSessionState={setSessionState}
+      />
     </Router>
   );
 }

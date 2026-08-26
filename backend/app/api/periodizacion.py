@@ -28,7 +28,12 @@ TIPOS = {
 }
 
 
-async def _validar_contexto(request: Request, db: AsyncSession, current_user: Usuario) -> int:
+async def _validar_contexto(
+    request: Request,
+    db: AsyncSession,
+    current_user: Usuario,
+    solo_lectura: bool = False,
+) -> int:
     id_contexto = await resolve_contexto_id(db, current_user, request)
     contexto_result = await db.execute(
         select(Contexto).where(Contexto.id_contexto == id_contexto)
@@ -43,7 +48,10 @@ async def _validar_contexto(request: Request, db: AsyncSession, current_user: Us
         if contexto.id_owner_docente != current_user.id_usuario:
             raise HTTPException(status_code=403, detail="No puedes configurar otro contexto")
     else:
-        if current_user.rol != RolUsuarioEnum.administrativo:
+        if solo_lectura:
+            if current_user.rol not in (RolUsuarioEnum.administrativo, RolUsuarioEnum.docente):
+                raise HTTPException(status_code=403, detail="Acceso denegado")
+        elif current_user.rol != RolUsuarioEnum.administrativo:
             raise HTTPException(status_code=403, detail="Solo administrativos")
 
     return id_contexto
@@ -128,7 +136,7 @@ async def obtener_periodizacion_actual(
     db: AsyncSession = Depends(get_session),
     current_user: Usuario = Depends(get_current_user),
 ):
-    id_contexto = await _validar_contexto(request, db, current_user)
+    id_contexto = await _validar_contexto(request, db, current_user, solo_lectura=True)
     result = await db.execute(
         select(ConfiguracionPeriodizacion)
         .where(

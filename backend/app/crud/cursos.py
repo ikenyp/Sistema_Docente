@@ -64,13 +64,29 @@ async def crear(db: AsyncSession, curso: Curso):
     db.add(curso)
     await db.commit()
     await db.refresh(curso)
-    return curso
+    result = await db.execute(
+        select(Curso)
+        .options(
+            joinedload(Curso.tutor),
+            joinedload(Curso.estructura_academica),
+        )
+        .where(Curso.id_curso == curso.id_curso)
+    )
+    return result.scalar_one_or_none() or curso
 
 # Actualizar curso
 async def actualizar(db: AsyncSession, curso: Curso):
     await db.commit()
     await db.refresh(curso)
-    return curso
+    result = await db.execute(
+        select(Curso)
+        .options(
+            joinedload(Curso.tutor),
+            joinedload(Curso.estructura_academica),
+        )
+        .where(Curso.id_curso == curso.id_curso)
+    )
+    return result.scalar_one_or_none() or curso
 
 # Eliminar curso 
 async def eliminar(db: AsyncSession, curso: Curso):

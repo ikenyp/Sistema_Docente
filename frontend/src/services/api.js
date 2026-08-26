@@ -117,6 +117,9 @@ const apiCall = async (endpoint, method = "GET", body = null) => {
   } catch (error) {
     // Normalizar re-lanzamiento para garantizar un Error con mensaje legible
     console.error("API Error:", error);
+    if (error instanceof TypeError && /failed to fetch/i.test(error.message || "")) {
+      throw new Error("No se pudo conectar con el servidor");
+    }
     if (error instanceof Error) throw error;
     try {
       throw new Error(JSON.stringify(error));
@@ -151,6 +154,8 @@ export const cmdAPI = {
     apiCall(`/cursos-materias-docentes${buildQuery({ id_docente, id_curso })}`),
 
   obtener: (id_cmd) => apiCall(`/cursos-materias-docentes/${id_cmd}`),
+
+  eliminar: (id_cmd) => apiCall(`/cursos-materias-docentes/${id_cmd}`, "DELETE"),
 };
 
 // ==================== INSUMOS ====================

@@ -1,5 +1,6 @@
 from sqlalchemy import select, func, distinct, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.models.materias import Materia
 from app.models.cursos import Curso
@@ -7,13 +8,19 @@ from app.models.cursos_materias_docentes import CursoMateriaDocente
 
 
 # Obtener por ID
-async def obtener_por_id(db: AsyncSession, id_materia: int, id_contexto: int | None = None):
+async def obtener_por_id(
+    db: AsyncSession,
+    id_materia: int,
+    id_contexto: int | None = None,
+    incluir_eliminadas: bool = False,
+):
     condiciones = [
         Materia.id_materia == id_materia,
-        Materia.eliminado == False,
     ]
     if id_contexto is not None:
         condiciones.append(Materia.id_contexto == id_contexto)
+    if not incluir_eliminadas:
+        condiciones.append(Materia.eliminado == False)
 
     result = await db.execute(
         select(Materia).where(*condiciones)
@@ -50,13 +57,16 @@ async def listar_materias(
     id_contexto: int,
     nombre: str | None = None,
     codigo: str | None = None,
+    incluir_eliminadas: bool = False,
     page: int = 1,
     size: int = 10
 ):
     query = select(Materia).where(
-        Materia.eliminado == False,
         Materia.id_contexto == id_contexto,
     )
+
+    if not incluir_eliminadas:
+        query = query.where(Materia.eliminado == False)
 
     if nombre:
         query = query.where(Materia.nombre.ilike(f"%{nombre}%"))
@@ -104,14 +114,28 @@ async def listar_catalogo_materias(db: AsyncSession, id_contexto: int):
 
 # Crear
 async def crear(db: AsyncSession, materia: Materia):
-    db.add(materia)
-    await db.commit()
-    await db.refresh(materia)
-    return materia
+    try:
+        db.add(materia)
+        await db.commit()
+        await db.refresh(materia)
+        return materia
+    except IntegrityError:
+        await db.rollback()
+        raise
 
 
 # Actualizar
 async def actualizar(db: AsyncSession, materia: Materia):
+    try:
+        await db.commit()
+        await db.refresh(materia)
+        return materia
+    except IntegrityError:
+        await db.rollback()
+        raise
+
+
+# Eliminar (física)
+async def eliminar(db: AsyncSession, materia: Materia):
+    await db.delete(materia)
     await db.commit()
-    await db.refresh(materia)
-    return materia

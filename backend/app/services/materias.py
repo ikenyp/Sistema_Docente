@@ -1,7 +1,11 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select, func
 
 from app.models.materias import Materia
+from app.models.cursos_materias_docentes import CursoMateriaDocente
+from app.models.estructuras_academicas import EstructuraMateria
 from app.crud import materias as crud
 from app.schemas.materias import MateriaCreate, MateriaUpdate
 
@@ -34,7 +38,13 @@ async def crear_materia(db: AsyncSession, data: MateriaCreate, id_contexto: int)
         id_contexto=id_contexto,
     )
 
-    return await crud.crear(db, materia)
+    try:
+        return await crud.crear(db, materia)
+    except IntegrityError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ya existe una materia con ese código",
+        ) from exc
 
 
 # Listar materias
@@ -43,6 +53,7 @@ async def listar_materias(
     id_contexto: int,
     nombre: str | None,
     codigo: str | None,
+    incluir_eliminadas: bool,
     page: int,
     size: int
 ):
@@ -56,6 +67,7 @@ async def listar_materias(
         id_contexto=id_contexto,
         nombre=nombre,
         codigo=codigo,
+        incluir_eliminadas=incluir_eliminadas,
         page=page,
         size=size
     )
@@ -135,8 +147,13 @@ async def actualizar_materia(
 
     for key, value in values.items():
         setattr(materia, key, value)
-
-    return await crud.actualizar(db, materia)
+    try:
+        return await crud.actualizar(db, materia)
+    except IntegrityError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ya existe una materia con ese código",
+        ) from exc
 
 
 # Eliminar materia (eliminación lógica)
@@ -145,10 +162,31 @@ async def eliminar_materia(
     id_materia: int,
     id_contexto: int,
 ):
-    materia = await obtener_materia(db, id_materia, id_contexto)
+    materia = await crud.obtener_por_id(db, id_materia, id_contexto, incluir_eliminadas=True)
 
-    # Si tiene relaciones futuras, aquí irían validaciones
-    materia.eliminado = True
+    if not materia:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Materia no encontrada",
+        )
 
-    return await crud.actualizar(db, materia)
+    uso_cmd = await db.execute(
+        select(func.count()).select_from(CursoMateriaDocente).where(
+            CursoMateriaDocente.id_materia == materia.id_materia,
+        )
+    )
+    uso_estructura = await db.execute(
+        select(func.count()).select_from(EstructuraMateria).where(
+            EstructuraMateria.id_materia == materia.id_materia,
+        )
+    )
+
+    if (uso_cmd.scalar_one() or 0) > 0 or (uso_estructura.scalar_one() or 0) > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se puede eliminar porque la materia ya está en uso",
+        )
+
+    await crud.eliminar(db, materia)
+    return {"detail": "Materia eliminada correctamente"}
 

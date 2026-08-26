@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, UserPlus, BookOpen, Clipboard, Calendar, Link, Trash2 } from "lucide-react";
+import { ArrowLeft, UserPlus, BookOpen, Clipboard, Calendar, Link, Trash2, X, Save, Pencil } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
+import CustomSelect from "../../components/admin/CustomSelect";
 import {
   cursosAPI,
   estudiantesAPI,
@@ -42,7 +43,7 @@ function CursoHubAdmin() {
 
   const [estSel, setEstSel] = useState("");
   const [searchEst, setSearchEst] = useState("");
-  const [estudianteAgregar, setEstudianteAgregar] = useState("");
+  const [searchAgregarEst, setSearchAgregarEst] = useState("");
   const [subConsulta, setSubConsulta] = useState("notas");
 
   const [notas, setNotas] = useState([]);
@@ -130,13 +131,13 @@ function CursoHubAdmin() {
     };
   }, [idCurso, cargarEstudiantesDisponibles]);
 
-  const agregarEstudianteAlCurso = async () => {
-    if (!estudianteAgregar) {
+  const agregarEstudianteAlCurso = async (idEstudiante) => {
+    if (!idEstudiante) {
       notify("error", "Selecciona un estudiante");
       return;
     }
     try {
-      await estudiantesAPI.actualizar(Number(estudianteAgregar), {
+      await estudiantesAPI.actualizar(Number(idEstudiante), {
         id_curso_actual: idCurso,
       });
       const [estCurso] = await Promise.all([
@@ -144,7 +145,6 @@ function CursoHubAdmin() {
         cargarEstudiantesDisponibles(),
       ]);
       setEstudiantes(estCurso || []);
-      setEstudianteAgregar("");
       notify("success", "Estudiante agregado al curso");
     } catch (e) {
       notify("error", e.message || "No se pudo agregar el estudiante");
@@ -178,6 +178,14 @@ function CursoHubAdmin() {
       `${e.nombre} ${e.apellido}`.toLowerCase().includes(t),
     );
   }, [estudiantes, searchEst]);
+
+  const estudiantesDisponiblesFiltrados = useMemo(() => {
+    const t = searchAgregarEst.trim().toLowerCase();
+    if (!t) return estudiantesDisponibles;
+    return estudiantesDisponibles.filter((e) =>
+      `${e.nombre} ${e.apellido} ${e.cedula || ""}`.toLowerCase().includes(t),
+    );
+  }, [estudiantesDisponibles, searchAgregarEst]);
 
   const estudianteActual = useMemo(
     () => estudiantes.find((e) => String(e.id_estudiante) === String(estSel)),
@@ -339,6 +347,14 @@ const cargarNotasCurso = useCallback(async () => {
     } catch (e) {
       notify("error", e.message || "No se pudo crear la asignación");
     }
+  };
+
+  const abrirAsignacionDocente = (idMateria, idDocente = "") => {
+    setNuevaAsignacion({
+      id_materia: String(idMateria),
+      id_docente: idDocente ? String(idDocente) : "",
+    });
+    setAsignacionModalOpen(true);
   };
 
   const eliminarAsignacion = async (asignacion) => {
@@ -536,28 +552,48 @@ const cargarNotasCurso = useCallback(async () => {
                 value={searchEst}
                 onChange={(e) => setSearchEst(e.target.value)}
               />
-              <select
-                value={estudianteAgregar}
-                onChange={(e) => setEstudianteAgregar(e.target.value)}
-              >
-                <option value="">Agregar estudiante al curso</option>
-                {estudiantesDisponibles.map((est) => (
-                  <option key={est.id_estudiante} value={est.id_estudiante}>
-                    {est.nombre} {est.apellido}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="btn-add-docente"
-                disabled={!estudianteAgregar}
-                onClick={agregarEstudianteAlCurso}
-              >
-                <UserPlus size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
-                Añadir
-              </button>
             </div>
           </div>
+
+          <div className="course-hub-add-students">
+            <div className="docentes-header course-hub-add-students-header">
+              <div>
+                <h3>Agregar estudiantes al curso</h3>
+                <p>Busca un estudiante y agrégalo directo desde la lista.</p>
+              </div>
+              <input
+                className="table-search course-hub-add-search"
+                placeholder="Buscar por nombre o cédula…"
+                value={searchAgregarEst}
+                onChange={(e) => setSearchAgregarEst(e.target.value)}
+              />
+            </div>
+            <div className="course-hub-add-list">
+              {estudiantesDisponiblesFiltrados.length > 0 ? (
+                estudiantesDisponiblesFiltrados.map((est) => (
+                  <div key={est.id_estudiante} className="course-hub-add-item">
+                    <div>
+                      <strong>{est.nombre} {est.apellido}</strong>
+                      <span>{est.cedula || "Sin cédula"}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-success btn-inline-icon course-hub-add-btn"
+                      onClick={() => agregarEstudianteAlCurso(est.id_estudiante)}
+                    >
+                      <UserPlus size={14} />
+                      Añadir
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="course-hub-add-empty">
+                  No hay estudiantes disponibles para agregar.
+                </div>
+              )}
+            </div>
+          </div>
+
           <table>
             <thead>
               <tr>
@@ -615,20 +651,17 @@ const cargarNotasCurso = useCallback(async () => {
         <div className="table-container">
           <div className="docentes-header">
             <h3>Materias y docentes</h3>
-            <button
-              type="button"
-              className="btn-add-docente"
-              onClick={() => setAsignacionModalOpen(true)}
-            >
-              Añadir asignación
-            </button>
           </div>
-          <table>
+          <table className="plantillas-academicas-table course-hub-materias-table">
+            <colgroup>
+              <col style={{ width: "42%" }} />
+              <col style={{ width: "30%" }} />
+              <col style={{ width: "28%" }} />
+            </colgroup>
             <thead>
               <tr>
                 <th>Materia</th>
                 <th>Docente</th>
-                <th>Origen</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -645,24 +678,43 @@ const cargarNotasCurso = useCallback(async () => {
                         ? `${asignacion.docente.nombre} ${asignacion.docente.apellido}`
                         : asignacion?.id_docente || "Sin asignar"}
                     </td>
-                    <td>{item.obligatoria ? "Estructura" : "Opcional"}</td>
                     <td>
-                      {asignacion ? (
+                      <div className="plantillas-academicas-actions-row course-hub-actions-row">
                         <button
                           type="button"
-                          className="btn-danger"
-                          style={{ fontSize: "0.78rem", padding: "0.25rem 0.5rem" }}
-                          onClick={() => eliminarAsignacion(asignacion)}
+                          className={asignacion ? "btn-view btn-inline-icon" : "btn-success btn-inline-icon"}
+                          onClick={() =>
+                            abrirAsignacionDocente(
+                              item.id_materia,
+                              asignacion?.id_docente || "",
+                            )
+                          }
                         >
-                          <Trash2 size={12} />
+                          {asignacion ? <Pencil size={12} /> : <UserPlus size={12} />}
+                          {asignacion ? "Cambiar" : "Asignar"}
                         </button>
-                      ) : (
-                        <span className="panel-sub">Pendiente</span>
-                      )}
+                        {asignacion ? (
+                          <button
+                            type="button"
+                            className="btn-danger btn-inline-icon"
+                            onClick={() => eliminarAsignacion(asignacion)}
+                          >
+                            <Trash2 size={12} />
+                            Eliminar
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 );
               })}
+              {materiasEstructura.length === 0 && asignaciones.length === 0 && (
+                <tr>
+                  <td colSpan={3} style={{ textAlign: "center" }}>
+                    Aún no hay materias heredadas ni asignadas para este curso
+                  </td>
+                </tr>
+              )}
               {materiasEstructura.length === 0 &&
                 asignaciones.map((a) => (
                   <tr key={a.id_cmd}>
@@ -672,12 +724,19 @@ const cargarNotasCurso = useCallback(async () => {
                         ? `${a.docente.nombre} ${a.docente.apellido}`
                         : a.id_docente}
                     </td>
-                    <td>Manual</td>
                     <td>
                       <button
                         type="button"
+                        className="btn-view"
+                        style={{ fontSize: "0.78rem", padding: "0.25rem 0.55rem" }}
+                        onClick={() => abrirAsignacionDocente(a.id_materia, a.id_docente)}
+                      >
+                        Cambiar
+                      </button>
+                      <button
+                        type="button"
                         className="btn-danger"
-                        style={{ fontSize: "0.78rem", padding: "0.25rem 0.5rem" }}
+                        style={{ fontSize: "0.78rem", padding: "0.25rem 0.5rem", marginLeft: 8 }}
                         onClick={() => eliminarAsignacion(a)}
                       >
                         <Trash2 size={12} />
@@ -685,13 +744,6 @@ const cargarNotasCurso = useCallback(async () => {
                     </td>
                   </tr>
                 ))}
-              {materiasEstructura.length === 0 && asignaciones.length === 0 && (
-                <tr>
-                  <td colSpan={4} style={{ textAlign: "center" }}>
-                    Aún no hay materias heredadas ni asignadas para este curso
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
@@ -1004,30 +1056,38 @@ const cargarNotasCurso = useCallback(async () => {
       )}
       {tutorModalOpen && (
         <div className="admin-modal">
-          <div className="admin-modal-content">
+          <div className="admin-modal-content course-hub-tutor-modal">
             <h3>{tutor ? "Cambiar tutor" : "Asignar tutor"}</h3>
-            <select
+            <CustomSelect
               value={nuevoTutor}
-              onChange={(e) => setNuevoTutor(e.target.value)}
-            >
-              <option value="">Seleccionar docente</option>
-              {docentes.map((d) => (
-                <option key={d.id_usuario} value={d.id_usuario}>
-                  {d.nombre} {d.apellido}
-                </option>
-              ))}
-            </select>
+              onChange={setNuevoTutor}
+              options={[
+                { value: "", label: "Seleccionar docente" },
+                ...docentes.map((d) => ({
+                  value: String(d.id_usuario),
+                  label: `${d.nombre} ${d.apellido}`,
+                })),
+              ]}
+              placeholder="Seleccionar docente"
+              className="custom-select-white"
+              searchable
+              searchPlaceholder="Buscar docente..."
+              menuMaxHeight={220}
+            />
             <div className="modal-buttons">
               <button
-                className="btn-cancel"
+                type="button"
+                className="btn-view btn-inline-icon"
                 onClick={() => {
                   setTutorModalOpen(false);
                   setNuevoTutor("");
                 }}
               >
+                <X size={14} />
                 Cancelar
               </button>
-              <button className="btn-save" onClick={guardarTutor}>
+              <button type="button" className="btn-success btn-inline-icon" onClick={guardarTutor}>
+                <Save size={14} />
                 Guardar
               </button>
             </div>
@@ -1036,52 +1096,52 @@ const cargarNotasCurso = useCallback(async () => {
       )}
       {asignacionModalOpen && (
         <div className="admin-modal">
-          <div className="admin-modal-content">
-            <h3>Asignar materia y docente</h3>
-            <select
-              value={nuevaAsignacion.id_materia}
-              onChange={(e) =>
-                setNuevaAsignacion({
-                  ...nuevaAsignacion,
-                  id_materia: e.target.value,
-                })
-              }
-            >
-              <option value="">Seleccionar materia</option>
-              {materiasList.map((m) => (
-                <option key={m.id_materia} value={m.id_materia}>
-                  {m.nombre}
-                </option>
-              ))}
-            </select>
-            <select
+          <div className="admin-modal-content course-hub-assignment-modal">
+            <h3>Asignar docente</h3>
+            <div className="course-hub-assignment-materia">
+              <span>Materia</span>
+              <strong>
+                {materiasEstructura.find((m) => String(m.id_materia) === String(nuevaAsignacion.id_materia))?.materia?.nombre ||
+                  materiasList.find((m) => String(m.id_materia) === String(nuevaAsignacion.id_materia))?.nombre ||
+                  "Materia seleccionada"}
+              </strong>
+            </div>
+            <CustomSelect
               value={nuevaAsignacion.id_docente}
-              onChange={(e) =>
+              onChange={(value) =>
                 setNuevaAsignacion({
                   ...nuevaAsignacion,
-                  id_docente: e.target.value,
+                  id_docente: value,
                 })
               }
-            >
-              <option value="">Seleccionar docente</option>
-              {docentes.map((d) => (
-                <option key={d.id_usuario} value={d.id_usuario}>
-                  {d.nombre} {d.apellido}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: "", label: "Seleccionar docente" },
+                ...docentes.map((d) => ({
+                  value: String(d.id_usuario),
+                  label: `${d.nombre} ${d.apellido}`,
+                })),
+              ]}
+              placeholder="Seleccionar docente"
+              className="custom-select-white"
+              searchable
+              searchPlaceholder="Buscar docente..."
+              menuMaxHeight={220}
+            />
             <div className="modal-buttons">
               <button
-                className="btn-cancel"
+                type="button"
+                className="btn-view btn-inline-icon"
                 onClick={() => {
                   setAsignacionModalOpen(false);
                   setNuevaAsignacion({ id_materia: "", id_docente: "" });
                 }}
               >
+                <X size={14} />
                 Cancelar
               </button>
-              <button className="btn-save" onClick={guardarAsignacion}>
-                Crear
+              <button type="button" className="btn-success btn-inline-icon" onClick={guardarAsignacion}>
+                <Save size={14} />
+                Guardar
               </button>
             </div>
           </div>

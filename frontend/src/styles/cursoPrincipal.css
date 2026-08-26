@@ -239,6 +239,223 @@
   margin-bottom: 0.95rem;
 }
 
+.materia-selector-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  flex-wrap: nowrap;
+}
+
+.materia-selector-inline .custom-select-white {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.materia-config-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  min-width: 142px;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.05;
+}
+
+.materia-config-btn-text {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.btn-add-docente {
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+  font-family: "Trebuchet MS", "Segoe UI", Tahoma, sans-serif;
+  padding: 0.56rem 0.86rem;
+  font-size: 0.84rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: linear-gradient(135deg, #2f9f74 0%, #21795d 100%);
+  box-shadow: 0 8px 15px rgba(33, 121, 93, 0.24);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s,
+    filter 0.2s;
+}
+
+.btn-add-docente:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.03);
+}
+
+.btn-add-docente:disabled {
+  opacity: 0.64;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-add-student-wrap {
+  min-width: 132px;
+  line-height: 1.05;
+}
+
+.btn-add-student-wrap span {
+  display: inline-block;
+}
+
+.btn-neutral {
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+  font-family: "Trebuchet MS", "Segoe UI", Tahoma, sans-serif;
+  padding: 0.56rem 0.86rem;
+  font-size: 0.84rem;
+  background: linear-gradient(135deg, #7a8aa8 0%, #5b6c8f 100%);
+  box-shadow: 0 8px 15px rgba(67, 83, 114, 0.24);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s,
+    filter 0.2s;
+}
+
+.btn-neutral:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.03);
+}
+
+.btn-neutral:disabled {
+  opacity: 0.64;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-success {
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+  font-family: "Trebuchet MS", "Segoe UI", Tahoma, sans-serif;
+  padding: 0.56rem 0.86rem;
+  font-size: 0.84rem;
+  background: linear-gradient(135deg, #2f9f74 0%, #21795d 100%);
+  box-shadow: 0 8px 15px rgba(33, 121, 93, 0.24);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s,
+    filter 0.2s;
+}
+
+.btn-success:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.03);
+}
+
+.btn-success:disabled {
+  opacity: 0.64;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.course-student-create-overlay {
+  z-index: 160;
+}
+
+.course-student-create-modal {
+  width: min(92vw, 420px);
+  max-height: 88vh;
+  overflow: auto;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  border: 1px solid rgba(221, 229, 244, 0.95);
+  padding: 1.4rem;
+  box-shadow: 0 24px 48px rgba(23, 33, 53, 0.32);
+  position: relative;
+}
+
+.course-student-create-modal h3 {
+  margin: 0 0 0.75rem;
+  color: #223553;
+  text-align: center;
+}
+
+.course-student-create-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(109, 124, 150, 0.12);
+  color: #5a6a83;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.course-student-create-close:hover {
+  background: rgba(109, 124, 150, 0.2);
+}
+
+.course-student-create-sub {
+  text-align: center;
+  margin: 0 0 1rem;
+}
+
+.course-student-create-modal input {
+  width: 100%;
+  margin-bottom: 0.6rem;
+}
+
+.course-student-create-buttons {
+  margin-top: 0.25rem;
+}
+
+.course-student-create-buttons.modal-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.course-student-create-buttons .btn-neutral,
+.course-student-create-buttons .btn-success {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.72rem 0.9rem;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.course-student-create-buttons .btn-neutral {
+  background: linear-gradient(135deg, #7a8aa8 0%, #5b6c8f 100%);
+}
+
+.course-student-create-buttons .btn-success {
+  background: linear-gradient(135deg, #2f9f74 0%, #21795d 100%);
+}
+
+.course-student-create-buttons .btn-neutral:disabled,
+.course-student-create-buttons .btn-success:disabled {
+  opacity: 0.64;
+  cursor: not-allowed;
+}
+
 .materia-selector label {
   font-weight: 700;
   color: #2a3c5f;
@@ -1121,6 +1338,299 @@ textarea:focus,
   margin-bottom: 0.55rem;
 }
 
+.course-setup-empty {
+  display: grid;
+  gap: 0.9rem;
+  justify-items: center;
+  text-align: center;
+}
+
+.course-setup-empty h2 {
+  margin: 0;
+}
+
+.course-setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.65rem;
+}
+
+.course-setup-actions-primary {
+  margin-top: 0.25rem;
+}
+
+.course-setup-actions-primary .btn-primary {
+  min-width: min(100%, 280px);
+  min-height: 48px;
+  padding: 0.95rem 1.15rem;
+  font-size: 0.98rem;
+  border-radius: 14px;
+  box-shadow: 0 14px 26px rgba(31, 145, 222, 0.18);
+}
+
+.course-setup-actions-inline {
+  margin: 0.9rem 0 0.3rem;
+}
+
+.course-setup-actions .btn-primary,
+.course-setup-actions .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.course-mini-modal-overlay {
+  z-index: 120;
+}
+
+.course-mini-modal {
+  width: min(100%, 660px);
+}
+
+.course-confirm-overlay {
+  z-index: 160;
+}
+
+.course-confirm-modal {
+  width: min(92vw, 300px);
+}
+
+.course-confirm-modal .modal-insumo-edit-footer .btn-cancel,
+.course-confirm-modal .modal-insumo-edit-footer .btn-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.course-confirm-modal .modal-insumo-edit-footer .btn-cancel,
+.course-confirm-modal .modal-insumo-edit-footer .btn-delete {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.course-confirm-modal .btn-delete-inline {
+  margin-left: 0;
+}
+
+.course-mini-modal-body {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.materia-config-section {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.materia-config-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.materia-config-section-header h4 {
+  margin: 0;
+  color: #223553;
+  font-size: 0.95rem;
+}
+
+.materia-assigned-pill {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.materia-assigned-pill-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.materia-assigned-pill-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  text-align: left;
+}
+
+.materia-assigned-pill-x {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(163, 59, 82, 0.22);
+  background: rgba(255, 255, 255, 0.55);
+  color: #a33b52;
+  flex: 0 0 auto;
+}
+
+.estudiante-pill-row-wrap {
+  grid-template-columns: repeat(auto-fit, minmax(170px, max-content));
+}
+
+.estudiante-course-pill {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.estudiante-pill-flex {
+  justify-content: space-between;
+  white-space: normal;
+  text-align: left;
+}
+
+.estudiantes-tab-panel {
+  margin-top: 0.2rem;
+}
+
+.estudiantes-tab-header {
+  align-items: center;
+}
+
+.estudiantes-tab-header .panel-sub {
+  margin-bottom: 0;
+}
+
+.estudiantes-course-filters {
+  display: grid;
+  grid-template-columns: 1.4fr 0.9fr auto;
+  gap: 0.7rem;
+  margin: 0.95rem 0;
+}
+
+.estudiantes-course-filters input {
+  width: 100%;
+  min-width: 0;
+}
+
+.estudiantes-course-table-container {
+  margin-top: 0.5rem;
+}
+
+.student-table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.student-state-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.26rem 0.58rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  background: #edf2ff;
+  color: #2e4f91;
+}
+
+.student-state-pill.student-state-retirado {
+  background: #fff1f3;
+  color: #a33b52;
+}
+
+.student-state-pill.student-state-graduado {
+  background: #eef8f2;
+  color: #2f7a4e;
+}
+
+.student-state-pill.student-state-sin-estado {
+  background: #eff2f6;
+  color: #566781;
+}
+
+.materia-pill-summary {
+  margin-top: 0.1rem;
+}
+
+.course-mini-modal-header {
+  justify-content: center;
+  position: relative;
+}
+
+.course-mini-modal-title {
+  margin: 0;
+  width: 100%;
+  text-align: center;
+}
+
+.course-mini-modal-header .btn-cerrar {
+  position: absolute;
+  right: 1rem;
+}
+
+.course-mini-modal .modal-insumo-edit-footer .btn-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.course-mini-empty-helper {
+  margin: 0;
+  color: #5b6e90;
+  font-size: 0.88rem;
+}
+
+.materia-pill-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, max-content));
+  gap: 0.45rem;
+  justify-content: start;
+}
+
+.materia-pill-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  text-align: left;
+}
+
+.materia-pill-option .materia-pill-code {
+  font-size: 0.72rem;
+  color: #5b6e90;
+}
+
+.materia-pill-option.active .materia-pill-code {
+  color: #2e4f91;
+}
+
+.materia-pill-summary {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid #dce5f4;
+  border-radius: 14px;
+  background: #f8fbff;
+}
+
+.materia-pill-summary-title {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #243756;
+}
+
+.materia-pill-summary-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.materia-summary-badge {
+  padding: 0.3rem 0.55rem;
+  font-size: 0.78rem;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1140,6 +1650,14 @@ textarea:focus,
   border-radius: 14px;
   border: 1px solid #dde5f4;
   box-shadow: 0 22px 40px rgba(23, 33, 53, 0.28);
+}
+
+.modal-notas.course-student-create-modal {
+  width: min(92vw, 420px);
+}
+
+.modal-notas.course-confirm-modal {
+  width: min(92vw, 380px);
 }
 
 .modal-header {

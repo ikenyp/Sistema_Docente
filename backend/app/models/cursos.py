@@ -25,6 +25,11 @@ class Curso(Base):
     estructura_academica = relationship("EstructuraAcademica", back_populates="cursos")
 
     estudiantes = relationship("Estudiante", back_populates="curso_actual")
-    materias_docentes = relationship("CursoMateriaDocente", back_populates="curso")
+    materias_docentes = relationship(
+        "CursoMateriaDocente",
+        back_populates="curso",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     comportamientos = relationship("Comportamiento", back_populates="curso")
 

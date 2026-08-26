@@ -57,14 +57,6 @@ function Admin() {
       setAniosLectivos(aniosBackend);
       if (aniosBackend.length > 0) {
         const primerAnio = normalizarAnioLectivo(aniosBackend[0].anio_lectivo);
-        const anioResuelto = (() => {
-          const actual = anioActivo;
-          if (!actual) return primerAnio;
-          const existeEnLista = aniosBackend.some(
-            (item) => normalizarAnioLectivo(item.anio_lectivo) === actual,
-          );
-          return existeEnLista ? actual : primerAnio;
-        })();
         setAnioActivo((prev) => {
           if (!prev) return primerAnio;
           const existeEnLista = aniosBackend.some(
@@ -72,7 +64,6 @@ function Admin() {
           );
           return existeEnLista ? prev : primerAnio;
         });
-        localStorage.setItem("anio_lectivo_activo", anioResuelto);
       }
     } catch (e) {
       const msg = e.message || "Error al cargar datos del dashboard";
@@ -156,11 +147,9 @@ function Admin() {
     return cursos.filter((c) => normalizarAnioLectivo(c.anio_lectivo) === anioActivo);
   }, [cursos, anioActivo]);
 
-  const aniosSelector = useMemo(() => anios, [anios]);
-
   const anioSeleccionado = useMemo(
-    () => aniosSelector.find((item) => item === anioActivo) || anioActivo,
-    [aniosSelector, anioActivo],
+    () => anios.find((item) => item === anioActivo) || anioActivo,
+    [anios, anioActivo],
   );
 
   const cursoDelAnioSeleccionado = useMemo(
@@ -216,7 +205,7 @@ function Admin() {
       await aniosLectivosAPI.actualizar(actual.id_anio_lectivo, { activo: false });
       await aniosLectivosAPI.eliminar(actual.id_anio_lectivo);
       await cargar();
-      setAnioActivo(aniosSelector[0] || "");
+      setAnioActivo(anios[0] || "");
       setModalConfigAnioOpen(false);
       notify("success", "Año lectivo eliminado");
     } catch (e) {
@@ -315,7 +304,7 @@ function Admin() {
           <CustomSelect
             value={anioActivo}
             onChange={setAnioActivo}
-            options={aniosSelector.map((a) => ({ value: a, label: a }))}
+            options={anios.map((a) => ({ value: a, label: a }))}
             placeholder="—"
             className="custom-select-white admin-year-select"
           />

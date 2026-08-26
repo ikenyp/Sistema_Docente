@@ -113,22 +113,15 @@ async def ensure_estructura_anio_lectivo_column():
                 text("alter table materias add column descripcion varchar(255)")
             )
 
-        result_materia_uq = await session.execute(
+        await session.execute(
+            text("alter table materias drop constraint if exists uq_materia_contexto_codigo")
+        )
+        await session.execute(
             text(
-                """
-                select count(*)
-                from information_schema.table_constraints
-                where table_name = 'materias'
-                  and constraint_name = 'uq_materia_contexto_codigo'
-                """
+                "create unique index if not exists ix_materia_contexto_codigo_activo "
+                "on materias (id_contexto, codigo) where eliminado = false"
             )
         )
-        if not result_materia_uq.scalar_one():
-            await session.execute(
-                text(
-                    "alter table materias add constraint uq_materia_contexto_codigo unique (id_contexto, codigo)"
-                )
-            )
 
         await session.commit()
 

@@ -7,8 +7,11 @@ import {
   estudiantesAPI,
   insumosAPI,
   notasAPI,
+  asignacionesAPI,
+  cmdAPI,
+  materiasAPI,
 } from "../../services/api";
-import { Save } from "lucide-react";
+import { Save, UserPlus, BookOpen, Settings2, Trash2, Brush, X } from "lucide-react";
 import CustomSelect from "../../components/admin/CustomSelect";
 import { TabInsumos } from "./components/TabInsumos";
 import { TabAsistencia } from "./components/TabAsistencia";
@@ -24,7 +27,10 @@ function CursoPrincipal() {
   const navigate = useNavigate();
   const { id_curso } = useParams();
   const location = useLocation();
-  const { curso } = location.state || { curso: null };
+  const estadoNavegacion = location.state || { curso: null };
+  const { curso } = estadoNavegacion;
+  const appMode = (localStorage.getItem("app_mode") || "institucional").toLowerCase();
+  const esModoPersonal = appMode === "personal";
 
   const fechaHoy = useMemo(() => new Date().toISOString().split("T")[0], []);
 
@@ -38,9 +44,28 @@ function CursoPrincipal() {
   const [materiasCurso, setMateriasCurso] = useState([]);
   const [materiaSeleccionada, setMateriaSeleccionada] = useState(null);
   const [insumosMateria, setInsumosMateria] = useState([]);
+  const [materiasDisponiblesAgregar, setMateriasDisponiblesAgregar] = useState([]);
+  const [cargandoOpcionesCurso, setCargandoOpcionesCurso] = useState(false);
+  const [modalMateriaOpen, setModalMateriaOpen] = useState(false);
+  const [insumosPorCMDConfig, setInsumosPorCMDConfig] = useState({});
+  const [cargandoConfiguracionMaterias, setCargandoConfiguracionMaterias] = useState(false);
+  const [materiasAgregarSeleccionadas, setMateriasAgregarSeleccionadas] = useState([]);
+  const [materiaPendienteQuitar, setMateriaPendienteQuitar] = useState(null);
+  const [quitandoMateria, setQuitandoMateria] = useState(false);
+  const [mostrarCrearEstudiante, setMostrarCrearEstudiante] = useState(false);
+  const [estudianteCreando, setEstudianteCreando] = useState({
+    nombre: "",
+    apellido: "",
+    cedula: "",
+    fecha_nacimiento: "",
+  });
+  const [guardandoMateriaCurso, setGuardandoMateriaCurso] = useState(false);
+  const [guardandoEstudianteCurso, setGuardandoEstudianteCurso] = useState(false);
 
   // Estudiantes del curso
   const [estudiantesCurso, setEstudiantesCurso] = useState([]);
+  const [busquedaEstudiantesCurso, setBusquedaEstudiantesCurso] = useState("");
+  const [estadoEstudiantesCurso, setEstadoEstudiantesCurso] = useState("");
 
   // Periodos
   const [periodos, setPeriodos] = useState([]);
@@ -63,7 +88,19 @@ function CursoPrincipal() {
   const [cargandoInsumo, setCargandoInsumo] = useState(false);
 
   // Tabs
-  const [activeTab, setActiveTab] = useState("insumos");
+  const [activeTab, setActiveTab] = useState(esModoPersonal ? "estudiantes" : "insumos");
+
+  useEffect(() => {
+    if (!esModoPersonal) return;
+
+    if (estadoNavegacion.abrirTab) {
+      setActiveTab(estadoNavegacion.abrirTab);
+    }
+
+    if (estadoNavegacion.abrirConfigMaterias) {
+      setModalMateriaOpen(true);
+    }
+  }, [esModoPersonal, estadoNavegacion.abrirTab, estadoNavegacion.abrirConfigMaterias]);
 
   // Asistencia
   const [asistencias, setAsistencias] = useState([]);
@@ -94,15 +131,19 @@ function CursoPrincipal() {
   };
 
   const tabs = useMemo(
-    () => [
-      { id: "insumos", label: "Insumos y notas" },
-      { id: "asistencia", label: "Asistencia" },
-      { id: "comportamiento", label: "Comportamiento" },
-      { id: "notasEstudiante", label: "Notas por estudiante" },
-      { id: "promedios", label: "Promedios" },
-      { id: "periodizacion", label: "Periodizacion" },
-    ],
-    [],
+    () => {
+      const base = [
+        { id: "insumos", label: "Insumos y notas" },
+        { id: "asistencia", label: "Asistencia" },
+        { id: "comportamiento", label: "Comportamiento" },
+        { id: "notasEstudiante", label: "Notas por estudiante" },
+        { id: "promedios", label: "Promedios" },
+        { id: "periodizacion", label: "Periodizacion" },
+      ];
+
+      return esModoPersonal ? [{ id: "estudiantes", label: "Estudiantes" }, ...base] : base;
+    },
+    [esModoPersonal],
   );
 
   const periodosVisibles = useMemo(() => {
@@ -127,6 +168,27 @@ function CursoPrincipal() {
       })),
     [materiasCurso],
   );
+
+  const materiasAgregarSeleccionadasDetalle = useMemo(
+    () =>
+      materiasDisponiblesAgregar.filter((materia) =>
+        materiasAgregarSeleccionadas.includes(String(materia.id_materia)),
+      ),
+    [materiasAgregarSeleccionadas, materiasDisponiblesAgregar],
+  );
+
+  const estudiantesCursoFiltrados = useMemo(() => {
+    const busqueda = busquedaEstudiantesCurso.trim().toLowerCase();
+    return (estudiantesCurso || [])
+      .filter((est) => {
+        const estado = String(est.estado || "").toLowerCase();
+        const coincideEstado = !estadoEstudiantesCurso || estado === estadoEstudiantesCurso;
+        const texto = `${est.nombre || ""} ${est.apellido || ""} ${est.cedula || ""}`.toLowerCase();
+        const coincideBusqueda = !busqueda || texto.includes(busqueda);
+        return coincideEstado && coincideBusqueda;
+      })
+      .sort((a, b) => `${a.apellido || ""} ${a.nombre || ""}`.localeCompare(`${b.apellido || ""} ${b.nombre || ""}`, "es"));
+  }, [busquedaEstudiantesCurso, estadoEstudiantesCurso, estudiantesCurso]);
 
   const periodosOptions = useMemo(
     () =>
@@ -167,6 +229,181 @@ function CursoPrincipal() {
     }
   }, [id_curso]);
 
+  const cargarMateriasDisponiblesAgregar = useCallback(async () => {
+    if (!esModoPersonal) return;
+    try {
+      setCargandoOpcionesCurso(true);
+      const catalogo = await materiasAPI.listar({ size: 100 });
+      const asignadas = new Set(
+        (materiasCurso || []).map((m) => String(m.id_materia)),
+      );
+      setMateriasDisponiblesAgregar(
+        (catalogo || []).filter(
+          (materia) => !materia.eliminado && !asignadas.has(String(materia.id_materia)),
+        ),
+      );
+    } catch (err) {
+      console.error("Error al cargar materias disponibles:", err);
+      setMateriasDisponiblesAgregar([]);
+    } finally {
+      setCargandoOpcionesCurso(false);
+    }
+  }, [esModoPersonal, materiasCurso]);
+
+  const cargarConfiguracionMaterias = useCallback(async () => {
+    if (!modalMateriaOpen) return;
+    try {
+      setCargandoConfiguracionMaterias(true);
+      const entradas = await Promise.all(
+        (materiasCurso || []).map(async (cmd) => {
+          try {
+            const insumos = await insumosAPI.listarPorCMD(cmd.id_cmd);
+            return [String(cmd.id_cmd), (insumos || []).length];
+          } catch {
+            return [String(cmd.id_cmd), 0];
+          }
+        }),
+      );
+      setInsumosPorCMDConfig(Object.fromEntries(entradas));
+    } finally {
+      setCargandoConfiguracionMaterias(false);
+    }
+  }, [materiasCurso, modalMateriaOpen]);
+
+  const quitarMateriaDelCurso = async (cmd) => {
+    const tieneInsumos = Number(insumosPorCMDConfig[String(cmd.id_cmd)] || 0) > 0;
+    if (tieneInsumos) {
+      notify("error", "No se puede quitar una materia que ya tiene insumos");
+      return;
+    }
+
+    try {
+      setQuitandoMateria(true);
+      await cmdAPI.eliminar(cmd.id_cmd);
+      setMateriaPendienteQuitar(null);
+      await cargarDatos();
+      await cargarConfiguracionMaterias();
+      notify("success", "Materia quitada del curso");
+    } catch (err) {
+      notify("error", err.message || "No se pudo quitar la materia");
+    } finally {
+      setQuitandoMateria(false);
+    }
+  };
+
+  const abrirConfirmacionQuitarMateria = (cmd) => {
+    const tieneInsumos = Number(insumosPorCMDConfig[String(cmd.id_cmd)] || 0) > 0;
+    if (tieneInsumos) {
+      notify("error", "Solo puedes quitar materias sin asignaciones");
+      return;
+    }
+    setMateriaPendienteQuitar(cmd);
+  };
+
+  const guardarMateriaAlCurso = async () => {
+    if (!materiasAgregarSeleccionadas.length) {
+      notify("error", "Selecciona al menos una materia");
+      return;
+    }
+    if (!datosUsuario?.id_usuario) {
+      notify("error", "No se pudo identificar el docente actual");
+      return;
+    }
+    try {
+      setGuardandoMateriaCurso(true);
+      for (const idMateria of materiasAgregarSeleccionadas) {
+        await asignacionesAPI.crear({
+          id_curso: Number(id_curso),
+          id_materia: Number(idMateria),
+          id_docente: Number(datosUsuario.id_usuario),
+        });
+      }
+      setModalMateriaOpen(false);
+      setMateriasAgregarSeleccionadas([]);
+      await cargarDatos();
+      notify(
+        "success",
+        materiasAgregarSeleccionadas.length === 1
+          ? "Materia agregada al curso"
+          : "Materias agregadas al curso",
+      );
+    } catch (err) {
+      notify("error", err.message || "No se pudo agregar la materia");
+    } finally {
+      setGuardandoMateriaCurso(false);
+    }
+  };
+
+  const abrirModalAgregarMateria = () => {
+    setMateriasAgregarSeleccionadas([]);
+    setModalMateriaOpen(true);
+  };
+
+  const toggleMateriaSeleccionada = (idMateria) => {
+    setMateriasAgregarSeleccionadas((prev) => {
+      const id = String(idMateria);
+      return prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
+    });
+  };
+
+  const abrirModalAgregarEstudiante = () => {
+    setEstudianteCreando({
+      nombre: "",
+      apellido: "",
+      cedula: "",
+      fecha_nacimiento: "",
+    });
+    setMostrarCrearEstudiante(true);
+  };
+
+  const quitarEstudianteDelCurso = async (estudiante) => {
+    try {
+      const confirmado = await requestConfirm(
+        `¿Quitar a ${estudiante.apellido} ${estudiante.nombre} del curso?`,
+        { title: "Quitar estudiante" },
+      );
+      if (!confirmado) return;
+
+      await estudiantesAPI.actualizar(Number(estudiante.id_estudiante), {
+        id_curso_actual: null,
+      });
+      await cargarDatos();
+      notify("success", "Estudiante retirado del curso");
+    } catch (err) {
+      notify("error", err.message || "No se pudo retirar el estudiante");
+    }
+  };
+
+  const guardarNuevoEstudianteCurso = async () => {
+    if (!estudianteCreando.nombre.trim() || !estudianteCreando.apellido.trim() || !estudianteCreando.cedula.trim()) {
+      notify("error", "Nombre, apellido y cédula son obligatorios");
+      return;
+    }
+    if (!estudianteCreando.fecha_nacimiento) {
+      notify("error", "La fecha de nacimiento es obligatoria");
+      return;
+    }
+
+    try {
+      setGuardandoEstudianteCurso(true);
+      await estudiantesAPI.crear({
+        nombre: estudianteCreando.nombre.trim(),
+        apellido: estudianteCreando.apellido.trim(),
+        cedula: estudianteCreando.cedula.trim(),
+        fecha_nacimiento: estudianteCreando.fecha_nacimiento,
+        estado: "matriculado",
+        id_curso_actual: Number(id_curso),
+      });
+      setMostrarCrearEstudiante(false);
+      await cargarDatos();
+      notify("success", "Estudiante agregado al curso");
+    } catch (err) {
+      notify("error", err.message || "No se pudo agregar el estudiante");
+    } finally {
+      setGuardandoEstudianteCurso(false);
+    }
+  };
+
   const cargarDatos = useCallback(async () => {
     try {
       setCargando(true);
@@ -196,14 +433,14 @@ function CursoPrincipal() {
             (item) => item.id_docente === usuario.id_usuario,
           );
       setMateriasCurso(cmd || []);
+      setMateriaSeleccionada(cmd && cmd.length > 0 ? cmd[0] : null);
+      if (!cmd || cmd.length === 0) {
+        setInsumosMateria([]);
+        setAsistencias([]);
+      }
 
       const estudiantes = dashboard?.estudiantes || [];
       setEstudiantesCurso(estudiantes || []);
-
-      if (cmd && cmd.length > 0) {
-        const primera = cmd[0];
-        setMateriaSeleccionada(primera);
-      }
 
       // Cargar periodizacion con el curso actual
       if (cursoActual) {
@@ -258,6 +495,18 @@ function CursoPrincipal() {
       cargarAsistencia(materiaSeleccionada.id_cmd);
     }
   }, [activeTab, materiaSeleccionada, cargarInsumos, cargarAsistencia]);
+
+  useEffect(() => {
+    if (modalMateriaOpen) {
+      cargarMateriasDisponiblesAgregar();
+    }
+  }, [modalMateriaOpen, cargarMateriasDisponiblesAgregar]);
+
+  useEffect(() => {
+    if (modalMateriaOpen) {
+      cargarConfiguracionMaterias();
+    }
+  }, [modalMateriaOpen, cargarConfiguracionMaterias]);
 
   useEffect(() => {
     if (activeTab === "comportamiento") {
@@ -694,12 +943,20 @@ function CursoPrincipal() {
             <p>{error}</p>
           </div>
         ) : materiasCurso.length === 0 ? (
-          <div className="empty-state">
+          <div className="empty-state course-setup-empty">
             <h2>No hay materias asignadas</h2>
             <p>
-              Aún no hay materias asignadas a este curso. Las materias
-              aparecerán aquí una vez sean añadidas.
+              Aún no hay materias asignadas a este curso. El siguiente paso es
+              agregar una materia para habilitar el resto del curso.
             </p>
+            {esModoPersonal && (
+              <div className="course-setup-actions course-setup-actions-primary">
+                <button type="button" className="btn-primary" onClick={abrirModalAgregarMateria}>
+                  <BookOpen size={14} />
+                  <span>Añadir materia</span>
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -775,23 +1032,38 @@ function CursoPrincipal() {
 
             <div className="materia-selector">
                 <label>Selecciona Materia:</label>
-                <CustomSelect
-                  value={materiaSeleccionada?.id_cmd ? String(materiaSeleccionada.id_cmd) : ""}
-                  onChange={async (value) => {
-                    const selected = materiasCurso.find(
-                      (m) => String(m.id_cmd) === String(value),
-                    );
-                    setMateriaSeleccionada(selected);
-                    await cargarInsumos(selected.id_cmd);
-                    await cargarAsistencia(selected.id_cmd);
-                    if (estudianteSeleccionado) {
-                      cargarNotasEstudiante(estudianteSeleccionado);
-                    }
-                  }}
-                  options={materiasOptions}
-                  placeholder={materiaSeleccionada ? materiaNombre(materiaSeleccionada) : "Selecciona materia"}
-                  className="custom-select-white"
-                />
+                <div className="materia-selector-inline">
+                  <CustomSelect
+                    value={materiaSeleccionada?.id_cmd ? String(materiaSeleccionada.id_cmd) : ""}
+                    onChange={async (value) => {
+                      const selected = materiasCurso.find(
+                        (m) => String(m.id_cmd) === String(value),
+                      );
+                      setMateriaSeleccionada(selected);
+                      await cargarInsumos(selected.id_cmd);
+                      await cargarAsistencia(selected.id_cmd);
+                      if (estudianteSeleccionado) {
+                        cargarNotasEstudiante(estudianteSeleccionado);
+                      }
+                    }}
+                    options={materiasOptions}
+                    placeholder={materiaSeleccionada ? materiaNombre(materiaSeleccionada) : "Selecciona materia"}
+                    className="custom-select-white"
+                  />
+                  {esModoPersonal && (
+                    <button
+                      type="button"
+                      className="btn-secondary materia-config-btn"
+                      onClick={() => setModalMateriaOpen(true)}
+                    >
+                      <span className="materia-config-btn-text">
+                        <span>Configurar</span>
+                        <span>materias</span>
+                      </span>
+                      <Settings2 size={14} />
+                    </button>
+                  )}
+                </div>
             </div>
 
             <div className="tabs-curso">
@@ -807,6 +1079,107 @@ function CursoPrincipal() {
                   </button>
                 ))}
             </div>
+
+            {esModoPersonal && activeTab === "estudiantes" && (
+              <div className="panel-card tab-pane active estudiantes-tab-panel">
+                <div className="panel-header estudiantes-tab-header">
+                  <div>
+                    <h3>Estudiantes</h3>
+                    <p className="panel-sub">Gestiona los estudiantes del curso. Puedes buscar, filtrar y retirar.</p>
+                  </div>
+                  <button type="button" className="btn-add-docente btn-inline-icon btn-add-student-wrap" onClick={abrirModalAgregarEstudiante}>
+                    <UserPlus size={16} />
+                    <span>Añadir<br />Estudiante</span>
+                  </button>
+                </div>
+
+                <div className="estudiantes-course-filters">
+                  <input
+                    placeholder="Buscar por nombre, apellido o cédula"
+                    value={busquedaEstudiantesCurso}
+                    onChange={(e) => setBusquedaEstudiantesCurso(e.target.value)}
+                  />
+                  <CustomSelect
+                    value={estadoEstudiantesCurso}
+                    onChange={setEstadoEstudiantesCurso}
+                    options={[
+                      { value: "", label: "Todos los estados" },
+                      { value: "matriculado", label: "Matriculado" },
+                      { value: "retirado", label: "Retirado" },
+                      { value: "graduado", label: "Graduado" },
+                    ]}
+                    placeholder="Todos los estados"
+                    className="custom-select-white"
+                  />
+                  <button
+                    type="button"
+                    className="btn-neutral btn-inline-icon estudiantes-clear-btn"
+                    onClick={() => {
+                      setBusquedaEstudiantesCurso("");
+                      setEstadoEstudiantesCurso("");
+                    }}
+                  >
+                    <Brush size={14} />
+                    Limpiar
+                  </button>
+                </div>
+
+                <div className="table-container estudiantes-course-table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Nombre</th>
+                        <th>Apellido</th>
+                        <th>Cédula</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {estudiantesCursoFiltrados.length === 0 ? (
+                        <tr>
+                          <td colSpan="5" style={{ textAlign: "center" }}>
+                            No hay estudiantes con los filtros actuales
+                          </td>
+                        </tr>
+                      ) : (
+                        estudiantesCursoFiltrados.map((estudiante) => (
+                          <tr key={estudiante.id_estudiante}>
+                            <td>{estudiante.nombre || "-"}</td>
+                            <td>{estudiante.apellido || "-"}</td>
+                            <td>{estudiante.cedula || "-"}</td>
+                            <td>
+                              <span className={`student-state-pill student-state-${String(estudiante.estado || "").toLowerCase() || "sin-estado"}`}>
+                                {estudiante.estado || "Sin estado"}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="student-table-actions">
+                                <button
+                                  type="button"
+                                  className="btn-view btn-inline-icon"
+                                  onClick={() => setEstudianteSeleccionado(String(estudiante.id_estudiante))}
+                                >
+                                  Seleccionar
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-delete btn-delete-inline btn-inline-icon"
+                                  onClick={() => quitarEstudianteDelCurso(estudiante)}
+                                >
+                                  <X size={14} />
+                                  Quitar
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* TAB: INSUMOS */}
             {activeTab === "insumos" && (
@@ -889,12 +1262,12 @@ function CursoPrincipal() {
                 notasPorEstudiante={notasPorEstudiante}
             />
 
-            {/* TAB: PERIODIZACION */}
             <TabPeriodizacion
                 activeTab={activeTab}
                 errorPeriodos={errorPeriodos}
                 periodos={periodos}
             />
+
             {insumoNotasAbierto && (
               <TabModalNotasInsumo
                 insumo={insumoNotasAbierto}
@@ -1008,6 +1381,206 @@ function CursoPrincipal() {
             )}
           </>
         )}
+
+        {modalMateriaOpen && (
+          <div className="modal-overlay course-mini-modal-overlay">
+            <div className="modal-notas modal-insumo-edit course-mini-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header course-mini-modal-header">
+                <h3 className="course-mini-modal-title">Configurar materias</h3>
+                <button className="btn-cerrar" type="button" onClick={() => setModalMateriaOpen(false)}>
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="modal-insumo-edit-body course-mini-modal-body">
+                <p className="panel-sub" style={{ marginTop: 0 }}>
+                  Toca para quitar materia. Solo podrás quitar las que no tengan asignaciones.
+                </p>
+                <div className="materia-config-section">
+                  <div className="materia-config-section-header">
+                    <h4>Materias asignadas</h4>
+                    <span className="course-mini-empty-helper">{materiasCurso.length} asignadas</span>
+                  </div>
+                  <div className="materia-pill-grid">
+                    {materiasCurso.length === 0 ? (
+                      <p className="course-mini-empty-helper">Aún no hay materias asignadas.</p>
+                    ) : (
+                      materiasCurso.map((cmd) => {
+                        const tieneInsumos = Number(insumosPorCMDConfig[String(cmd.id_cmd)] || 0) > 0;
+                        return (
+                          <div key={cmd.id_cmd} className="materia-assigned-pill">
+                            <button
+                              type="button"
+                              className="estudiante-pill materia-pill-option active materia-assigned-pill-row"
+                              onClick={() => abrirConfirmacionQuitarMateria(cmd)}
+                              disabled={tieneInsumos || cargandoConfiguracionMaterias || quitandoMateria}
+                              aria-label={tieneInsumos ? "Materia bloqueada" : "Quitar materia"}
+                              title={tieneInsumos ? "Materia bloqueada" : "Quitar materia"}
+                            >
+                              <span className="materia-assigned-pill-label">
+                                {materiaNombre(cmd)}
+                                {tieneInsumos && <span className="materia-pill-code">con insumos</span>}
+                              </span>
+                              <span className="materia-assigned-pill-x">
+                                <X size={14} />
+                              </span>
+                            </button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                <div className="materia-config-section">
+                  <div className="materia-config-section-header">
+                    <h4>Materias disponibles</h4>
+                    <span className="course-mini-empty-helper">Toca para agregar</span>
+                  </div>
+                  <div className="materia-pill-grid">
+                    {cargandoOpcionesCurso || cargandoConfiguracionMaterias ? (
+                      <p className="course-mini-empty-helper">Cargando materias...</p>
+                    ) : materiasDisponiblesAgregar.length === 0 ? (
+                      <p className="course-mini-empty-helper">No hay materias disponibles para asignar.</p>
+                    ) : (
+                      materiasDisponiblesAgregar.map((materia) => {
+                        const active = materiasAgregarSeleccionadas.includes(String(materia.id_materia));
+                        return (
+                          <button
+                            key={materia.id_materia}
+                            type="button"
+                            className={`estudiante-pill materia-pill-option ${active ? "active" : ""}`}
+                            onClick={() => toggleMateriaSeleccionada(materia.id_materia)}
+                            disabled={guardandoMateriaCurso}
+                          >
+                            {materia.nombre}
+                            {materia.codigo ? <span className="materia-pill-code">{materia.codigo}</span> : null}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                <div className="materia-pill-summary">
+                  <p className="materia-pill-summary-title">Se agregarán</p>
+                  {materiasAgregarSeleccionadasDetalle.length === 0 ? (
+                    <p className="course-mini-empty-helper">Aún no has seleccionado materias.</p>
+                  ) : (
+                    <div className="materia-pill-summary-list">
+                      {materiasAgregarSeleccionadasDetalle.map((materia) => (
+                        <span key={materia.id_materia} className="summary-badge materia-summary-badge">
+                          {materia.nombre}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="modal-insumo-edit-footer">
+                <button className="btn-cancel" type="button" onClick={() => setModalMateriaOpen(false)} disabled={guardandoMateriaCurso}>
+                  <X size={14} />
+                  <span>Cancelar</span>
+                </button>
+                <button className="btn-save btn-save-inline" type="button" onClick={guardarMateriaAlCurso} disabled={guardandoMateriaCurso || materiasAgregarSeleccionadas.length === 0}>
+                  <Save size={16} />
+                  <span>{guardandoMateriaCurso ? "Guardando..." : "Agregar materias"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {materiaPendienteQuitar && (
+          <div className="modal-overlay course-mini-modal-overlay course-confirm-overlay">
+            <div className="modal-notas modal-insumo-edit course-confirm-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header course-mini-modal-header">
+                <h3 className="course-mini-modal-title">Quitar materia</h3>
+                <button className="btn-cerrar" type="button" onClick={() => setMateriaPendienteQuitar(null)}>
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="modal-insumo-edit-body course-mini-modal-body">
+                <p className="panel-sub" style={{ marginTop: 0 }}>
+                  ¿Seguro que quieres quitar <strong>{materiaNombre(materiaPendienteQuitar)}</strong> del curso?
+                </p>
+                <p className="course-mini-empty-helper">
+                  Solo se puede quitar si no tiene asignaciones.
+                </p>
+              </div>
+              <div className="modal-insumo-edit-footer">
+                <button className="btn-cancel" type="button" onClick={() => setMateriaPendienteQuitar(null)} disabled={quitandoMateria}>
+                  <X size={14} />
+                  <span>Cancelar</span>
+                </button>
+                <button
+                  className="btn-delete btn-delete-inline"
+                  type="button"
+                  onClick={() => quitarMateriaDelCurso(materiaPendienteQuitar)}
+                  disabled={quitandoMateria}
+                >
+                  <Trash2 size={14} />
+                  <span>{quitandoMateria ? "Quitando..." : "Quitar materia"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {mostrarCrearEstudiante && (
+          <div className="modal-overlay course-student-create-overlay">
+            <div className="modal-notas course-student-create-modal" onClick={(e) => e.stopPropagation()}>
+              <button type="button" className="course-student-create-close" onClick={() => setMostrarCrearEstudiante(false)} aria-label="Cerrar modal">
+                <X size={14} />
+              </button>
+              <h3>Añadir Estudiante</h3>
+              <p className="panel-sub course-student-create-sub">
+                Crea el estudiante y quedará asignado al curso actual.
+              </p>
+              <input
+                placeholder="Nombre"
+                value={estudianteCreando.nombre}
+                onChange={(e) => setEstudianteCreando((prev) => ({ ...prev, nombre: e.target.value }))}
+              />
+              <input
+                placeholder="Apellido"
+                value={estudianteCreando.apellido}
+                onChange={(e) => setEstudianteCreando((prev) => ({ ...prev, apellido: e.target.value }))}
+              />
+              <input
+                placeholder="Cédula"
+                value={estudianteCreando.cedula}
+                onChange={(e) => setEstudianteCreando((prev) => ({ ...prev, cedula: e.target.value }))}
+              />
+              <input
+                type="date"
+                value={estudianteCreando.fecha_nacimiento}
+                onChange={(e) => setEstudianteCreando((prev) => ({ ...prev, fecha_nacimiento: e.target.value }))}
+              />
+              <input type="hidden" value="matriculado" />
+              <div className="modal-buttons course-student-create-buttons">
+                <button
+                  type="button"
+                  className="btn-neutral btn-inline-icon"
+                  onClick={() => setMostrarCrearEstudiante(false)}
+                  disabled={guardandoEstudianteCurso}
+                >
+                  <X size={14} />
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn-success btn-inline-icon"
+                  onClick={guardarNuevoEstudianteCurso}
+                  disabled={guardandoEstudianteCurso}
+                >
+                  <UserPlus size={14} />
+                  {guardandoEstudianteCurso ? "Guardando..." : "Guardar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
