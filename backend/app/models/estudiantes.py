@@ -12,7 +12,7 @@ class Estudiante(Base):
     nombre = Column(String(100), nullable=False)
     apellido = Column(String(100), nullable=False)
     cedula = Column(String(20), unique=True, nullable=False)
-    fecha_nacimiento = Column(Date, nullable=False)
+    fecha_nacimiento = Column(Date, nullable=True)
 
     estado = Column(Enum(EstadoEstudianteEnum, name="estado_estudiante"), default="matriculado")
 

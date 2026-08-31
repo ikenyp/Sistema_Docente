@@ -1660,7 +1660,7 @@ function Docente() {
             </button>
             {appMode === "personal" && (
               <button
-                className="toolbar-blue-btn toolbar-blue-btn-rounded"
+                className="toolbar-blue-btn"
                 type="button"
                 onClick={abrirModalMateriasPersonales}
               >

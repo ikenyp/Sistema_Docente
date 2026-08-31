@@ -36,7 +36,6 @@ const buildQuery = (params = {}) => {
 const apiCall = async (endpoint, method = "GET", body = null) => {
   const token = getToken();
   const headers = {
-    "Content-Type": "application/json",
     "X-App-Mode": getAppMode(),
   };
 
@@ -49,13 +48,22 @@ const apiCall = async (endpoint, method = "GET", body = null) => {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
+  const esFormData = typeof FormData !== "undefined" && body instanceof FormData;
+  if (!esFormData) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const config = {
     method,
     headers,
   };
 
   if (body && (method === "POST" || method === "PUT")) {
-    config.body = JSON.stringify(body);
+    if (esFormData) {
+      config.body = body;
+    } else {
+      config.body = JSON.stringify(body);
+    }
   }
 
   try {
@@ -180,6 +188,10 @@ export const estudiantesAPI = {
 
   // Búsquedas filtradas (por nombre, apellido o estado)
   buscar: (filtros = {}) => apiCall(`/estudiantes${buildQuery(filtros)}`),
+
+  importarPreview: (formData) => apiCall("/estudiantes/import-preview", "POST", formData),
+
+  importar: (estudiantes) => apiCall("/estudiantes/import", "POST", { estudiantes }),
 
   obtener: (id_estudiante) => apiCall(`/estudiantes/${id_estudiante}`),
   crear: (data) => apiCall(`/estudiantes`, "POST", data),

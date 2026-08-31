@@ -96,7 +96,13 @@ export const TabPromedios = ({
   }, [notasPorEstudiante]);
 
   const estudiantesConPromedios = useMemo(() => {
-    return estudiantesCurso.map((estudiante) => {
+    return [...estudiantesCurso]
+      .sort((a, b) => {
+        const valorA = `${String(a?.apellido || "")} ${String(a?.nombre || "")}`.trim();
+        const valorB = `${String(b?.apellido || "")} ${String(b?.nombre || "")}`.trim();
+        return valorA.localeCompare(valorB, "es");
+      })
+      .map((estudiante) => {
       const porPeriodo = periodosOrdenados.map((periodo) => {
         const insumos = insumosPorPeriodo.get(String(periodo.id_periodo)) || [];
         const grouped = { actividades: [], proyectos: [], examenes: [] };
@@ -171,6 +177,14 @@ export const TabPromedios = ({
 
       <div className="table-container">
         <table className="promedios-table">
+          <colgroup>
+            <col className="promedios-col-estudiante" />
+            {periodosOrdenados.map((periodo) => (
+              <col key={periodo.id_periodo} className="promedios-col-periodo" />
+            ))}
+            <col className="promedios-col-suma" />
+            <col className="promedios-col-promedio" />
+          </colgroup>
           <thead>
             <tr>
               <th>Estudiante</th>

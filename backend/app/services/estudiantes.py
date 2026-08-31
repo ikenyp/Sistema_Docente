@@ -18,20 +18,21 @@ async def crear_estudiante(db: AsyncSession, data: EstudianteCreate):
             detail="La cédula ya está registrada"
         )
 
-    # Validar que fecha de nacimiento no sea futura
-    if data.fecha_nacimiento > date.today():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La fecha de nacimiento no puede ser futura"
-        )
+    if data.fecha_nacimiento is not None:
+        # Validar que fecha de nacimiento no sea futura
+        if data.fecha_nacimiento > date.today():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La fecha de nacimiento no puede ser futura"
+            )
 
-    # Validar edad mínima (al menos 5 años)
-    edad = (date.today() - data.fecha_nacimiento).days // 365
-    if edad < 5:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El estudiante debe tener al menos 5 años"
-        )
+        # Validar edad mínima (al menos 5 años)
+        edad = (date.today() - data.fecha_nacimiento).days // 365
+        if edad < 5:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El estudiante debe tener al menos 5 años"
+            )
 
     estudiante = Estudiante(
         nombre=data.nombre,

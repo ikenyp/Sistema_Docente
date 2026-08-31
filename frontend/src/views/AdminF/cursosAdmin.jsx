@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, ArrowLeft, Save, X } from "lucide-react";
+import { FolderOpen, Plus, Save, Trash2, X } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import CustomSelect from "../../components/admin/CustomSelect";
 import {
@@ -10,7 +10,7 @@ import {
   estudiantesAPI,
   estructurasAcademicasAPI,
 } from "../../services/api";
-import { notify } from "../../components/notify";
+import { notify, requestConfirm } from "../../components/notify";
 
 function CursosAdmin() {
   const navigate = useNavigate();
@@ -150,6 +150,24 @@ function CursosAdmin() {
     }
   };
 
+  const eliminarCurso = async (curso) => {
+    const ok = await requestConfirm("Eliminar curso", {
+      title: "Eliminar Curso",
+      name: curso.nombre,
+      description: "Esta acción no se puede deshacer.",
+      note: "Si el curso tiene información relacionada, la eliminación puede fallar.",
+    });
+    if (!ok) return;
+
+    try {
+      await cursosAPI.eliminar(curso.id_curso);
+      await cargar();
+      notify("success", "Curso eliminado");
+    } catch (e) {
+      notify("error", e.message || "No se pudo eliminar el curso");
+    }
+  };
+
   return (
     <AdminLayout
       title="Cursos"
@@ -176,7 +194,7 @@ function CursosAdmin() {
           </button>
         </div>
 
-        <table>
+        <table className="cursos-table">
           <thead>
             <tr>
               <th>Curso</th>
@@ -194,13 +212,22 @@ function CursosAdmin() {
                 <td>{nombreTutor(c.id_tutor)}</td>
                 <td>{conteoEstudiantes[c.id_curso] ?? 0}</td>
                 <td>
-<button
+                  <button
                       type="button"
-                      className="btn-view"
+                      className="btn-view btn-inline-icon cursos-open-btn"
                       onClick={() => navigate(`/admin/cursos/${c.id_curso}`)}
                     >
-                      <ArrowLeft size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                      <FolderOpen size={14} />
                       Abrir curso
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-danger btn-inline-icon cursos-delete-btn"
+                      onClick={() => eliminarCurso(c)}
+                      aria-label={`Eliminar curso ${c.nombre}`}
+                      title={`Eliminar curso ${c.nombre}`}
+                    >
+                      <Trash2 size={18} />
                     </button>
                 </td>
               </tr>

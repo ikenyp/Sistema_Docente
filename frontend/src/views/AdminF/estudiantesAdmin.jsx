@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Pencil, Brush, Save, X, UserPlus } from "lucide-react";
+import { Pencil, Brush, Save, X, UserPlus, Upload } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import CustomSelect from "../../components/admin/CustomSelect";
+import ImportarEstudiantesModal from "../../components/estudiantes/ImportarEstudiantesModal";
 import { estudiantesAPI, cursosAPI } from "../../services/api";
 import { notify } from "../../components/notify";
 
@@ -23,6 +24,7 @@ function EstudiantesAdmin() {
   const [cursos, setCursos] = useState([]);
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalImportOpen, setModalImportOpen] = useState(false);
   const [editando, setEditando] = useState(null);
   const [form, setForm] = useState({
     nombre: "",
@@ -200,10 +202,16 @@ function EstudiantesAdmin() {
     >
       <div className="docentes-header">
         <h2 className="section-title">Directorio de estudiantes</h2>
-        <button className="btn-add-docente btn-inline-icon btn-add-student-wrap" onClick={abrirCrear}>
-          <UserPlus size={16} />
-          <span>Añadir<br />Estudiante</span>
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <button className="btn-view btn-inline-icon" onClick={() => setModalImportOpen(true)} type="button">
+            <Upload size={16} />
+            <span>Importar Excel</span>
+          </button>
+          <button className="btn-add-docente btn-inline-icon btn-add-student-wrap" onClick={abrirCrear} type="button">
+            <UserPlus size={16} />
+            <span>Añadir<br />Estudiante</span>
+          </button>
+        </div>
       </div>
 
       <div className="panel-sub" style={{ marginBottom: 12 }}>
@@ -420,6 +428,16 @@ function EstudiantesAdmin() {
           </div>
         </div>
       )}
+
+      <ImportarEstudiantesModal
+        open={modalImportOpen}
+        onClose={() => setModalImportOpen(false)}
+      onSaved={() => cargarConFiltros(filtros)}
+      cursos={cursos}
+      mostrarCurso
+      titulo="Importar estudiantes"
+      subtitulo="Carga un archivo Excel, revisa cada fila y guarda solo cuando todo esté listo."
+    />
     </AdminLayout>
   );
 }

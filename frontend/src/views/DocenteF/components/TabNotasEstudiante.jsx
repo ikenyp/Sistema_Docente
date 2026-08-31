@@ -31,6 +31,9 @@ export const TabNotasEstudiante = ({
   const [busquedaEstudiante, setBusquedaEstudiante] = useState("");
   const [periodoFiltrado, setPeriodoFiltrado] = useState("todos");
 
+  const formatoApellidoNombre = (est) =>
+    [est?.apellido, est?.nombre].filter(Boolean).join(" ").trim();
+
   const periodosOrdenados = useMemo(
     () => [...periodos].sort((a, b) => Number(a.numero_periodo) - Number(b.numero_periodo)),
     [periodos],
@@ -55,6 +58,18 @@ export const TabNotasEstudiante = ({
       };
     });
   }, [notasIndividuales, periodosOrdenados]);
+
+  const estudiantesOrdenados = useMemo(
+    () =>
+      [...estudiantesCurso].sort((a, b) => {
+        const apellidoA = String(a?.apellido || "");
+        const apellidoB = String(b?.apellido || "");
+        const nombreA = String(a?.nombre || "");
+        const nombreB = String(b?.nombre || "");
+        return `${apellidoA} ${nombreA}`.localeCompare(`${apellidoB} ${nombreB}`, "es");
+      }),
+    [estudiantesCurso],
+  );
 
   const promedioGeneral = useMemo(() => {
     const promedios = periodosConNotas
@@ -92,20 +107,20 @@ export const TabNotasEstudiante = ({
   }, [periodoFiltrado, periodosConNotas]);
 
   const estudianteActual = useMemo(
-    () => estudiantesCurso.find((est) => String(est.id_estudiante) === String(estudianteSeleccionado)),
-    [estudianteSeleccionado, estudiantesCurso],
+    () => estudiantesOrdenados.find((est) => String(est.id_estudiante) === String(estudianteSeleccionado)),
+    [estudianteSeleccionado, estudiantesOrdenados],
   );
 
   const estudiantesFiltrados = useMemo(() => {
     const query = busquedaEstudiante.trim().toLowerCase();
-    if (!query) return estudiantesCurso;
+    if (!query) return estudiantesOrdenados;
 
-    return estudiantesCurso.filter((est) => {
+    return estudiantesOrdenados.filter((est) => {
       const nombreCompleto = `${est.nombre} ${est.apellido}`.toLowerCase();
       const apellidoNombre = `${est.apellido} ${est.nombre}`.toLowerCase();
       return nombreCompleto.includes(query) || apellidoNombre.includes(query);
     });
-  }, [busquedaEstudiante, estudiantesCurso]);
+  }, [busquedaEstudiante, estudiantesOrdenados]);
 
   if (activeTab !== "notasEstudiante") return null;
 
@@ -150,10 +165,10 @@ export const TabNotasEstudiante = ({
                   className={`estudiante-pill ${String(estudianteSeleccionado) === String(est.id_estudiante) ? "active" : ""}`}
                   onClick={() => {
                     setEstudianteSeleccionado(String(est.id_estudiante));
-                    setBusquedaEstudiante(`${est.nombre} ${est.apellido}`);
+                    setBusquedaEstudiante(formatoApellidoNombre(est));
                   }}
                 >
-                  {est.nombre} {est.apellido}
+                  {formatoApellidoNombre(est)}
                 </button>
               ))}
               {estudiantesFiltrados.length === 0 && (
@@ -168,7 +183,7 @@ export const TabNotasEstudiante = ({
         <div className="notas-toolbar">
           <div className="notas-toolbar-left">
             <span className="estudiante-pill estudiante-pill-selected active">
-              <strong>Estudiante:</strong> {estudianteActual?.nombre} {estudianteActual?.apellido}
+              <strong>Estudiante:</strong> {formatoApellidoNombre(estudianteActual)}
             </span>
             <button
               type="button"

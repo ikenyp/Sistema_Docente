@@ -14,7 +14,7 @@ class EstudianteBase(BaseModel):
     nombre: str = Field(..., max_length=100)
     apellido: str = Field(..., max_length=100)
     cedula : str = Field(..., max_length=20)
-    fecha_nacimiento: date
+    fecha_nacimiento: Optional[date] = None
     estado: EstadoEstudiante = EstadoEstudiante.matriculado
     id_curso_actual: Optional[int] = None
 

@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 
 revision: str = "q7w8e9r0t1y2"
@@ -18,13 +19,22 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("materias", sa.Column("codigo", sa.String(length=30), nullable=True))
-    op.add_column("materias", sa.Column("descripcion", sa.String(length=255), nullable=True))
-    op.create_unique_constraint(
-        "uq_materia_contexto_codigo",
-        "materias",
-        ["id_contexto", "codigo"],
-    )
+    conn = op.get_bind()
+    inspector = inspect(conn)
+    columnas = {col["name"] for col in inspector.get_columns("materias")}
+    uniques = {uq.get("name") for uq in inspector.get_unique_constraints("materias")}
+
+    if "codigo" not in columnas:
+        op.add_column("materias", sa.Column("codigo", sa.String(length=30), nullable=True))
+    if "descripcion" not in columnas:
+        op.add_column("materias", sa.Column("descripcion", sa.String(length=255), nullable=True))
+
+    if "uq_materia_contexto_codigo" not in uniques:
+        op.create_unique_constraint(
+            "uq_materia_contexto_codigo",
+            "materias",
+            ["id_contexto", "codigo"],
+        )
 
 
 def downgrade() -> None:

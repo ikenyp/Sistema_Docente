@@ -184,11 +184,11 @@ function UsuariosAdmin() {
           </div>
           <button
             type="button"
-            className="btn-add-docente"
+            className="btn-add-docente usuarios-add-user-btn"
             onClick={() => setModalAgregarOpen(true)}
           >
             <UserPlus size={16} style={{ verticalAlign: "middle", marginRight: 4 }} />
-            Añadir usuario
+            <span className="usuarios-add-user-label">Añadir usuario</span>
           </button>
         </div>
 

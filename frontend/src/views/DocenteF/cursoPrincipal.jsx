@@ -11,14 +11,16 @@ import {
   cmdAPI,
   materiasAPI,
 } from "../../services/api";
-import { Save, UserPlus, BookOpen, Settings2, Trash2, Brush, X } from "lucide-react";
+import { Save, UserPlus, BookOpen, Settings2, Trash2, Brush, X, Upload, Pencil } from "lucide-react";
 import CustomSelect from "../../components/admin/CustomSelect";
+import ImportarEstudiantesModal from "../../components/estudiantes/ImportarEstudiantesModal";
 import { TabInsumos } from "./components/TabInsumos";
 import { TabAsistencia } from "./components/TabAsistencia";
 import { TabComportamiento } from "./components/TabComportamiento";
 import { TabNotasEstudiante } from "./components/TabNotasEstudiante";
 import { TabModalNotasInsumo } from "./components/TabModalNotasInsumo";
 import { TabPromedios } from "./components/TabPromedios";
+import { TabReportes } from "./components/TabReportes";
 import { TabPeriodizacion } from "./components/TabPeriodizacion";
 import "../../styles/cursoPrincipal.css";
 import { notify, requestConfirm } from "../../components/notify";
@@ -53,14 +55,27 @@ function CursoPrincipal() {
   const [materiaPendienteQuitar, setMateriaPendienteQuitar] = useState(null);
   const [quitandoMateria, setQuitandoMateria] = useState(false);
   const [mostrarCrearEstudiante, setMostrarCrearEstudiante] = useState(false);
+  const [mostrarEditarEstudiante, setMostrarEditarEstudiante] = useState(false);
+  const [mostrarImportarEstudiantes, setMostrarImportarEstudiantes] = useState(false);
   const [estudianteCreando, setEstudianteCreando] = useState({
     nombre: "",
     apellido: "",
     cedula: "",
     fecha_nacimiento: "",
   });
+  const [estudianteEditando, setEstudianteEditando] = useState(null);
+  const [estudianteEditForm, setEstudianteEditForm] = useState({
+    nombre: "",
+    apellido: "",
+    cedula: "",
+    fecha_nacimiento: "",
+    estado: "matriculado",
+    id_curso_actual: "",
+  });
+  const [cursosEdicion, setCursosEdicion] = useState([]);
   const [guardandoMateriaCurso, setGuardandoMateriaCurso] = useState(false);
   const [guardandoEstudianteCurso, setGuardandoEstudianteCurso] = useState(false);
+  const [guardandoEdicionEstudiante, setGuardandoEdicionEstudiante] = useState(false);
 
   // Estudiantes del curso
   const [estudiantesCurso, setEstudiantesCurso] = useState([]);
@@ -138,6 +153,7 @@ function CursoPrincipal() {
         { id: "comportamiento", label: "Comportamiento" },
         { id: "notasEstudiante", label: "Notas por estudiante" },
         { id: "promedios", label: "Promedios" },
+        { id: "reportes", label: "Reportes" },
         { id: "periodizacion", label: "Periodizacion" },
       ];
 
@@ -189,6 +205,14 @@ function CursoPrincipal() {
       })
       .sort((a, b) => `${a.apellido || ""} ${a.nombre || ""}`.localeCompare(`${b.apellido || ""} ${b.nombre || ""}`, "es"));
   }, [busquedaEstudiantesCurso, estadoEstudiantesCurso, estudiantesCurso]);
+
+  const formatearNombrePropio = (valor) =>
+    String(valor || "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((parte) => parte.charAt(0).toUpperCase() + parte.slice(1).toLowerCase())
+      .join(" ");
 
   const periodosOptions = useMemo(
     () =>
@@ -356,10 +380,51 @@ function CursoPrincipal() {
     setMostrarCrearEstudiante(true);
   };
 
+  const abrirModalEditarEstudiante = (estudiante) => {
+    setEstudianteEditando(estudiante);
+    setEstudianteEditForm({
+      nombre: estudiante.nombre || "",
+      apellido: estudiante.apellido || "",
+      cedula: estudiante.cedula || "",
+      fecha_nacimiento: estudiante.fecha_nacimiento?.slice(0, 10) || "",
+      estado: String(estudiante.estado || "matriculado").toLowerCase(),
+      id_curso_actual: estudiante.id_curso_actual ? String(estudiante.id_curso_actual) : "",
+    });
+    setMostrarEditarEstudiante(true);
+  };
+
+  const guardarEdicionEstudiante = async () => {
+    if (!estudianteEditando) return;
+    if (!estudianteEditForm.nombre.trim() || !estudianteEditForm.apellido.trim() || !estudianteEditForm.cedula.trim()) {
+      notify("error", "Nombre, apellido y cédula son obligatorios");
+      return;
+    }
+
+    try {
+      setGuardandoEdicionEstudiante(true);
+      await estudiantesAPI.actualizar(Number(estudianteEditando.id_estudiante), {
+        nombre: formatearNombrePropio(estudianteEditForm.nombre),
+        apellido: formatearNombrePropio(estudianteEditForm.apellido),
+        cedula: estudianteEditForm.cedula.trim(),
+        fecha_nacimiento: estudianteEditForm.fecha_nacimiento || undefined,
+        estado: estudianteEditForm.estado || "matriculado",
+        id_curso_actual: estudianteEditForm.id_curso_actual ? Number(estudianteEditForm.id_curso_actual) : null,
+      });
+      setMostrarEditarEstudiante(false);
+      setEstudianteEditando(null);
+      await cargarDatos();
+      notify("success", "Estudiante actualizado");
+    } catch (err) {
+      notify("error", err.message || "No se pudo actualizar el estudiante");
+    } finally {
+      setGuardandoEdicionEstudiante(false);
+    }
+  };
+
   const quitarEstudianteDelCurso = async (estudiante) => {
     try {
       const confirmado = await requestConfirm(
-        `¿Quitar a ${estudiante.apellido} ${estudiante.nombre} del curso?`,
+        `¿Eliminar a ${estudiante.apellido} ${estudiante.nombre} del curso?`,
         { title: "Quitar estudiante" },
       );
       if (!confirmado) return;
@@ -368,7 +433,7 @@ function CursoPrincipal() {
         id_curso_actual: null,
       });
       await cargarDatos();
-      notify("success", "Estudiante retirado del curso");
+      notify("success", "Estudiante eliminado del curso");
     } catch (err) {
       notify("error", err.message || "No se pudo retirar el estudiante");
     }
@@ -442,6 +507,16 @@ function CursoPrincipal() {
       const estudiantes = dashboard?.estudiantes || [];
       setEstudiantesCurso(estudiantes || []);
 
+      try {
+        const cursosDisponibles = esModoPersonal
+          ? await cursosAPI.obtenerCursosPorDocente(usuario.id_usuario)
+          : await cursosAPI.listar({ size: 100 });
+        setCursosEdicion(cursosDisponibles || []);
+      } catch (err) {
+        console.error("Error al cargar cursos para edición:", err);
+        setCursosEdicion([]);
+      }
+
       // Cargar periodizacion con el curso actual
       if (cursoActual) {
         setErrorPeriodos(null);
@@ -480,6 +555,7 @@ function CursoPrincipal() {
     id_curso,
     navigate,
     curso,
+    esModoPersonal,
   ]);
 
   useEffect(() => {
@@ -488,7 +564,7 @@ function CursoPrincipal() {
 
   useEffect(() => {
     if (!materiaSeleccionada?.id_cmd) return;
-    if (activeTab === "insumos") {
+    if (["insumos", "notasEstudiante", "promedios", "reportes"].includes(activeTab)) {
       cargarInsumos(materiaSeleccionada.id_cmd);
     }
     if (activeTab === "asistencia") {
@@ -1087,10 +1163,16 @@ function CursoPrincipal() {
                     <h3>Estudiantes</h3>
                     <p className="panel-sub">Gestiona los estudiantes del curso. Puedes buscar, filtrar y retirar.</p>
                   </div>
-                  <button type="button" className="btn-add-docente btn-inline-icon btn-add-student-wrap" onClick={abrirModalAgregarEstudiante}>
-                    <UserPlus size={16} />
-                    <span>Añadir<br />Estudiante</span>
-                  </button>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                    <button type="button" className="btn-view btn-inline-icon btn-add-student-wrap" onClick={() => setMostrarImportarEstudiantes(true)}>
+                      <Upload size={16} />
+                      <span>Importar<br />Excel</span>
+                    </button>
+                    <button type="button" className="btn-add-docente btn-inline-icon btn-add-student-wrap" onClick={abrirModalAgregarEstudiante}>
+                      <UserPlus size={16} />
+                      <span>Añadir<br />Estudiante</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="estudiantes-course-filters">
@@ -1125,11 +1207,12 @@ function CursoPrincipal() {
                 </div>
 
                 <div className="table-container estudiantes-course-table-container">
-                  <table>
+                  <table className="estudiantes-course-table">
                     <thead>
                       <tr>
-                        <th>Nombre</th>
+                        <th>No.</th>
                         <th>Apellido</th>
+                        <th>Nombre</th>
                         <th>Cédula</th>
                         <th>Estado</th>
                         <th>Acciones</th>
@@ -1138,15 +1221,16 @@ function CursoPrincipal() {
                     <tbody>
                       {estudiantesCursoFiltrados.length === 0 ? (
                         <tr>
-                          <td colSpan="5" style={{ textAlign: "center" }}>
+                          <td colSpan="6" style={{ textAlign: "center" }}>
                             No hay estudiantes con los filtros actuales
                           </td>
                         </tr>
                       ) : (
-                        estudiantesCursoFiltrados.map((estudiante) => (
+                        estudiantesCursoFiltrados.map((estudiante, index) => (
                           <tr key={estudiante.id_estudiante}>
-                            <td>{estudiante.nombre || "-"}</td>
+                            <td>{index + 1}</td>
                             <td>{estudiante.apellido || "-"}</td>
+                            <td>{estudiante.nombre || "-"}</td>
                             <td>{estudiante.cedula || "-"}</td>
                             <td>
                               <span className={`student-state-pill student-state-${String(estudiante.estado || "").toLowerCase() || "sin-estado"}`}>
@@ -1158,17 +1242,18 @@ function CursoPrincipal() {
                                 <button
                                   type="button"
                                   className="btn-view btn-inline-icon"
-                                  onClick={() => setEstudianteSeleccionado(String(estudiante.id_estudiante))}
+                                  onClick={() => abrirModalEditarEstudiante(estudiante)}
                                 >
-                                  Seleccionar
+                                  <Pencil size={14} />
+                                  Editar
                                 </button>
                                 <button
                                   type="button"
                                   className="btn-delete btn-delete-inline btn-inline-icon"
                                   onClick={() => quitarEstudianteDelCurso(estudiante)}
                                 >
-                                  <X size={14} />
-                                  Quitar
+                                  <Trash2 size={14} />
+                                  Eliminar
                                 </button>
                               </div>
                             </td>
@@ -1260,6 +1345,16 @@ function CursoPrincipal() {
                 periodos={periodos}
                 insumosMateria={insumosMateria}
                 notasPorEstudiante={notasPorEstudiante}
+            />
+
+            <TabReportes
+                activeTab={activeTab}
+                estudiantesCurso={estudiantesCurso}
+                periodos={periodos}
+                insumosMateria={insumosMateria}
+                notasPorEstudiante={notasPorEstudiante}
+                materiaSeleccionada={materiaSeleccionada}
+                cursoDetalle={cursoDetalle}
             />
 
             <TabPeriodizacion
@@ -1580,6 +1675,100 @@ function CursoPrincipal() {
             </div>
           </div>
         )}
+
+        {mostrarEditarEstudiante && (
+          <div className="modal-overlay course-student-create-overlay">
+            <div className="modal-notas course-student-create-modal course-student-edit-modal" onClick={(e) => e.stopPropagation()}>
+              <button type="button" className="course-student-create-close" onClick={() => setMostrarEditarEstudiante(false)} aria-label="Cerrar modal">
+                <X size={14} />
+              </button>
+              <div className="course-student-edit-title">
+                <h3 style={{ marginBottom: 0 }}>Editar Estudiante</h3>
+              </div>
+              <p className="panel-sub course-student-create-sub">
+                Actualiza los datos del estudiante.
+              </p>
+              <input
+                placeholder="Apellido"
+                value={estudianteEditForm.apellido}
+                onChange={(e) => setEstudianteEditForm((prev) => ({ ...prev, apellido: e.target.value }))}
+              />
+              <input
+                placeholder="Nombre"
+                value={estudianteEditForm.nombre}
+                onChange={(e) => setEstudianteEditForm((prev) => ({ ...prev, nombre: e.target.value }))}
+              />
+              <input
+                placeholder="Cédula"
+                value={estudianteEditForm.cedula}
+                onChange={(e) => setEstudianteEditForm((prev) => ({ ...prev, cedula: e.target.value }))}
+              />
+              <input
+                type="date"
+                value={estudianteEditForm.fecha_nacimiento}
+                onChange={(e) => setEstudianteEditForm((prev) => ({ ...prev, fecha_nacimiento: e.target.value }))}
+              />
+              <CustomSelect
+                value={estudianteEditForm.estado}
+                onChange={(value) => setEstudianteEditForm((prev) => ({ ...prev, estado: value }))}
+                options={[
+                  { value: "matriculado", label: "Matriculado" },
+                  { value: "retirado", label: "Retirado" },
+                  { value: "graduado", label: "Graduado" },
+                ]}
+                placeholder="Estado"
+                className="custom-select-white estudiantes-modal-select"
+              />
+              {!esModoPersonal && (
+                <CustomSelect
+                  value={estudianteEditForm.id_curso_actual}
+                  onChange={(value) => setEstudianteEditForm((prev) => ({ ...prev, id_curso_actual: value }))}
+                  options={[
+                    { value: "", label: "Sin curso" },
+                    ...cursosEdicion.map((c) => ({
+                      value: String(c.id_curso),
+                      label: `${c.nombre}${c.anio_lectivo ? ` · ${c.anio_lectivo}` : ""}`,
+                    })),
+                  ]}
+                  placeholder="Sin curso"
+                  className="custom-select-white estudiantes-modal-select"
+                />
+              )}
+              <div className="modal-buttons course-student-create-buttons">
+                <button
+                  type="button"
+                  className="btn-neutral btn-inline-icon"
+                  onClick={() => {
+                    setMostrarEditarEstudiante(false);
+                    setEstudianteEditando(null);
+                  }}
+                  disabled={guardandoEdicionEstudiante}
+                >
+                  <X size={14} />
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn-success btn-inline-icon"
+                  onClick={guardarEdicionEstudiante}
+                  disabled={guardandoEdicionEstudiante}
+                >
+                  <Save size={14} />
+                  {guardandoEdicionEstudiante ? "Guardando..." : "Guardar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <ImportarEstudiantesModal
+          open={mostrarImportarEstudiantes}
+          onClose={() => setMostrarImportarEstudiantes(false)}
+          onSaved={cargarDatos}
+          cursoFijoId={String(id_curso)}
+          titulo="Importar estudiantes"
+          subtitulo="Carga un Excel y revisa los datos antes de guardarlos en este curso."
+        />
 
       </div>
     </div>

@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpen, PencilLine, Trash2 } from "lucide-react";
+import { BookOpen, PencilLine, Plus, Trash2 } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
 
 export const TabInsumos = ({
@@ -89,6 +89,7 @@ export const TabInsumos = ({
           disabled={cargandoInsumo || soloLecturaTutor}
           className="btn-add-insumo"
         >
+          <Plus size={16} />
           {soloLecturaTutor
             ? "Solo lectura"
             : cargandoInsumo
@@ -113,7 +114,7 @@ export const TabInsumos = ({
         <div className="insumos-toolbar-actions">
           <div className="toolbar-anchor toolbar-anchor-filter">
             <button
-              className="toolbar-blue-btn"
+              className="toolbar-ghost-btn"
               type="button"
               aria-label="Filtrar por trimestre"
               onClick={() => {
@@ -155,7 +156,7 @@ export const TabInsumos = ({
           </div>
           <div className="toolbar-anchor toolbar-anchor-order">
             <button
-              className="toolbar-blue-btn"
+              className="toolbar-ghost-btn"
               type="button"
               aria-label="Ordenar insumos"
               onClick={() => {

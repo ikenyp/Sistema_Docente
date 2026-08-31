@@ -1046,6 +1046,19 @@
   white-space: nowrap;
 }
 
+.usuarios-add-user-btn {
+  width: 142px;
+  justify-content: center;
+  text-align: center;
+}
+
+.usuarios-add-user-label {
+  display: inline-block;
+  max-width: 74px;
+  white-space: normal;
+  line-height: 1.05;
+}
+
 .usuarios-table {
   table-layout: fixed;
 }
@@ -1072,7 +1085,7 @@
 
 .usuarios-table th:nth-child(5),
 .usuarios-table td:nth-child(5) {
-  width: 22%;
+  width: 26%;
   white-space: nowrap;
 }
 
@@ -1135,6 +1148,55 @@
   border-bottom: 1px solid #e7edf8;
   color: #2a3a57;
   font-size: 0.89rem;
+}
+
+.cursos-table th:nth-child(1),
+.cursos-table td:nth-child(1) {
+  width: 22%;
+}
+
+.cursos-table th:nth-child(2),
+.cursos-table td:nth-child(2) {
+  width: 23%;
+}
+
+.cursos-table th:nth-child(3),
+.cursos-table td:nth-child(3) {
+  width: 25%;
+}
+
+.cursos-table th:nth-child(4),
+.cursos-table td:nth-child(4) {
+  width: 10%;
+  text-align: center;
+}
+
+.cursos-table th:nth-child(5),
+.cursos-table td:nth-child(5) {
+  width: 20%;
+  white-space: nowrap;
+}
+
+.cursos-open-btn {
+  min-width: 122px;
+  white-space: nowrap;
+}
+
+.cursos-delete-btn {
+  width: 34px;
+  min-width: 34px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  justify-content: center;
+  margin-left: 0.35rem;
+  line-height: 0;
+}
+
+.cursos-delete-btn svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
 }
 
 .table-container tr:hover {

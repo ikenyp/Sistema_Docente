@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Save, Trash2 } from "lucide-react";
 
 export const TabModalNotasInsumo = ({
@@ -12,6 +12,16 @@ export const TabModalNotasInsumo = ({
 }) => {
   const [estudiantes, setEstudiantes] = useState([]);
   const [notas, setNotas] = useState({});
+
+  const estudiantesOrdenados = useMemo(
+    () =>
+      [...estudiantes].sort((a, b) => {
+        const valorA = `${String(a?.apellido || "")} ${String(a?.nombre || "")}`.trim();
+        const valorB = `${String(b?.apellido || "")} ${String(b?.nombre || "")}`.trim();
+        return valorA.localeCompare(valorB, "es");
+      }),
+    [estudiantes],
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -61,21 +71,24 @@ export const TabModalNotasInsumo = ({
         <div className="tabla-notas">
           <table>
             <colgroup>
+              <col className="tabla-notas-col-numero" />
               <col className="tabla-notas-col-estudiante" />
               <col className="tabla-notas-col-nota" />
               <col className="tabla-notas-col-accion" />
             </colgroup>
             <thead>
               <tr>
+                <th>No.</th>
                 <th>Estudiante</th>
                 <th>Nota</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {estudiantes.map((estudiante) => (
+              {estudiantesOrdenados.map((estudiante, index) => (
                 <tr key={estudiante.id_estudiante}>
-                  <td>{estudiante.nombre} {estudiante.apellido}</td>
+                  <td>{index + 1}</td>
+                  <td>{estudiante.apellido} {estudiante.nombre}</td>
                   <td>
                     <input
                       type="number"
