@@ -1,17 +1,126 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+html,
+#root {
+  min-height: 100vh;
+  background:
+    radial-gradient(
+      circle at 16% 14%,
+      rgba(255, 221, 181, 0.22),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 89% 81%,
+      rgba(103, 145, 255, 0.2),
+      transparent 32%
+    ),
+    linear-gradient(145deg, #f8f5ef 0%, #dfe5f4 58%, #c7d5ed 100%);
+}
+
 body {
   margin: 0;
+  min-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: transparent;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(
+      circle at 16% 14%,
+      rgba(255, 221, 181, 0.22),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 89% 81%,
+      rgba(103, 145, 255, 0.2),
+      transparent 32%
+    ),
+    linear-gradient(145deg, #f8f5ef 0%, #dfe5f4 58%, #c7d5ed 100%);
+}
+
+.custom-select-menu {
+  border: 1px solid #d9e3f2;
+  border-radius: 14px;
+  box-shadow: 0 16px 34px rgba(23, 39, 72, 0.14);
+}
+
+.custom-select-menu-white {
+  background: #ffffff;
+}
+
+.custom-select-menu-default {
+  background: #fff;
+}
+
+.custom-select-menu-white .custom-select-option,
+.custom-select-menu-default .custom-select-option {
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  color: #21314d;
+  cursor: pointer;
+  background: transparent;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.custom-select-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.custom-select-trigger-label {
+  min-width: 0;
+  flex: 1 1 auto;
+  text-align: left;
+}
+
+.custom-select-menu-white .custom-select-option:hover,
+.custom-select-menu-white .custom-select-option.active,
+.custom-select-menu-default .custom-select-option:hover,
+.custom-select-menu-default .custom-select-option.active {
+  background: #e3ecff;
+}
+
+.custom-select-option-label {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.custom-select-option-badge {
+  flex: 0 0 auto;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.custom-select-option-badge.is-managed {
+  color: #1e5b9a;
+  background: #e7f1ff;
+}
+
+.custom-select-option-badge.is-readonly {
+  color: #7a5160;
+  background: #f6e9ee;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
-

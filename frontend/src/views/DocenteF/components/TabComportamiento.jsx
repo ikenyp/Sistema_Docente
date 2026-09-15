@@ -14,6 +14,7 @@ export const TabComportamiento = ({
   estudiantesCurso,
   mesComportamiento,
   setMesComportamiento,
+  soloLecturaTutor,
   valoresTemporales,
   setValoresTemporales,
   observacionesTemporales,
@@ -78,6 +79,7 @@ export const TabComportamiento = ({
                               name={`comp-${estudiante.id_estudiante}`}
                               value={valor}
                               checked={valorActual === valor}
+                              disabled={soloLecturaTutor}
                               onChange={() =>
                                 setValoresTemporales((prev) => ({
                                   ...prev,
@@ -91,14 +93,15 @@ export const TabComportamiento = ({
                       </div>
                     </td>
                     <td>
-                      <input
-                        type="text"
-                        className="input-observacion-pequeno"
-                        value={observacionActual}
-                        onChange={(e) =>
-                          setObservacionesTemporales((prev) => ({
-                            ...prev,
-                            [estudiante.id_estudiante]: e.target.value,
+                        <input
+                          type="text"
+                          className="input-observacion-pequeno"
+                          value={observacionActual}
+                          disabled={soloLecturaTutor}
+                          onChange={(e) =>
+                            setObservacionesTemporales((prev) => ({
+                              ...prev,
+                              [estudiante.id_estudiante]: e.target.value,
                           }))
                         }
                         placeholder="Observaciones..."
@@ -109,6 +112,7 @@ export const TabComportamiento = ({
                         <button
                           className="btn-save btn-save-inline"
                           type="button"
+                          disabled={soloLecturaTutor}
                           onClick={() => onGuardarUno(estudiante.id_estudiante)}
                           aria-label="Guardar comportamiento"
                         >
@@ -118,6 +122,7 @@ export const TabComportamiento = ({
                         <button
                           className="btn-delete btn-delete-inline"
                           type="button"
+                          disabled={soloLecturaTutor}
                           onClick={() => onEliminarUno(estudiante.id_estudiante)}
                           aria-label="Eliminar comportamiento"
                         >
@@ -134,12 +139,9 @@ export const TabComportamiento = ({
       </div>
 
       <div className="tab-footer-actions">
-        <button className="btn-primary btn-save-inline behavior-save-btn" type="button" onClick={onGuardarTodo}>
+        <button className="btn-primary btn-save-inline behavior-save-btn" type="button" onClick={onGuardarTodo} disabled={soloLecturaTutor}>
           <Save size={16} />
-          <span>
-            <span>Guardar</span>
-            <span>comportamiento</span>
-          </span>
+          <span>{soloLecturaTutor ? "Solo lectura" : "Guardar comportamiento"}</span>
         </button>
       </div>
     </div>

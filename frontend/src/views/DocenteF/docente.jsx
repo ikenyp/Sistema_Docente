@@ -116,29 +116,6 @@ function Docente() {
     [aniosLectivosPersonales, anioLectivoActivoPersonal],
   );
 
-  const resumenCursos = useMemo(() => {
-    const cursosContexto =
-      appMode === "personal" && anioContextoVisible
-        ? cursos.filter((curso) => curso?.anio_lectivo === anioContextoVisible)
-        : cursos;
-    const totalCursos = cursosContexto.length;
-    const cursosConAnio = cursosContexto.filter(
-      (curso) => curso?.anio_lectivo,
-    ).length;
-    const esTutor = cursosContexto.some(
-      (curso) =>
-        datosUsuario &&
-        Number(curso?.id_tutor) === Number(datosUsuario.id_usuario),
-    );
-
-    return {
-      totalCursos,
-      cursosConAnio,
-      modo: appMode === "personal" ? "Personal" : "Institucional",
-      esTutor,
-    };
-  }, [appMode, anioContextoVisible, cursos, datosUsuario]);
-
   const cursoTutorActual = useMemo(() => {
     if (appMode !== "personal" || !datosUsuario) return null;
 
@@ -341,6 +318,28 @@ function Docente() {
 
     return lista.sort(comparador);
   }, [anioContextoVisible, cursos, ordenCursos]);
+
+  const cursosVisiblesCount = cursosVisibles.length;
+  const cursosConAnioVisibles = useMemo(
+    () => cursosVisibles.filter((curso) => curso?.anio_lectivo).length,
+    [cursosVisibles],
+  );
+
+  const esTutorVisible = useMemo(
+    () =>
+      cursosVisibles.some(
+        (curso) =>
+          datosUsuario &&
+          (Number(curso?.id_tutor) === Number(datosUsuario.id_usuario) ||
+            Number(curso?.tutor?.id_usuario) === Number(datosUsuario.id_usuario)),
+      ),
+    [cursosVisibles, datosUsuario],
+  );
+
+  const esTutorDelCurso = (curso) =>
+    !!datosUsuario &&
+    (Number(curso?.id_tutor) === Number(datosUsuario.id_usuario) ||
+      Number(curso?.tutor?.id_usuario) === Number(datosUsuario.id_usuario));
 
   useEffect(() => {
     const cerrarMenus = (event) => {
@@ -649,10 +648,7 @@ function Docente() {
       }
 
       setResumenOperacion({
-        asignaciones:
-          materiasAsignadasDocente.size ||
-          (cursosTutor || []).length ||
-          (todasAsignaciones || []).length,
+        asignaciones: materiasAsignadasDocente.size,
         cursosSinMaterias,
         cursosSinTutor,
         aniosSinPeriodizacion,
@@ -1544,10 +1540,21 @@ function Docente() {
           </div>
         )}
 
+        {appMode !== "personal" && (
+          <div className="docente-section-hero docente-section-hero-institutional">
+            <div>
+              <h3 className="docente-section-hero-title">Mis Cursos</h3>
+              <p className="docente-section-hero-subtitle">
+                Revisa los cursos, entra a cada uno y gestiona tu trabajo diario.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="cards-grid dashboard-summary-grid docente-summary-grid">
           <div className="stat-card accent">
             <p className="stat-label">Cursos visibles</p>
-            <h3 className="stat-value">{resumenCursos.totalCursos}</h3>
+            <h3 className="stat-value">{cursosVisiblesCount}</h3>
             <p className="stat-sub">
               {appMode === "personal"
                 ? "Filtrados por tu año lectivo activo"
@@ -1565,7 +1572,7 @@ function Docente() {
               <div className="stat-card">
                 <p className="stat-label">Tutor</p>
                 <h3 className="stat-value">
-                  {resumenCursos.esTutor ? "Sí" : "No"}
+                  {esTutorVisible ? "Sí" : "No"}
                 </h3>
                 <p className="stat-sub">Indicador de tutoría</p>
               </div>
@@ -1588,13 +1595,13 @@ function Docente() {
               </div>
               <div className="stat-card">
                 <p className="stat-label">Cursos con año lectivo</p>
-                <h3 className="stat-value">{resumenCursos.cursosConAnio}</h3>
+                <h3 className="stat-value">{cursosConAnioVisibles}</h3>
                 <p className="stat-sub">Útil para periodos y promedios</p>
               </div>
               <div className="stat-card">
                 <p className="stat-label">Tutor</p>
                 <h3 className="stat-value">
-                  {resumenCursos.esTutor ? "Sí" : "No"}
+                  {esTutorVisible ? "Sí" : "No"}
                 </h3>
                 <p className="stat-sub">Indicador de tutoría</p>
               </div>
@@ -1982,40 +1989,41 @@ function Docente() {
                     <div style={{ position: "absolute", top: 12, right: 12 }}>
                       <button
                         className="menu-button"
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setOpenMenuId(
-                            openMenuId === curso.id_curso
-                              ? null
-                              : curso.id_curso,
-                          );
+                          if (appMode === "personal") {
+                            setOpenMenuId(
+                              openMenuId === curso.id_curso
+                                ? null
+                                : curso.id_curso,
+                            );
+                          }
                         }}
                         aria-label="Opciones"
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          cursor: "pointer",
-                          fontSize: "18px",
-                        }}
                       >
                         ⋯
                       </button>
 
-                      {openMenuId === curso.id_curso && (
-                        <div
+                      {appMode === "personal" && openMenuId === curso.id_curso && (
+                          <div
                           className="menu-dropdown"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <button
                             className="menu-item menu-item-edit"
+                            type="button"
                             onClick={() => abrirEditarCurso(curso)}
                           >
+                            <Pencil size={14} />
                             Editar
                           </button>
                           <button
                             className="menu-item menu-item-delete"
+                            type="button"
                             onClick={() => confirmarEliminarCurso(curso)}
                           >
+                            <Trash2 size={14} />
                             Eliminar
                           </button>
                         </div>
@@ -2024,11 +2032,7 @@ function Docente() {
 
                     <div className="curso-title-row">
                       <p className="curso-nombre">{curso.nombre}</p>
-                      {appMode === "personal" &&
-                        (Number(curso.id_tutor) ===
-                          Number(datosUsuario?.id_usuario) ||
-                          Number(curso.tutor?.id_usuario) ===
-                            Number(datosUsuario?.id_usuario)) && (
+                      {esTutorDelCurso(curso) && (
                           <span className="tutor-pill">TUTOR</span>
                         )}
                     </div>

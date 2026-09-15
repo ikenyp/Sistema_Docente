@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { ADMIN_NAV, PERSONAL_DOCENTE_NAV } from "./adminNav";
 import "../../styles/admin.css";
 
 function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, headerActions }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [menuUsuario, setMenuUsuario] = useState(false);
   const [datosUsuario, setDatosUsuario] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -16,11 +17,40 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
   const resolvedUserLabel =
     defaultUserLabel || (appMode === "personal" ? "Docente" : "Administrador");
 
+  const normalizarAnioLectivo = (valor) => {
+    if (!valor) return "";
+    if (/^\d{4}$/.test(valor)) {
+      return `${valor}-${Number(valor) + 1}`;
+    }
+    return String(valor).trim();
+  };
+
+  const anioLectivoActivo = normalizarAnioLectivo(
+    localStorage.getItem("anio_lectivo_activo") || "",
+  );
+
+  const cursosRecientes = (() => {
+    if (appMode !== "institucional") return [];
+    try {
+      const raw = JSON.parse(localStorage.getItem("admin_recent_courses") || "[]");
+      return (Array.isArray(raw) ? raw : [])
+        .filter((item) => item && item.id_curso)
+        .filter((item) => !anioLectivoActivo || normalizarAnioLectivo(item.anio_lectivo) === anioLectivoActivo)
+        .slice(0, 5);
+    } catch {
+      return [];
+    }
+  })();
+
   useEffect(() => {
     const usuarioJSON = localStorage.getItem("usuario");
     const usuario = usuarioJSON ? JSON.parse(usuarioJSON) : null;
     if (usuario) setDatosUsuario(usuario);
   }, []);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   const cerrarSesion = () => {
     const appMode = localStorage.getItem("app_mode") || "institucional";
@@ -83,6 +113,26 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
                   {item.label}
                 </NavLink>
               ),
+            )}
+
+            {cursosRecientes.length > 0 && (
+              <>
+                <p className="admin-nav-heading admin-nav-heading-recent">Cursos recientes</p>
+                {cursosRecientes.map((curso) => (
+                  <NavLink
+                    key={curso.id_curso}
+                    to={`/admin/cursos/${curso.id_curso}`}
+                    className={({ isActive }) =>
+                      `admin-nav-link admin-nav-link-recent${isActive ? " active" : ""}`
+                    }
+                    onClick={() => setSidebarOpen(false)}
+                    title={curso.nombre}
+                  >
+                    <span className="admin-nav-link-main">{curso.nombre}</span>
+                    <span className="admin-nav-link-sub">{curso.anio_lectivo || ""}</span>
+                  </NavLink>
+                ))}
+              </>
             )}
           </nav>
         </aside>

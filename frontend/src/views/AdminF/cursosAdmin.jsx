@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { FolderOpen, Plus, Save, Trash2, X } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import CustomSelect from "../../components/admin/CustomSelect";
 import {
   aniosLectivosAPI,
   cursosAPI,
+  asignacionesAPI,
   usuariosAPI,
   estudiantesAPI,
   estructurasAcademicasAPI,
@@ -14,9 +15,11 @@ import { notify, requestConfirm } from "../../components/notify";
 
 function CursosAdmin() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [cursos, setCursos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [estructuras, setEstructuras] = useState([]);
+  const [asignaciones, setAsignaciones] = useState([]);
   const [conteoEstudiantes, setConteoEstudiantes] = useState({});
   const [filtroAnio, setFiltroAnio] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -26,6 +29,7 @@ function CursosAdmin() {
     id_estructura_academica: "",
     id_tutor: "",
   });
+  const filtroAlerta = searchParams.get("filtro") || "";
 
   const normalizarAnioLectivo = (valor) => {
     if (!valor) return "";
@@ -45,6 +49,12 @@ function CursosAdmin() {
       setCursos(lc || []);
       setUsuarios(lu || []);
       setEstructuras(le || []);
+      try {
+        const la = await asignacionesAPI.listar({ size: 100 });
+        setAsignaciones(la || []);
+      } catch {
+        setAsignaciones([]);
+      }
 
       try {
         const al = await aniosLectivosAPI.listar();
@@ -89,11 +99,28 @@ function CursosAdmin() {
   }, [aniosDisponibles, filtroAnio]);
 
   const cursosFiltrados = useMemo(() => {
-    if (!filtroAnio) return cursos;
-    return cursos.filter(
+    let lista = cursos;
+    if (filtroAnio) {
+      lista = lista.filter(
       (c) => normalizarAnioLectivo(c.anio_lectivo) === filtroAnio,
-    );
-  }, [cursos, filtroAnio]);
+      );
+    }
+
+    if (filtroAlerta === "sin-tutor") {
+      lista = lista.filter((c) => !c.id_tutor);
+    }
+
+    if (filtroAlerta === "sin-estructura") {
+      lista = lista.filter((c) => !c.id_estructura_academica);
+    }
+
+    if (filtroAlerta === "sin-materias") {
+      const idsConAsignacion = new Set(asignaciones.map((a) => a.id_curso));
+      lista = lista.filter((c) => !idsConAsignacion.has(c.id_curso));
+    }
+
+    return lista;
+  }, [cursos, filtroAnio, filtroAlerta, asignaciones]);
 
   const anioLectivoCurso = useMemo(
     () => localStorage.getItem("anio_lectivo_activo") || aniosDisponibles[0] || "",
@@ -182,8 +209,13 @@ function CursosAdmin() {
             <div className="cursos-year-display">
               <span>{filtroAnio || aniosDisponibles[0] || "Sin año seleccionado"}</span>
             </div>
-            <div className="cursos-year-helper">Se usará para cursos nuevos</div>
-          </div>
+          <div className="cursos-year-helper">Se usará para cursos nuevos</div>
+          {filtroAlerta && (
+            <div className="cursos-year-helper cursos-filter-helper">
+              Filtro activo: {filtroAlerta === "sin-tutor" ? "sin tutor" : filtroAlerta === "sin-estructura" ? "sin estructura" : "sin materias"}
+            </div>
+          )}
+        </div>
           <button
             type="button"
             className="btn-add-docente btn-inline-icon btn-add-course-wrap"

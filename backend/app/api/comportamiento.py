@@ -11,7 +11,6 @@ from app.schemas.comportamiento import (
 from app.schemas.usuarios import RolUsuarioEnum
 from app.services import comportamiento as service
 from app.auth.dependencies import get_current_user
-from app.core.app_mode import is_personal_mode
 from app.models.usuarios import Usuario
 from app.services.authorization import (
     validar_usuario_puede_editar_comportamiento,
@@ -36,9 +35,9 @@ async def crear_comportamiento(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tiene permisos para crear comportamiento")
     id_contexto = await resolve_contexto_id(db, current_user, request)
     if current_user.rol != RolUsuarioEnum.administrativo:
-        if not is_personal_mode(request):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="En modo institucional solo administradores pueden registrar comportamiento")
-        await validar_usuario_puede_ver_curso(db, data.id_curso, current_user, id_contexto)
+        curso = await validar_usuario_puede_ver_curso(db, data.id_curso, current_user, id_contexto)
+        if curso.id_tutor != current_user.id_usuario:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo el tutor del curso o administradores pueden registrar comportamiento")
         await validar_usuario_puede_ver_estudiante(db, data.id_estudiante, current_user, id_contexto)
     return await service.crear_comportamiento(db, data, id_contexto)
 
@@ -96,8 +95,6 @@ async def actualizar_comportamiento(
     if current_user.rol not in [RolUsuarioEnum.docente, RolUsuarioEnum.administrativo]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tiene permisos para actualizar comportamiento")
     id_contexto = await resolve_contexto_id(db, current_user, request)
-    if current_user.rol != RolUsuarioEnum.administrativo and not is_personal_mode(request):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="En modo institucional solo administradores pueden modificar comportamiento")
     await validar_usuario_puede_editar_comportamiento(db, id_comportamiento, current_user, id_contexto)
     return await service.actualizar_comportamiento(
         db,
@@ -117,8 +114,6 @@ async def eliminar_comportamiento(
     if current_user.rol not in [RolUsuarioEnum.docente, RolUsuarioEnum.administrativo]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tiene permisos para eliminar comportamiento")
     id_contexto = await resolve_contexto_id(db, current_user, request)
-    if current_user.rol != RolUsuarioEnum.administrativo and not is_personal_mode(request):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="En modo institucional solo administradores pueden eliminar comportamiento")
     await validar_usuario_puede_editar_comportamiento(db, id_comportamiento, current_user, id_contexto)
     return await service.eliminar_comportamiento(db, id_comportamiento, id_contexto)
 

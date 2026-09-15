@@ -7,8 +7,17 @@ import ImportarEstudiantesModal from "../../components/estudiantes/ImportarEstud
 import { estudiantesAPI, cursosAPI } from "../../services/api";
 import { notify } from "../../components/notify";
 
+function normalizarAnioLectivo(valor) {
+  if (!valor) return "";
+  if (/^\d{4}$/.test(valor)) return `${valor}-${Number(valor) + 1}`;
+  return String(valor).trim();
+}
+
 function EstudiantesAdmin() {
   const [searchParams] = useSearchParams();
+  const [anioActivo, setAnioActivo] = useState(() =>
+    normalizarAnioLectivo(localStorage.getItem("anio_lectivo_activo") || ""),
+  );
   const [filtros, setFiltros] = useState({
     busqueda: "",
     estado: "",
@@ -18,6 +27,7 @@ function EstudiantesAdmin() {
   });
 
   const [data, setData] = useState([]);
+  const [totalFiltrados, setTotalFiltrados] = useState(0);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
 
@@ -37,8 +47,16 @@ function EstudiantesAdmin() {
 
   const puedeRetroceder = useMemo(() => filtros.page > 1, [filtros.page]);
   const puedeAvanzar = useMemo(
-    () => data.length === filtros.size,
-    [data, filtros.size],
+    () => filtros.page * filtros.size < totalFiltrados,
+    [filtros.page, filtros.size, totalFiltrados],
+  );
+
+  const cursosAnioActivo = useMemo(
+    () =>
+      anioActivo
+        ? cursos.filter((c) => normalizarAnioLectivo(c.anio_lectivo) === anioActivo)
+        : cursos,
+    [anioActivo, cursos],
   );
 
   const cargarCursos = async () => {
@@ -54,15 +72,32 @@ function EstudiantesAdmin() {
     setCargando(true);
     setError("");
     try {
-      const res = await estudiantesAPI.buscar({
-        nombre: filtrosAplicados.busqueda || undefined,
-        apellido: filtrosAplicados.busqueda || undefined,
-        estado: filtrosAplicados.estado || undefined,
-        id_curso: filtrosAplicados.id_curso || undefined,
-        page: filtrosAplicados.page,
-        size: filtrosAplicados.size,
+      const resultados = [];
+      let page = 1;
+      while (true) {
+        const lote = await estudiantesAPI.buscar({
+          nombre: filtrosAplicados.busqueda || undefined,
+          apellido: filtrosAplicados.busqueda || undefined,
+          estado: filtrosAplicados.estado || undefined,
+          id_curso: filtrosAplicados.id_curso || undefined,
+          page,
+          size: 100,
+        });
+
+        if (!Array.isArray(lote) || lote.length === 0) break;
+        resultados.push(...lote);
+        if (lote.length < 100) break;
+        page += 1;
+      }
+
+      const mapa = new Map();
+      resultados.forEach((est) => {
+        if (est?.id_estudiante) mapa.set(est.id_estudiante, est);
       });
-      setData(res || []);
+      const filtrados = Array.from(mapa.values());
+      const inicio = (filtrosAplicados.page - 1) * filtrosAplicados.size;
+      setTotalFiltrados(filtrados.length);
+      setData(filtrados.slice(inicio, inicio + filtrosAplicados.size));
     } catch (e) {
       setError(e.message || "Error al cargar");
     } finally {
@@ -116,11 +151,22 @@ function EstudiantesAdmin() {
   }, [searchParams]);
 
   useEffect(() => {
+    const syncAnio = () => {
+      setAnioActivo(
+        normalizarAnioLectivo(localStorage.getItem("anio_lectivo_activo") || ""),
+      );
+    };
+    syncAnio();
+    window.addEventListener("storage", syncAnio);
+    return () => window.removeEventListener("storage", syncAnio);
+  }, []);
+
+  useEffect(() => {
     const timeout = setTimeout(() => {
       cargarConFiltros(filtros);
     }, 250);
     return () => clearTimeout(timeout);
-  }, [filtros]);
+  }, [filtros, cursosAnioActivo, anioActivo]);
 
   const limpiarFiltros = () => {
     const base = {
@@ -218,6 +264,12 @@ function EstudiantesAdmin() {
         Registre, busque, filtre y gestione estudiantes
       </div>
 
+      {anioActivo && (
+        <div className="cursos-year-helper cursos-filter-helper" style={{ marginBottom: 10 }}>
+          Año lectivo activo: {anioActivo}
+        </div>
+      )}
+
       <div className="estudiantes-filters">
         <input
           placeholder="Buscar por nombre o apellido"
@@ -259,7 +311,7 @@ function EstudiantesAdmin() {
           }
           options={[
             { value: "", label: "Todos los cursos" },
-            ...cursos.map((c) => ({
+            ...cursosAnioActivo.map((c) => ({
               value: String(c.id_curso),
               label: c.nombre,
             })),
@@ -283,7 +335,7 @@ function EstudiantesAdmin() {
         ) : error ? (
           <p style={{ color: "red" }}>{error}</p>
         ) : (
-          <table>
+          <table className="materias-base-table estudiantes-table">
             <thead>
               <tr>
                 <th>Nombre</th>
@@ -307,14 +359,16 @@ function EstudiantesAdmin() {
                         ?.nombre || "-",
                     )}
                   </td>
-                  <td>
-                    <button
-                      className="btn-view btn-inline-icon"
-                      onClick={() => abrirEditar(est)}
-                    >
-                      <Pencil size={14} />
-                      Editar
-                    </button>
+                  <td className="plantillas-academicas-actions">
+                    <div className="plantillas-academicas-actions-row materias-base-actions">
+                      <button
+                        className="btn-view btn-inline-icon"
+                        onClick={() => abrirEditar(est)}
+                      >
+                        <Pencil size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                        Editar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -404,7 +458,7 @@ function EstudiantesAdmin() {
               }
               options={[
                 { value: "", label: "Sin curso" },
-                ...cursos.map((c) => ({
+                ...cursosAnioActivo.map((c) => ({
                   value: String(c.id_curso),
                   label: c.nombre,
                 })),

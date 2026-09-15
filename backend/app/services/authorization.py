@@ -321,13 +321,9 @@ async def validar_usuario_puede_editar_comportamiento(
     comportamiento = await validar_usuario_puede_ver_comportamiento(db, id_comportamiento, current_user, id_contexto)
     if current_user.rol != RolUsuarioEnum.administrativo:
         curso = await _obtener_curso(db, comportamiento.id_curso, id_contexto)
-        if curso.id_tutor == current_user.id_usuario:
+        if curso.id_tutor != current_user.id_usuario:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="El tutor solo tiene acceso de lectura al comportamiento global del curso",
+                detail="Solo el tutor del curso o un administrador pueden modificar este comportamiento",
             )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo administradores pueden modificar este comportamiento",
-        )
     return comportamiento

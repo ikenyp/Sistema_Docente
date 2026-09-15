@@ -39,6 +39,7 @@ function CursoPrincipal() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [datosUsuario, setDatosUsuario] = useState(null);
+  const [materiasGestionablesDocente, setMateriasGestionablesDocente] = useState([]);
   const [menuUsuario, setMenuUsuario] = useState(false);
 
   // Datos del curso
@@ -137,7 +138,26 @@ function CursoPrincipal() {
   // Promedios
   const [errorPeriodos, setErrorPeriodos] = useState(null);
 
-  const soloLecturaTutor = false;
+  const esMateriaGestionableActiva = useMemo(() => {
+    if (esModoPersonal) return true;
+    if (!datosUsuario || !materiaSeleccionada?.id_cmd) return false;
+    if (Number(materiaSeleccionada?.id_docente) === Number(datosUsuario.id_usuario)) {
+      return true;
+    }
+    return materiasGestionablesDocente.some(
+      (idCmd) => String(idCmd) === String(materiaSeleccionada.id_cmd),
+    );
+  }, [datosUsuario, esModoPersonal, materiaSeleccionada, materiasGestionablesDocente]);
+
+  const esTutorInstitucionalCurso = useMemo(() => {
+    if (esModoPersonal || !datosUsuario || !cursoDetalle) return false;
+    return Number(cursoDetalle?.id_tutor) === Number(datosUsuario.id_usuario);
+  }, [cursoDetalle, datosUsuario, esModoPersonal]);
+
+  const soloLecturaTutor = useMemo(
+    () => esTutorInstitucionalCurso && !esMateriaGestionableActiva,
+    [esTutorInstitucionalCurso, esMateriaGestionableActiva],
+  );
 
   const materiaNombre = (m) => {
     if (!m) return "Materia";
@@ -162,27 +182,54 @@ function CursoPrincipal() {
     [esModoPersonal],
   );
 
-  const periodosVisibles = useMemo(() => {
-    const ordenados = [...periodos].sort(
-      (a, b) => Number(a.numero_periodo) - Number(b.numero_periodo),
-    );
+  const periodosVisibles = useMemo(
+    () =>
+      [...periodos].sort((a, b) => Number(a.numero_periodo) - Number(b.numero_periodo)),
+    [periodos],
+  );
 
+  const periodosFiltrados = useMemo(() => {
     if (filtroPeriodo !== "todos") {
-      return ordenados.filter(
+      return periodosVisibles.filter(
         (periodo) => String(periodo.numero_periodo) === String(filtroPeriodo),
       );
     }
 
-    return ordenados;
-  }, [periodos, filtroPeriodo]);
+    return periodosVisibles;
+  }, [periodosVisibles, filtroPeriodo]);
 
   const materiasOptions = useMemo(
     () =>
-      materiasCurso.map((materia) => ({
-        value: String(materia.id_cmd),
-        label: materiaNombre(materia),
-      })),
-    [materiasCurso],
+      [...materiasCurso]
+        .sort((a, b) => {
+          const aGestionable =
+            esTutorInstitucionalCurso &&
+            materiasGestionablesDocente.some((idCmd) => String(idCmd) === String(a.id_cmd));
+          const bGestionable =
+            esTutorInstitucionalCurso &&
+            materiasGestionablesDocente.some((idCmd) => String(idCmd) === String(b.id_cmd));
+          if (aGestionable === bGestionable) return String(a.materia?.nombre || a.id_cmd).localeCompare(String(b.materia?.nombre || b.id_cmd), "es");
+          return aGestionable ? -1 : 1;
+        })
+        .map((materia) => {
+        const esGestionable =
+          esTutorInstitucionalCurso &&
+          materiasGestionablesDocente.some(
+            (idCmd) => String(idCmd) === String(materia.id_cmd),
+          );
+
+        return {
+          value: String(materia.id_cmd),
+          label: materiaNombre(materia),
+          badge:
+            esTutorInstitucionalCurso
+              ? esGestionable
+                ? "Gestionable"
+                : "Solo lectura"
+              : null,
+        };
+      }),
+    [esTutorInstitucionalCurso, materiasCurso, materiasGestionablesDocente],
   );
 
   const materiasAgregarSeleccionadasDetalle = useMemo(
@@ -223,6 +270,14 @@ function CursoPrincipal() {
     [periodos],
   );
 
+  const cursosEdicionAnioActual = useMemo(() => {
+    const anioCurso = String(cursoDetalle?.anio_lectivo || curso?.anio_lectivo || "").trim();
+    if (!anioCurso) return cursosEdicion;
+    return cursosEdicion.filter(
+      (c) => String(c.anio_lectivo || "").trim() === anioCurso,
+    );
+  }, [cursosEdicion, curso, cursoDetalle]);
+
   // ====================== CARGA BASE ======================
   const cargarInsumos = useCallback(async (id_cmd) => {
     if (!id_cmd) return;
@@ -243,6 +298,24 @@ function CursoPrincipal() {
       console.error("Error al cargar asistencia:", err);
     }
   }, []);
+
+  const sincronizarEstadosTemporalesAsistencia = useCallback(
+    (fecha = fechaAsistencia, registros = asistencias) => {
+      const next = {};
+      (registros || [])
+        .filter((registro) => registro.fecha === fecha)
+        .forEach((registro) => {
+          next[registro.id_estudiante] = registro.estado;
+        });
+      setEstadosTemporales(next);
+    },
+    [asistencias, fechaAsistencia],
+  );
+
+  useEffect(() => {
+    if (!materiaSeleccionada?.id_cmd) return;
+    sincronizarEstadosTemporalesAsistencia();
+  }, [fechaAsistencia, asistencias, materiaSeleccionada?.id_cmd, sincronizarEstadosTemporalesAsistencia]);
 
   const cargarComportamientos = useCallback(async () => {
     try {
@@ -497,8 +570,31 @@ function CursoPrincipal() {
         : (dashboard?.asignaciones || []).filter(
             (item) => item.id_docente === usuario.id_usuario,
           );
+
+      let asignacionesDocenteCurso = [];
+      try {
+        asignacionesDocenteCurso = await asignacionesAPI.listar({
+          id_curso: Number(id_curso),
+          size: 100,
+        });
+      } catch {
+        asignacionesDocenteCurso = [];
+      }
+
+      setMateriasGestionablesDocente(
+        (asignacionesDocenteCurso || [])
+          .map((item) => item.id_cmd || item.cmd?.id_cmd || item.id_materia || item.materia?.id_materia)
+          .filter(Boolean),
+      );
       setMateriasCurso(cmd || []);
-      setMateriaSeleccionada(cmd && cmd.length > 0 ? cmd[0] : null);
+      const gestionablesIds = new Set(
+        (asignacionesDocenteCurso || [])
+          .map((item) => item.id_cmd || item.cmd?.id_cmd || item.id_materia || item.materia?.id_materia)
+          .filter(Boolean)
+          .map((value) => String(value)),
+      );
+      const primeraGestionable = (cmd || []).find((item) => gestionablesIds.has(String(item.id_cmd)));
+      setMateriaSeleccionada(primeraGestionable || (cmd && cmd.length > 0 ? cmd[0] : null));
       if (!cmd || cmd.length === 0) {
         setInsumosMateria([]);
         setAsistencias([]);
@@ -718,7 +814,7 @@ function CursoPrincipal() {
     [asistencias, fechaAsistencia],
   );
 
-  const guardarAsistenciaUno = async (id_estudiante) => {
+  const guardarAsistenciaUno = async (id_estudiante, { silent = false } = {}) => {
     const estado = estadosTemporales[id_estudiante];
     if (!estado) return;
 
@@ -737,6 +833,9 @@ function CursoPrincipal() {
         await asistenciaAPI.crear(payload);
       }
       await cargarAsistencia(materiaSeleccionada.id_cmd);
+      if (!silent) {
+        notify("success", existente ? "Asistencia actualizada" : "Asistencia guardada");
+      }
     } catch (err) {
       notify("error", "No se pudo guardar: " + err.message);
     }
@@ -755,22 +854,24 @@ function CursoPrincipal() {
 
     try {
       await asistenciaAPI.eliminar(existente.id_asistencia);
-      setEstadosTemporales((prev) => {
-        const next = { ...prev };
-        delete next[id_estudiante];
-        return next;
-      });
       await cargarAsistencia(materiaSeleccionada.id_cmd);
+      sincronizarEstadosTemporalesAsistencia(fechaAsistencia);
+      notify("success", "Asistencia limpiada");
     } catch (err) {
       notify("error", "No se pudo eliminar: " + err.message);
     }
   };
 
   const guardarAsistenciaTodo = async () => {
+    let guardadas = 0;
     for (const estudiante of estudiantesCurso) {
       if (estadosTemporales[estudiante.id_estudiante]) {
-        await guardarAsistenciaUno(estudiante.id_estudiante);
+        await guardarAsistenciaUno(estudiante.id_estudiante, { silent: true });
+        guardadas += 1;
       }
+    }
+    if (guardadas > 0) {
+      notify("success", "Asistencia guardada correctamente");
     }
   };
 
@@ -778,6 +879,35 @@ function CursoPrincipal() {
     comportamientos.find(
       (c) => c.id_estudiante === id_estudiante && c.mes === comportamientoMes,
     );
+
+  const sincronizarEstadosTemporalesComportamiento = useCallback(
+    (mes = comportamientoMes, registros = comportamientos) => {
+      const valores = {};
+      const observaciones = {};
+
+      (registros || [])
+        .filter((registro) => registro.mes === mes)
+        .forEach((registro) => {
+          valores[registro.id_estudiante] = registro.valor;
+          observaciones[registro.id_estudiante] = registro.observaciones || "";
+        });
+
+      setValoresTemporales(valores);
+      setObservacionesTemporales(observaciones);
+    },
+    [comportamientoMes, comportamientos],
+  );
+
+  useEffect(() => {
+    if (!materiaSeleccionada?.id_cmd || activeTab !== "comportamiento") return;
+    sincronizarEstadosTemporalesComportamiento();
+  }, [
+    activeTab,
+    comportamientoMes,
+    comportamientos,
+    materiaSeleccionada?.id_cmd,
+    sincronizarEstadosTemporalesComportamiento,
+  ]);
 
   const guardarComportamientoUno = async (id_estudiante) => {
     const valor = valoresTemporales[id_estudiante];
@@ -799,6 +929,7 @@ function CursoPrincipal() {
         await comportamientoAPI.crear(payload);
       }
       await cargarComportamientos();
+      notify("success", "Comportamiento guardado correctamente");
     } catch (err) {
       notify("error", "No se pudo guardar: " + err.message);
     }
@@ -864,6 +995,7 @@ function CursoPrincipal() {
       try {
         await notasAPI.eliminar(idNotaAEliminar);
         await cargarNotasEstudiante(estudianteSeleccionado);
+        await cargarNotasCurso();
       } catch (err) {
         notify("error", "No se pudo eliminar la nota: " + err.message);
       }
@@ -886,6 +1018,7 @@ function CursoPrincipal() {
       }
 
       await cargarNotasEstudiante(estudianteSeleccionado);
+      await cargarNotasCurso();
     } catch (err) {
       notify("error", "No se pudo guardar la nota: " + err.message);
     }
@@ -909,17 +1042,9 @@ function CursoPrincipal() {
 
     try {
       await comportamientoAPI.eliminar(existente.id_comportamiento);
-      setValoresTemporales((prev) => {
-        const next = { ...prev };
-        delete next[id_estudiante];
-        return next;
-      });
-      setObservacionesTemporales((prev) => {
-        const next = { ...prev };
-        delete next[id_estudiante];
-        return next;
-      });
       await cargarComportamientos();
+      sincronizarEstadosTemporalesComportamiento(comportamientoMes);
+      notify("success", "Comportamiento eliminado");
     } catch (err) {
       notify("error", "No se pudo eliminar: " + err.message);
     }
@@ -934,10 +1059,18 @@ function CursoPrincipal() {
   };
 
   useEffect(() => {
-    if (estudianteSeleccionado) {
+    if (activeTab === "notasEstudiante" && estudianteSeleccionado) {
       cargarNotasEstudiante(estudianteSeleccionado);
     }
-  }, [cargarNotasEstudiante, estudianteSeleccionado]);
+  }, [activeTab, cargarNotasEstudiante, estudianteSeleccionado]);
+
+  useEffect(() => {
+    if (activeTab !== "notasEstudiante") {
+      setEstudianteSeleccionado("");
+      setNotasIndividuales([]);
+      setCargandoNotasIndividual(false);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     cargarNotasCurso();
@@ -1277,6 +1410,7 @@ function CursoPrincipal() {
                   setNuevoInsumo={setNuevoInsumo}
                   periodosOptions={periodosOptions}
                   periodosVisibles={periodosVisibles}
+                  periodosFiltrados={periodosFiltrados}
                   filtroPeriodo={filtroPeriodo}
                   setFiltroPeriodo={setFiltroPeriodo}
                   ordenInsumos={ordenInsumos}
@@ -1304,6 +1438,7 @@ function CursoPrincipal() {
                 estudiantesCurso={estudiantesCurso}
                 fechaAsistencia={fechaAsistencia}
                 setFechaAsistencia={setFechaAsistencia}
+                soloLecturaTutor={soloLecturaTutor}
                 estadosTemporales={estadosTemporales}
                 setEstadosTemporales={setEstadosTemporales}
                 asistenciaExistentePorEstudiante={asistenciaExistentePorEstudiante}
@@ -1317,6 +1452,7 @@ function CursoPrincipal() {
                 estudiantesCurso={estudiantesCurso}
                 mesComportamiento={comportamientoMes}
                 setMesComportamiento={setComportamientoMes}
+                soloLecturaTutor={soloLecturaTutor}
                 valoresTemporales={valoresTemporales}
                 setValoresTemporales={setValoresTemporales}
                 observacionesTemporales={observacionesTemporales}
@@ -1333,6 +1469,7 @@ function CursoPrincipal() {
                 periodos={periodos}
                 estudianteSeleccionado={estudianteSeleccionado}
                 setEstudianteSeleccionado={setEstudianteSeleccionado}
+                soloLecturaTutor={soloLecturaTutor}
                 notasIndividuales={notasIndividuales}
                 cargandoNotasIndividual={cargandoNotasIndividual}
                 onGuardarNota={guardarNotaIndividual}
@@ -1392,6 +1529,7 @@ function CursoPrincipal() {
                     });
                   }
                   await abrirInsumosNotas(insumoNotasAbierto);
+                  await cargarNotasCurso();
                 }}
                 onClose={cerrarModalInsumo}
               />
@@ -1501,19 +1639,22 @@ function CursoPrincipal() {
                     ) : (
                       materiasCurso.map((cmd) => {
                         const tieneInsumos = Number(insumosPorCMDConfig[String(cmd.id_cmd)] || 0) > 0;
+                        const materiaBloqueada = tieneInsumos;
                         return (
-                          <div key={cmd.id_cmd} className="materia-assigned-pill">
+                          <div
+                            key={cmd.id_cmd}
+                            className={`materia-assigned-pill ${materiaBloqueada ? "materia-assigned-pill-locked" : ""}`}
+                          >
                             <button
                               type="button"
-                              className="estudiante-pill materia-pill-option active materia-assigned-pill-row"
+                              className={`estudiante-pill materia-pill-option active materia-assigned-pill-row ${materiaBloqueada ? "materia-assigned-pill-row-locked" : ""}`}
                               onClick={() => abrirConfirmacionQuitarMateria(cmd)}
-                              disabled={tieneInsumos || cargandoConfiguracionMaterias || quitandoMateria}
-                              aria-label={tieneInsumos ? "Materia bloqueada" : "Quitar materia"}
-                              title={tieneInsumos ? "Materia bloqueada" : "Quitar materia"}
+                              disabled={materiaBloqueada || cargandoConfiguracionMaterias || quitandoMateria}
+                              aria-label={materiaBloqueada ? "Materia bloqueada por insumos" : "Quitar materia"}
+                              title={materiaBloqueada ? "Materia bloqueada por insumos" : "Quitar materia"}
                             >
                               <span className="materia-assigned-pill-label">
                                 {materiaNombre(cmd)}
-                                {tieneInsumos && <span className="materia-pill-code">con insumos</span>}
                               </span>
                               <span className="materia-assigned-pill-x">
                                 <X size={14} />
@@ -1720,16 +1861,16 @@ function CursoPrincipal() {
                 className="custom-select-white estudiantes-modal-select"
               />
               {!esModoPersonal && (
-                <CustomSelect
-                  value={estudianteEditForm.id_curso_actual}
-                  onChange={(value) => setEstudianteEditForm((prev) => ({ ...prev, id_curso_actual: value }))}
-                  options={[
-                    { value: "", label: "Sin curso" },
-                    ...cursosEdicion.map((c) => ({
-                      value: String(c.id_curso),
-                      label: `${c.nombre}${c.anio_lectivo ? ` · ${c.anio_lectivo}` : ""}`,
-                    })),
-                  ]}
+                  <CustomSelect
+                    value={estudianteEditForm.id_curso_actual}
+                    onChange={(value) => setEstudianteEditForm((prev) => ({ ...prev, id_curso_actual: value }))}
+                    options={[
+                      { value: "", label: "Sin curso" },
+                      ...cursosEdicionAnioActual.map((c) => ({
+                        value: String(c.id_curso),
+                        label: `${c.nombre}${c.anio_lectivo ? ` · ${c.anio_lectivo}` : ""}`,
+                      })),
+                    ]}
                   placeholder="Sin curso"
                   className="custom-select-white estudiantes-modal-select"
                 />

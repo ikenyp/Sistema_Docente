@@ -607,15 +607,18 @@ const buildGeneralPreviewModel = ({ estudiantes, periodosOrdenados, insumosMater
   return { type: "general", headerRows, bodyRows, totalCols };
 };
 
-const PreviewTable = ({ model }) => {
+const PreviewTable = ({ model, compact = false }) => {
   if (!model) return null;
 
   return (
-    <div className="reportes-preview-wrap">
-      <table className="reportes-preview-table">
+    <div className={`reportes-preview-wrap${compact ? " reportes-preview-wrap-compact" : ""}`}>
+      <table className={`reportes-preview-table${compact ? " reportes-preview-table-compact" : ""}`}>
         <colgroup>
           {Array.from({ length: model.totalCols }).map((_, idx) => (
-            <col key={idx} className={idx === 1 ? "preview-col-name" : "preview-col-default"} />
+            <col
+              key={idx}
+              className={idx === 1 ? "preview-col-name" : "preview-col-default"}
+            />
           ))}
         </colgroup>
         <thead>
@@ -658,6 +661,7 @@ export const TabReportes = ({
   notasPorEstudiante = {},
   materiaSeleccionada,
   cursoDetalle,
+  compactPreview = false,
 }) => {
   const [periodoId, setPeriodoId] = useState("");
   const [generando, setGenerando] = useState(false);
@@ -814,7 +818,7 @@ export const TabReportes = ({
           </div>
         </div>
         {previewModel ? (
-          <PreviewTable model={previewModel} />
+          <PreviewTable model={previewModel} compact={compactPreview} />
         ) : (
           <div className="reportes-preview-empty">No hay datos suficientes para mostrar la previsualización.</div>
         )}

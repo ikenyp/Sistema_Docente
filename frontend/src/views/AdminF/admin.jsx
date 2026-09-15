@@ -30,6 +30,37 @@ function Admin() {
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState("");
 
+  const cursosRecientes = useMemo(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem("admin_recent_courses") || "[]");
+      const lista = Array.isArray(raw) ? raw : [];
+      const ids = new Set();
+      return lista
+        .filter((item) => item && item.id_curso)
+        .filter((item) => {
+          const id = Number(item.id_curso);
+          if (ids.has(id)) return false;
+          ids.add(id);
+          return true;
+        })
+        .slice(0, 5);
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const cursosRecientesConDatos = useMemo(() => {
+    return cursosRecientes
+      .map((item) => {
+        const curso = cursos.find((c) => Number(c.id_curso) === Number(item.id_curso));
+        return curso
+          ? { ...item, nombre: curso.nombre, anio_lectivo: curso.anio_lectivo }
+          : item;
+      })
+      .filter((item) => !anioActivo || normalizarAnioLectivo(item.anio_lectivo) === anioActivo)
+      .filter(Boolean);
+  }, [anioActivo, cursos, cursosRecientes]);
+
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
@@ -78,11 +109,11 @@ function Admin() {
     cargar();
   }, [cargar]);
 
-  const normalizarAnioLectivo = (valor) => {
+  function normalizarAnioLectivo(valor) {
     if (!valor) return "";
     if (/^\d{4}$/.test(valor)) return `${valor}-${Number(valor) + 1}`;
     return valor;
-  };
+  }
 
   const formatarAnioLectivo = (valor) => {
     const soloNumeros = String(valor || "").replace(/\D/g, "");
@@ -263,13 +294,13 @@ function Admin() {
       to: "/admin/usuarios",
     },
     {
-      title: "2. Estructura académica",
-      sub: "Plantillas, materias base y periodización",
+      title: "2. Materias",
+      sub: "Plantillas y materias",
       to: "/admin/estructura-academica",
     },
     {
       title: "3. Cursos",
-      sub: "Paralelos del año lectivo",
+      sub: "Cursos y paralelos",
       to: "/admin/cursos",
     },
     {
@@ -457,27 +488,27 @@ function Admin() {
             {pendientes.sinEstructura > 0 && (
               <li>
                 <strong>{pendientes.sinEstructura}</strong> curso(s) sin estructura académica.
-                <button type="button" className="admin-link-btn admin-link-btn-inline" onClick={() => navigate("/admin/cursos")}>
+                <button type="button" className="admin-link-btn admin-link-btn-inline" onClick={() => navigate("/admin/cursos?filtro=sin-estructura")}>
                   <Clipboard size={14} />
-                  <span>Revisar cursos</span>
+                  <span>Ver cursos</span>
                 </button>
               </li>
             )}
             {pendientes.sinTutor > 0 && (
               <li>
                 <strong>{pendientes.sinTutor}</strong> curso(s) sin tutor.
-                <button type="button" className="admin-link-btn admin-link-btn-inline" onClick={() => navigate("/admin/cursos")}>
+                <button type="button" className="admin-link-btn admin-link-btn-inline" onClick={() => navigate("/admin/cursos?filtro=sin-tutor")}>
                   <Clipboard size={14} />
-                  <span>Revisar cursos</span>
+                  <span>Ver cursos</span>
                 </button>
               </li>
             )}
             {pendientes.sinMaterias > 0 && (
               <li>
                 <strong>{pendientes.sinMaterias}</strong> curso(s) sin asignaciones de materias.
-                <button type="button" className="admin-link-btn admin-link-btn-inline" onClick={() => navigate("/admin/cursos")}>
+                <button type="button" className="admin-link-btn admin-link-btn-inline" onClick={() => navigate("/admin/cursos?filtro=sin-materias")}>
                   <BookOpen size={14} />
-                  <span>Abrir cursos</span>
+                  <span>Ver cursos</span>
                 </button>
               </li>
             )}
@@ -487,12 +518,12 @@ function Admin() {
 
       <div className="panel-divider" />
 
-      <div className="section-block">
+        <div className="section-block">
         <div className="section-block-head">
-          <h3>Inicio de año lectivo</h3>
-          <p>Siga este orden para dejar lista la operación del periodo.</p>
+          <h3>Administración del sistema</h3>
+          <p>Acciones clave para preparar y mantener el sistema.</p>
         </div>
-        <div className="dashboard-grid dashboard-grid-2 admin-action-grid">
+        <div className="dashboard-grid admin-action-grid admin-action-grid-4">
           {pasosInicioAnio.map((p) => (
             <button
               key={p.to}
@@ -509,98 +540,50 @@ function Admin() {
 
       <div className="panel-divider" />
 
-      <div className="section-block">
+      <div className="section-block admin-recent-section">
         <div className="section-block-head">
-          <h3>Cursos del periodo</h3>
-          <p>Entre directamente a la ficha de cada curso.</p>
+          <h3>Cursos recientes</h3>
+          <p>Últimos 5 cursos abiertos desde el panel de admin.</p>
         </div>
-        <div className="table-container table-compact">
-          <table>
-            <thead>
-              <tr>
-                <th>Curso</th>
-                <th>Año</th>
-                <th>Tutor</th>
-                <th>Estudiantes</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cursosAnio.map((c) => (
-                <tr key={c.id_curso}>
-                  <td>{c.nombre}</td>
-                  <td>{c.anio_lectivo}</td>
-                  <td>{nombreTutor(c.id_tutor)}</td>
-                  <td>
-                    {estudiantes.filter(
-                      (e) => e.id_curso_actual === c.id_curso,
-                    ).length}
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn-view"
-                      onClick={() => navigate(`/admin/cursos/${c.id_curso}`)}
-                    >
-                      <ArrowLeft size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
-                      Abrir curso
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {cursosAnio.length === 0 && !cargando && (
+        {cursosRecientesConDatos.length === 0 ? (
+          <div className="empty-state empty-state-compact">
+            <p>No hay cursos recientes todavía.</p>
+          </div>
+        ) : (
+          <div className="table-container table-compact">
+            <table className="cursos-table admin-recent-table">
+              <thead>
                 <tr>
-                  <td colSpan={5} style={{ textAlign: "center" }}>
-                    Cree cursos en la sección Cursos
-                  </td>
+                  <th>Curso</th>
+                  <th>Año</th>
+                  <th>Tutor</th>
+                  <th>Estudiantes</th>
+                  <th>Acciones</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-          {cursos.length > 8 && (
-            <p className="panel-sub" style={{ marginTop: 8 }}>
-              <button
-                type="button"
-                className="admin-link-btn"
-                onClick={() => navigate("/admin/cursos")}
-              >
-                <Clipboard size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
-                Ver todos los cursos
-              </button>
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="panel-divider" />
-
-      <div className="section-block">
-        <div className="section-block-head">
-          <h3>Accesos rápidos</h3>
-          <p>Las consultas y reportes más usados.</p>
-        </div>
-        <div className="dashboard-grid dashboard-grid-2 admin-action-grid">
-          <button
-            type="button"
-            className="admin-action-card"
-            onClick={() => navigate("/admin/consultas")}
-          >
-            <span className="admin-action-title">Consulta de curso</span>
-            <span className="admin-action-sub">
-              Estudiantes, notas y promedios
-            </span>
-          </button>
-          <button
-            type="button"
-            className="admin-action-card"
-            onClick={() => navigate("/admin/usuarios")}
-          >
-            <span className="admin-action-title">Gestionar usuarios</span>
-            <span className="admin-action-sub">
-              Docentes y administradores
-            </span>
-          </button>
-        </div>
+              </thead>
+              <tbody>
+                {cursosRecientesConDatos.map((c) => (
+                  <tr key={c.id_curso}>
+                    <td>{c.nombre}</td>
+                    <td>{c.anio_lectivo || "—"}</td>
+                    <td>{nombreTutor(c.id_tutor)}</td>
+                    <td>{estudiantes.filter((e) => e.id_curso_actual === c.id_curso).length}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn-view btn-inline-icon cursos-open-btn"
+                        onClick={() => navigate(`/admin/cursos/${c.id_curso}`)}
+                      >
+                        <ArrowLeft size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                        Abrir curso
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </AdminLayout>
   );

@@ -215,24 +215,25 @@ function UsuariosAdmin() {
                   <td>{u.apellido}</td>
                   <td>{u.correo}</td>
                   <td>{rolLabel(u.rol)}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn-view btn-inline-icon"
-                      onClick={() => abrirEditarModal(u)}
-                      style={{ marginRight: 8 }}
-                    >
-                      <Pencil size={14} />
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-danger btn-inline-icon"
-                      onClick={() => eliminarUsuario(u)}
-                    >
-                      <Trash2 size={14} />
-                      Eliminar
-                    </button>
+                  <td className="plantillas-academicas-actions">
+                    <div className="plantillas-academicas-actions-row materias-base-actions">
+                      <button
+                        type="button"
+                        className="btn-view btn-inline-icon"
+                        onClick={() => abrirEditarModal(u)}
+                      >
+                        <Pencil size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-danger btn-inline-icon"
+                        onClick={() => eliminarUsuario(u)}
+                      >
+                        <Trash2 size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                        Eliminar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

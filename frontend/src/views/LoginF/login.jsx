@@ -262,13 +262,21 @@ export default function Login() {
             </>
           ) : (
             <>
-              <h2 className="login-title">
-                Iniciar Sesión (
-                {selectedMode === "institucional"
-                  ? "Institucional"
-                  : "Personal"}
-                )
-              </h2>
+              {authView === "register" && selectedMode === "personal" ? (
+                <>
+                  <h2 className="login-title login-title-register">
+                    Crear cuenta
+                  </h2>
+                </>
+              ) : (
+                <h2 className="login-title">
+                  Iniciar Sesión (
+                  {selectedMode === "institucional"
+                    ? "Institucional"
+                    : "Personal"}
+                  )
+                </h2>
+              )}
 
               {authView === "login" && (
                 <form className="login-form" onSubmit={handleSubmit}>
@@ -302,7 +310,11 @@ export default function Login() {
                   >
                     {loading ? "Ingresando..." : "Ingresar"}
                   </button>
-                  <div className="login-links">
+                  <div
+                    className={`login-links ${
+                      selectedMode === "institucional" ? "login-links-institutional" : ""
+                    }`}
+                  >
                     {selectedMode === "personal" && (
                       <button
                         className="login-link-button"
@@ -419,7 +431,7 @@ export default function Login() {
                         setAuthView("login");
                       }}
                     >
-                      Iniciar sesión
+                      Volver
                     </button>
                   </div>
                 </form>

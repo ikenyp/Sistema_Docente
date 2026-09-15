@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeftRight } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
 import { Save } from "lucide-react";
@@ -24,12 +24,20 @@ export const TabNotasEstudiante = ({
   periodos,
   estudianteSeleccionado,
   setEstudianteSeleccionado,
+  soloLecturaTutor,
   notasIndividuales,
   cargandoNotasIndividual,
   onGuardarNota,
 }) => {
   const [busquedaEstudiante, setBusquedaEstudiante] = useState("");
   const [periodoFiltrado, setPeriodoFiltrado] = useState("todos");
+
+  useEffect(() => {
+    if (activeTab !== "notasEstudiante") {
+      setBusquedaEstudiante("");
+      setPeriodoFiltrado("todos");
+    }
+  }, [activeTab]);
 
   const formatoApellidoNombre = (est) =>
     [est?.apellido, est?.nombre].filter(Boolean).join(" ").trim();
@@ -256,14 +264,17 @@ export const TabNotasEstudiante = ({
                             max="10"
                             step="0.1"
                             defaultValue={registro.valor}
+                            key={`nota-ind-${registro.insumo.id_insumo}-${registro.id_nota || "new"}-${registro.valor ?? ""}`}
                             className="input-nota"
                             id={`nota-ind-${registro.insumo.id_insumo}`}
+                            disabled={soloLecturaTutor}
                           />
                         </td>
                         <td>
                           <button
                             className="btn-guardar-nota"
                             type="button"
+                            disabled={soloLecturaTutor}
                             onClick={() => {
                               const input = document.getElementById(
                                 `nota-ind-${registro.insumo.id_insumo}`,
@@ -272,7 +283,7 @@ export const TabNotasEstudiante = ({
                             }}
                           >
                             <Save size={18} />
-                            <span>Guardar</span>
+                            <span>{soloLecturaTutor ? "Solo lectura" : "Guardar"}</span>
                           </button>
                         </td>
                       </tr>

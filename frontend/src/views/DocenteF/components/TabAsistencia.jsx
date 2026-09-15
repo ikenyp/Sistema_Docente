@@ -12,6 +12,7 @@ export const TabAsistencia = ({
   estudiantesCurso,
   fechaAsistencia,
   setFechaAsistencia,
+  soloLecturaTutor,
   estadosTemporales,
   setEstadosTemporales,
   asistenciaExistentePorEstudiante,
@@ -70,6 +71,7 @@ export const TabAsistencia = ({
                               name={`asis-${estudiante.id_estudiante}`}
                               value={estado.value}
                               checked={actual === estado.value}
+                              disabled={soloLecturaTutor}
                               onChange={() =>
                                 setEstadosTemporales((prev) => ({
                                   ...prev,
@@ -101,9 +103,9 @@ export const TabAsistencia = ({
       </div>
 
       <div className="tab-footer-actions attendance-footer-actions">
-        <button className="btn-primary attendance-save-btn" type="button" onClick={onGuardarTodo}>
+        <button className="btn-primary attendance-save-btn" type="button" onClick={onGuardarTodo} disabled={soloLecturaTutor}>
           <Save size={16} />
-          <span>Guardar asistencia</span>
+          <span>{soloLecturaTutor ? "Solo lectura" : "Guardar asistencia"}</span>
         </button>
       </div>
 

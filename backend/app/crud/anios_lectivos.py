@@ -34,6 +34,17 @@ async def listar(db: AsyncSession, id_contexto: int):
     return result.scalars().all()
 
 
+async def obtener_activo(db: AsyncSession, id_contexto: int):
+    result = await db.execute(
+        select(AnioLectivo).where(
+            AnioLectivo.id_contexto == id_contexto,
+            AnioLectivo.activo == True,
+        )
+        .order_by(AnioLectivo.creado_en.desc())
+    )
+    return result.scalars().first()
+
+
 async def crear(db: AsyncSession, anio: AnioLectivo):
     db.add(anio)
     await db.commit()

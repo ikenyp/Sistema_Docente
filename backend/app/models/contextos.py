@@ -16,6 +16,7 @@ class Contexto(Base):
     owner_docente = relationship("Usuario", foreign_keys=[id_owner_docente])
     cursos = relationship("Curso", back_populates="contexto")
     materias = relationship("Materia", back_populates="contexto")
+    estudiantes = relationship("Estudiante", back_populates="contexto")
     configuraciones_periodizacion = relationship(
         "ConfiguracionPeriodizacion",
         back_populates="contexto",

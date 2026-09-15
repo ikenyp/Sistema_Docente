@@ -9,6 +9,7 @@ export const TabInsumos = ({
   setNuevoInsumo,
   periodosOptions,
   periodosVisibles,
+  periodosFiltrados,
   filtroPeriodo,
   setFiltroPeriodo,
   ordenInsumos,
@@ -196,7 +197,7 @@ export const TabInsumos = ({
       </div>
 
       <div className="periodos-verticales">
-        {periodosVisibles.map((periodo) => {
+        {periodosFiltrados.map((periodo) => {
           const insumosPeriodo = insumosMateria
             .filter((i) => Number(i.id_periodo) === Number(periodo.id_periodo))
             .sort((a, b) => {
@@ -233,6 +234,7 @@ export const TabInsumos = ({
                         </button>
                         <button
                           className="btn-icon btn-edit"
+                          disabled={soloLecturaTutor}
                           onClick={() => abrirEdicionInsumo(insumo)}
                           aria-label="Editar insumo"
                         >

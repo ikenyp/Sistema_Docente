@@ -1,13 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, UserPlus, BookOpen, Clipboard, Calendar, Link, Trash2, X, Save, Pencil } from "lucide-react";
+import { ArrowLeft, UserPlus, BookOpen, Clipboard, Calendar, Link2, Link2Off, Trash2, X, Save, Pencil, Upload } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import CustomSelect from "../../components/admin/CustomSelect";
+import ImportarEstudiantesModal from "../../components/estudiantes/ImportarEstudiantesModal";
+import TabReportes from "../DocenteF/components/TabReportes";
 import {
   cursosAPI,
   estudiantesAPI,
   asignacionesAPI,
   usuariosAPI,
+  insumosAPI,
   notasAPI,
   asistenciaAPI,
   comportamientoAPI,
@@ -21,6 +24,7 @@ const TABS = [
   { id: "estudiantes", label: "Estudiantes" },
   { id: "materias", label: "Materias y docentes" },
   { id: "notas", label: "Notas" },
+  { id: "reportes", label: "Reportes" },
   { id: "consulta", label: "Consulta académica" },
 ];
 
@@ -45,10 +49,21 @@ function CursoHubAdmin() {
   const [searchEst, setSearchEst] = useState("");
   const [searchAgregarEst, setSearchAgregarEst] = useState("");
   const [subConsulta, setSubConsulta] = useState("notas");
+  const [modalImportOpen, setModalImportOpen] = useState(false);
+  const [modalCrearEstOpen, setModalCrearEstOpen] = useState(false);
+  const [nuevoEstudiante, setNuevoEstudiante] = useState({
+    nombre: "",
+    apellido: "",
+    cedula: "",
+    fecha_nacimiento: "",
+  });
 
   const [notas, setNotas] = useState([]);
   const [asistencias, setAsistencias] = useState([]);
   const [comportamientos, setComportamientos] = useState([]);
+  const [insumosPorCMD, setInsumosPorCMD] = useState({});
+  const [materiaDetalleSeleccionada, setMateriaDetalleSeleccionada] = useState("");
+  const [materiaReporteSeleccionada, setMateriaReporteSeleccionada] = useState("");
 
   const [anioPromedio, setAnioPromedio] = useState("");
   const [periodoSeleccionado, setPeriodoSeleccionado] = useState("");
@@ -57,7 +72,6 @@ function CursoHubAdmin() {
   const [periodosConfigurados, setPeriodosConfigurados] = useState([]);
 
   const [notasCurso, setNotasCurso] = useState([]);
-  const [promediosCurso, setPromediosCurso] = useState([]);
 
   const [tutorModalOpen, setTutorModalOpen] = useState(false);
   const [nuevoTutor, setNuevoTutor] = useState("");
@@ -68,16 +82,146 @@ function CursoHubAdmin() {
     id_docente: "",
   });
 
+  const registrarCursoReciente = useCallback((cursoReciente) => {
+    if (!cursoReciente?.id_curso) return;
+    const key = "admin_recent_courses";
+    const actual = JSON.parse(localStorage.getItem(key) || "[]");
+    const normalizarAnioLectivo = (valor) => {
+      if (!valor) return "";
+      if (/^\d{4}$/.test(valor)) {
+        return `${valor}-${Number(valor) + 1}`;
+      }
+      return String(valor).trim();
+    };
+    const siguiente = [
+      {
+        id_curso: cursoReciente.id_curso,
+        nombre: cursoReciente.nombre || `Curso ${cursoReciente.id_curso}`,
+        anio_lectivo: normalizarAnioLectivo(cursoReciente.anio_lectivo || ""),
+        accessedAt: Date.now(),
+      },
+      ...actual.filter((item) => Number(item.id_curso) !== Number(cursoReciente.id_curso)),
+    ].slice(0, 5);
+    localStorage.setItem(key, JSON.stringify(siguiente));
+  }, []);
+
   const cargarEstudiantesDisponibles = useCallback(async () => {
     try {
       const lista = await estudiantesAPI.buscar({ estado: "matriculado", size: 100 });
       setEstudiantesDisponibles(
-        (lista || []).filter((est) => est.id_curso_actual !== idCurso),
+        (lista || []).filter((est) => !est.id_curso_actual),
       );
     } catch {
       setEstudiantesDisponibles([]);
     }
-  }, [idCurso]);
+  }, []);
+
+  const cargarInsumosDelCurso = useCallback(async (asignacionesDelCurso) => {
+    if (!Array.isArray(asignacionesDelCurso) || asignacionesDelCurso.length === 0) {
+      setInsumosPorCMD({});
+      return {};
+    }
+
+    try {
+      const resultados = await Promise.all(
+        asignacionesDelCurso.map(async (asignacion) => {
+          try {
+            const lista = await insumosAPI.listar({ id_cmd: asignacion.id_cmd, size: 100 });
+            return [String(asignacion.id_cmd), Array.isArray(lista) ? lista : []];
+          } catch {
+            return [String(asignacion.id_cmd), []];
+          }
+        }),
+      );
+
+      const mapInsumos = Object.fromEntries(resultados);
+      setInsumosPorCMD(mapInsumos);
+      return mapInsumos;
+    } catch {
+      setInsumosPorCMD({});
+      return {};
+    }
+  }, []);
+
+  const cargarNotasCurso = useCallback(async (listaEstudiantes, asignacionesDelCurso, insumosMap) => {
+    try {
+      const estudiantesBase = Array.isArray(listaEstudiantes) ? listaEstudiantes : [];
+      const asignacionesBase = Array.isArray(asignacionesDelCurso) ? asignacionesDelCurso : [];
+      const insumosCurso = asignacionesBase.flatMap((asignacion) => insumosMap[String(asignacion.id_cmd)] || []);
+
+      if (insumosCurso.length === 0) {
+        setNotasCurso(
+          estudiantesBase.map((estudiante) => ({
+            id_estudiante: estudiante.id_estudiante,
+            notas: [],
+          })),
+        );
+        return;
+      }
+
+      const notasPorEstudiante = new Map(
+        estudiantesBase.map((estudiante) => [String(estudiante.id_estudiante), []]),
+      );
+
+      await Promise.all(
+        insumosCurso.map(async (insumo) => {
+          try {
+            const notasInsumo = await notasAPI.listarPorInsumo(insumo.id_insumo);
+            (notasInsumo || []).forEach((nota) => {
+              const bucket = notasPorEstudiante.get(String(nota.id_estudiante));
+              if (bucket) bucket.push(nota);
+            });
+          } catch {
+            /* ignorar un insumo puntual */
+          }
+        }),
+      );
+
+      setNotasCurso(
+        estudiantesBase.map((estudiante) => ({
+          id_estudiante: estudiante.id_estudiante,
+          notas: notasPorEstudiante.get(String(estudiante.id_estudiante)) || [],
+        })),
+      );
+    } catch (e) {
+      notify("error", "No se pudieron cargar las notas del curso");
+    }
+  }, []);
+
+  const refrescarCursoNotas = useCallback(async () => {
+    try {
+      const dashboard = await cursosAPI.obtenerDashboard(idCurso);
+      const c = dashboard?.curso || null;
+      const asignacionesDashboard = dashboard?.asignaciones || [];
+      const estudiantesDashboard = dashboard?.estudiantes || [];
+
+      setCurso(c);
+      setAnioPromedio(c?.anio_lectivo || "");
+      setEstudiantes(estudiantesDashboard);
+      setAsignaciones(asignacionesDashboard);
+      setMateriasEstructura(dashboard?.materias_estructura || []);
+
+      if (c?.id_tutor) {
+        try {
+          const u = await usuariosAPI.obtener(c.id_tutor);
+          setTutor(u);
+        } catch {
+          setTutor(null);
+        }
+      } else {
+        setTutor(null);
+      }
+
+      const periodos = dashboard?.periodizacion?.periodos || [];
+      setPeriodosConfigurados(periodos);
+      setPeriodoSeleccionado(periodos[0]?.numero_periodo?.toString() || "");
+
+      const insumosMap = await cargarInsumosDelCurso(asignacionesDashboard);
+      await cargarNotasCurso(estudiantesDashboard, asignacionesDashboard, insumosMap);
+    } catch (e) {
+      notify("error", e.message || "No se pudo refrescar las notas del curso");
+    }
+  }, [cargarInsumosDelCurso, cargarNotasCurso, idCurso]);
 
   const setTab = (next) => {
     setSearchParams({ tab: next }, { replace: true });
@@ -96,6 +240,7 @@ function CursoHubAdmin() {
         if (cancelled) return;
         const c = dashboard?.curso || null;
         setCurso(c);
+        registrarCursoReciente(c);
         setAnioPromedio(c?.anio_lectivo || "");
         setEstudiantes(dashboard?.estudiantes || []);
         setAsignaciones(dashboard?.asignaciones || []);
@@ -129,13 +274,22 @@ function CursoHubAdmin() {
     return () => {
       cancelled = true;
     };
-  }, [idCurso, cargarEstudiantesDisponibles]);
+  }, [idCurso, cargarEstudiantesDisponibles, registrarCursoReciente]);
 
   const agregarEstudianteAlCurso = async (idEstudiante) => {
     if (!idEstudiante) {
       notify("error", "Selecciona un estudiante");
       return;
     }
+
+    const estudianteSeleccionado = estudiantesDisponibles.find(
+      (est) => Number(est.id_estudiante) === Number(idEstudiante),
+    );
+    if (estudianteSeleccionado?.id_curso_actual) {
+      notify("error", "Ese estudiante ya tiene un curso asignado");
+      return;
+    }
+
     try {
       await estudiantesAPI.actualizar(Number(idEstudiante), {
         id_curso_actual: idCurso,
@@ -148,6 +302,43 @@ function CursoHubAdmin() {
       notify("success", "Estudiante agregado al curso");
     } catch (e) {
       notify("error", e.message || "No se pudo agregar el estudiante");
+    }
+  };
+
+  const abrirCrearEstudiante = () => {
+    setNuevoEstudiante({
+      nombre: "",
+      apellido: "",
+      cedula: "",
+      fecha_nacimiento: "",
+    });
+    setModalCrearEstOpen(true);
+  };
+
+  const guardarNuevoEstudiante = async () => {
+    if (!nuevoEstudiante.nombre.trim() || !nuevoEstudiante.apellido.trim() || !nuevoEstudiante.cedula.trim()) {
+      notify("error", "Nombre, apellido y cédula son obligatorios");
+      return;
+    }
+
+    try {
+      await estudiantesAPI.crear({
+        nombre: nuevoEstudiante.nombre.trim(),
+        apellido: nuevoEstudiante.apellido.trim(),
+        cedula: nuevoEstudiante.cedula.trim(),
+        fecha_nacimiento: nuevoEstudiante.fecha_nacimiento || undefined,
+        estado: "matriculado",
+        id_curso_actual: idCurso,
+      });
+      setModalCrearEstOpen(false);
+      const [estCurso] = await Promise.all([
+        estudiantesAPI.buscar({ id_curso: idCurso, size: 100 }),
+        cargarEstudiantesDisponibles(),
+      ]);
+      setEstudiantes(estCurso || []);
+      notify("success", "Estudiante creado y agregado al curso");
+    } catch (e) {
+      notify("error", e.message || "No se pudo crear el estudiante");
     }
   };
 
@@ -246,49 +437,11 @@ function CursoHubAdmin() {
     }
   };
 
-const cargarNotasCurso = useCallback(async () => {
-    try {
-      const estudianteIds = estudiantes.map((e) => e.id_estudiante);
-      if (estudianteIds.length === 0) {
-        setNotasCurso([]);
-        setPromediosCurso([]);
-        return;
-      }
-      const resultados = await Promise.all(
-        estudianteIds.map(async (idEst) => {
-          try {
-            const notasEst = await notasAPI.listar({
-              id_estudiante: idEst,
-              size: 100,
-            });
-            return { id_estudiante: idEst, notas: notasEst || [] };
-          } catch {
-            return { id_estudiante: idEst, notas: [] };
-          }
-        }),
-      );
-      setNotasCurso(resultados);
-
-      const promedios = resultados.map((r) => {
-        if (r.notas.length === 0) return { id_estudiante: r.id_estudiante, promedio: null, insumos: 0 };
-        const suma = r.notas.reduce((acc, n) => acc + (n.calificacion ?? n.valor ?? 0), 0);
-        return {
-          id_estudiante: r.id_estudiante,
-          promedio: suma / r.notas.length,
-          insumos: r.notas.length,
-        };
-      });
-      setPromediosCurso(promedios);
-    } catch (e) {
-      notify("error", "No se pudieron cargar las notas del curso");
-    }
-  }, [estudiantes]);
-
   useEffect(() => {
-    if (tab === "notas") {
-      cargarNotasCurso();
+    if (tab === "notas" || tab === "reportes") {
+      refrescarCursoNotas();
     }
-  }, [tab, idCurso, cargarNotasCurso]);
+  }, [tab, idCurso, refrescarCursoNotas]);
 
   const titulo = curso
     ? `${curso.nombre} · ${curso.anio_lectivo}`
@@ -299,9 +452,198 @@ const cargarNotasCurso = useCallback(async () => {
     return e ? `${e.nombre} ${e.apellido}` : `#${idEst}`;
   };
 
-  const nombreInsumo = (idInsumo) => {
-    return `Insumo #${idInsumo}`;
+  const formatAverage = (value) => {
+    if (value === null || value === undefined) return "—";
+    const n = Number(value);
+    return Number.isFinite(n) ? n.toFixed(2) : "—";
   };
+
+  const resumenNotasPorMateria = useMemo(() => {
+    return asignaciones.map((asignacion) => {
+      const insumosMateria = insumosPorCMD[String(asignacion.id_cmd)] || [];
+      const idsInsumos = new Set(insumosMateria.map((insumo) => String(insumo.id_insumo)));
+      const notasMateria = notasCurso.flatMap((registro) =>
+        (registro.notas || [])
+          .filter((nota) => idsInsumos.has(String(nota.id_insumo)))
+          .map((nota) => ({ ...nota, id_estudiante: registro.id_estudiante })),
+      );
+      const promedio = notasMateria.length
+        ? notasMateria.reduce((acc, nota) => acc + Number(nota.calificacion ?? nota.valor ?? 0), 0) /
+          notasMateria.length
+        : null;
+
+      return {
+        ...asignacion,
+        insumosMateria,
+        notasMateria,
+        promedio,
+      };
+    });
+  }, [asignaciones, insumosPorCMD, notasCurso]);
+
+  const estudiantesOrdenados = useMemo(() => {
+    return [...estudiantes].sort((a, b) => {
+      const va = `${a.apellido || ""} ${a.nombre || ""}`.trim();
+      const vb = `${b.apellido || ""} ${b.nombre || ""}`.trim();
+      return va.localeCompare(vb, "es", { sensitivity: "base" });
+    });
+  }, [estudiantes]);
+
+  const materiasOrdenadas = useMemo(() => {
+    return [...asignaciones].sort((a, b) => {
+      const va = String(a.materia?.nombre || a.id_materia || "");
+      const vb = String(b.materia?.nombre || b.id_materia || "");
+      return va.localeCompare(vb, "es", { sensitivity: "base" });
+    });
+  }, [asignaciones]);
+
+  useEffect(() => {
+    if (tab !== "reportes") return;
+    if (materiasOrdenadas.length === 0) {
+      if (materiaReporteSeleccionada) setMateriaReporteSeleccionada("");
+      return;
+    }
+
+    const seleccionValida = materiasOrdenadas.some(
+      (materia) => String(materia.id_cmd) === String(materiaReporteSeleccionada),
+    );
+    if (!seleccionValida) {
+      setMateriaReporteSeleccionada(String(materiasOrdenadas[0].id_cmd));
+    }
+  }, [tab, materiasOrdenadas, materiaReporteSeleccionada]);
+
+  const notasCursoPorEstudiante = useMemo(() => {
+    return new Map(
+      notasCurso.map((registro) => [String(registro.id_estudiante), registro.notas || []]),
+    );
+  }, [notasCurso]);
+
+  const matrizNotasCurso = useMemo(() => {
+    return estudiantesOrdenados.map((estudiante) => {
+      const notasEstudiante = notasCursoPorEstudiante.get(String(estudiante.id_estudiante)) || [];
+      const materias = materiasOrdenadas.map((asignacion) => {
+        const insumosMateria = insumosPorCMD[String(asignacion.id_cmd)] || [];
+        const idsInsumos = new Set(insumosMateria.map((insumo) => String(insumo.id_insumo)));
+        const notasMateria = notasEstudiante.filter((nota) => idsInsumos.has(String(nota.id_insumo)));
+        const promedio = notasMateria.length
+          ? notasMateria.reduce((acc, nota) => acc + Number(nota.calificacion ?? nota.valor ?? 0), 0) /
+            notasMateria.length
+          : null;
+
+        return {
+          id_cmd: asignacion.id_cmd,
+          materia: asignacion.materia,
+          promedio,
+        };
+      });
+
+      return { estudiante, materias };
+    });
+  }, [estudiantesOrdenados, notasCursoPorEstudiante, materiasOrdenadas, insumosPorCMD]);
+
+  const materiaDetalleActiva = useMemo(
+    () =>
+      resumenNotasPorMateria.find(
+        (materia) => String(materia.id_cmd) === String(materiaDetalleSeleccionada),
+      ) || null,
+    [resumenNotasPorMateria, materiaDetalleSeleccionada],
+  );
+
+  const periodosDetalleMateria = useMemo(() => {
+    const ordenados = [...periodosConfigurados].sort(
+      (a, b) => Number(a.numero_periodo) - Number(b.numero_periodo),
+    );
+    if (ordenados.length > 0) return ordenados.slice(0, 3);
+    return [
+      { numero_periodo: 1, nombre_periodo: "1er trimestre" },
+      { numero_periodo: 2, nombre_periodo: "2do trimestre" },
+      { numero_periodo: 3, nombre_periodo: "3er trimestre" },
+    ];
+  }, [periodosConfigurados]);
+
+  const detalleMateriaPorEstudiante = useMemo(() => {
+    if (!materiaDetalleActiva) return [];
+
+    const insumosMateria = insumosPorCMD[String(materiaDetalleActiva.id_cmd)] || [];
+    const insumosPorPeriodo = periodosDetalleMateria.map((periodo) => ({
+      ...periodo,
+      idsInsumos: new Set(
+        insumosMateria
+          .filter((insumo) => String(insumo.id_periodo) === String(periodo.numero_periodo))
+          .map((insumo) => String(insumo.id_insumo)),
+      ),
+    }));
+
+    return estudiantesOrdenados.map((estudiante) => {
+      const notasEstudiante = notasCursoPorEstudiante.get(String(estudiante.id_estudiante)) || [];
+      const periodos = insumosPorPeriodo.map((periodo) => {
+        const notasPeriodo = notasEstudiante.filter((nota) =>
+          periodo.idsInsumos.has(String(nota.id_insumo)),
+        );
+        const promedio = notasPeriodo.length
+          ? notasPeriodo.reduce(
+              (acc, nota) => acc + Number(nota.calificacion ?? nota.valor ?? 0),
+              0,
+            ) / notasPeriodo.length
+          : null;
+
+        return {
+          numero_periodo: periodo.numero_periodo,
+          nombre_periodo: periodo.nombre_periodo,
+          promedio,
+        };
+      });
+
+      const periodosConDatos = periodos.filter((periodo) => periodo.promedio !== null);
+      const suma = periodosConDatos.reduce((acc, periodo) => acc + Number(periodo.promedio), 0);
+      const promedio = periodosConDatos.length ? suma / periodosConDatos.length : null;
+
+      return {
+        estudiante,
+        periodos,
+        suma,
+        promedio,
+      };
+    });
+  }, [estudiantesOrdenados, materiaDetalleActiva, notasCursoPorEstudiante, insumosPorCMD, periodosDetalleMateria]);
+
+  const detalleNotasEstudiante = useMemo(() => {
+    if (!estSel) return [];
+
+    return asignaciones.map((asignacion) => {
+      const insumosMateria = insumosPorCMD[String(asignacion.id_cmd)] || [];
+      const idsInsumos = new Set(insumosMateria.map((insumo) => String(insumo.id_insumo)));
+      const notasMateria = notas.filter((nota) => idsInsumos.has(String(nota.id_insumo)));
+      const promedio = notasMateria.length
+        ? notasMateria.reduce((acc, nota) => acc + Number(nota.calificacion ?? nota.valor ?? 0), 0) /
+          notasMateria.length
+        : null;
+
+      return {
+        ...asignacion,
+        insumosMateria,
+        notasMateria,
+        promedio,
+      };
+    });
+  }, [asignaciones, estSel, insumosPorCMD, notas]);
+
+  const notasCursoPorEstudianteReporte = useMemo(
+    () => Object.fromEntries(notasCurso.map((registro) => [String(registro.id_estudiante), registro.notas || []])),
+    [notasCurso],
+  );
+
+  const materiaReporteActiva = useMemo(
+    () =>
+      materiasOrdenadas.find((materia) => String(materia.id_cmd) === String(materiaReporteSeleccionada)) ||
+      null,
+    [materiasOrdenadas, materiaReporteSeleccionada],
+  );
+
+  const insumosMateriaReporte = useMemo(() => {
+    if (!materiaReporteActiva) return [];
+    return insumosPorCMD[String(materiaReporteActiva.id_cmd)] || [];
+  }, [insumosPorCMD, materiaReporteActiva]);
 
   const guardarTutor = async () => {
     if (!nuevoTutor) {
@@ -348,6 +690,10 @@ const cargarNotasCurso = useCallback(async () => {
       notify("error", e.message || "No se pudo crear la asignación");
     }
   };
+
+  useEffect(() => {
+    cargarInsumosDelCurso(asignaciones);
+  }, [asignaciones, cargarInsumosDelCurso]);
 
   const abrirAsignacionDocente = (idMateria, idDocente = "") => {
     setNuevaAsignacion({
@@ -427,18 +773,22 @@ const cargarNotasCurso = useCallback(async () => {
       )}
 
       {!cargando && tab === "resumen" && (
-        <div className="cards-grid dashboard-summary-grid">
-          <div className="stat-card accent">
+        <div className="course-hub-summary-block">
+          <div className="course-hub-summary-head">
+            <p>Un vistazo rápido a los datos clave antes de entrar a gestionar.</p>
+          </div>
+          <div className="cards-grid dashboard-summary-grid course-hub-summary-grid">
+          <div className="stat-card accent course-hub-summary-card course-hub-summary-card-main">
             <p className="stat-label">Estudiantes</p>
             <h3 className="stat-value">{estudiantes.length}</h3>
             <p className="stat-sub">Matriculados en este curso</p>
           </div>
-          <div className="stat-card">
+          <div className="stat-card course-hub-summary-card">
             <p className="stat-label">Materias asignadas</p>
             <h3 className="stat-value">{asignaciones.length}</h3>
             <p className="stat-sub">Docente por materia</p>
           </div>
-          <div className="stat-card">
+          <div className="stat-card course-hub-summary-card">
             <p className="stat-label">Estructura académica</p>
             <h3 className="stat-value" style={{ fontSize: "1.1rem" }}>
               {curso?.estructura_academica?.nombre || "Sin estructura"}
@@ -448,7 +798,7 @@ const cargarNotasCurso = useCallback(async () => {
                 "Asocia una estructura académica al curso"}
             </p>
           </div>
-          <div className="stat-card">
+          <div className="stat-card course-hub-summary-card course-hub-summary-card-tutor">
             <p className="stat-label">Tutor a cargo</p>
             <h3 className="stat-value" style={{ fontSize: "1.1rem" }}>
               {tutor ? `${tutor.nombre} ${tutor.apellido}` : "Sin asignar"}
@@ -461,17 +811,17 @@ const cargarNotasCurso = useCallback(async () => {
             <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
               <button
                 type="button"
-                className="btn-view"
+                className="btn-view btn-inline-icon"
                 style={{ fontSize: "0.78rem", padding: "0.35rem 0.65rem" }}
                 onClick={() => setTutorModalOpen(true)}
               >
-                <Link size={12} style={{ verticalAlign: "middle", marginRight: 2 }} />
-                {tutor ? "Cambiar tutor" : "Asignar tutor"}
+                <Link2 size={12} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                {tutor ? "Cambiar" : "Asignar"}
               </button>
               {tutor && (
                 <button
                   type="button"
-                  className="btn-danger"
+                  className="btn-danger btn-inline-icon"
                   style={{ fontSize: "0.78rem", padding: "0.35rem 0.65rem" }}
                   onClick={async () => {
                     const ok = await requestConfirm("¿Quitar al tutor de este curso?");
@@ -485,10 +835,12 @@ const cargarNotasCurso = useCallback(async () => {
                     }
                   }}
                 >
+                  <Link2Off size={12} style={{ verticalAlign: "middle", marginRight: 2 }} />
                   Quitar
                 </button>
               )}
             </div>
+          </div>
           </div>
         </div>
       )}
@@ -544,22 +896,23 @@ const cargarNotasCurso = useCallback(async () => {
 
       {!cargando && tab === "estudiantes" && (
         <div className="table-container">
-          <div className="docentes-header">
-            <div className="header-actions">
-              <input
-                className="table-search"
-                placeholder="Buscar estudiante…"
-                value={searchEst}
-                onChange={(e) => setSearchEst(e.target.value)}
-              />
-            </div>
-          </div>
-
           <div className="course-hub-add-students">
             <div className="docentes-header course-hub-add-students-header">
-              <div>
-                <h3>Agregar estudiantes al curso</h3>
-                <p>Busca un estudiante y agrégalo directo desde la lista.</p>
+              <div className="course-hub-add-title-block">
+                <div>
+                  <h3>Agregar estudiantes al curso</h3>
+                  <p>Importa por Excel o crea uno manualmente y asígnalo directo al curso.</p>
+                </div>
+                <div className="course-hub-add-header-actions">
+                  <button type="button" className="btn-view btn-inline-icon course-hub-add-header-btn" onClick={() => setModalImportOpen(true)}>
+                    <Upload size={14} />
+                    Importar Excel
+                  </button>
+                  <button type="button" className="btn-add-docente btn-inline-icon course-hub-add-header-btn" onClick={abrirCrearEstudiante}>
+                    <UserPlus size={14} />
+                    Agregar estudiante
+                  </button>
+                </div>
               </div>
               <input
                 className="table-search course-hub-add-search"
@@ -594,7 +947,28 @@ const cargarNotasCurso = useCallback(async () => {
             </div>
           </div>
 
-          <table>
+          <div className="docentes-header panel-header-compact">
+            <div>
+              <h3 style={{ margin: 0 }}>Estudiantes del curso</h3>
+              <p className="panel-sub">Busca dentro de los estudiantes ya vinculados.</p>
+            </div>
+            <div className="header-actions">
+              <input
+                className="table-search"
+                placeholder="Buscar estudiante…"
+                value={searchEst}
+                onChange={(e) => setSearchEst(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <table className="materias-base-table course-hub-students-table">
+            <colgroup>
+              <col style={{ width: "34%" }} />
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "16%" }} />
+              <col style={{ width: "30%" }} />
+            </colgroup>
             <thead>
               <tr>
                 <th>Nombre</th>
@@ -611,27 +985,28 @@ const cargarNotasCurso = useCallback(async () => {
                   </td>
                   <td>{e.cedula || "—"}</td>
                   <td>{e.estado || "—"}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn-view"
-                      onClick={() => {
-                        setEstSel(String(e.id_estudiante));
-                        setTab("consulta");
-                      }}
-                    >
-                      <Clipboard size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
-                      Ver notas
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-danger"
-                      style={{ marginLeft: 8 }}
-                      onClick={() => quitarEstudianteDelCurso(e)}
-                    >
-                      <Trash2 size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
-                      Quitar
-                    </button>
+                  <td className="plantillas-academicas-actions">
+                    <div className="plantillas-academicas-actions-row materias-base-actions course-hub-actions-row">
+                      <button
+                        type="button"
+                        className="btn-view btn-inline-icon"
+                        onClick={() => {
+                          setEstSel(String(e.id_estudiante));
+                          setTab("consulta");
+                        }}
+                      >
+                        <Clipboard size={14} />
+                        Ver notas
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-danger btn-inline-icon"
+                        onClick={() => quitarEstudianteDelCurso(e)}
+                      >
+                        <Trash2 size={14} />
+                        Quitar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -759,76 +1134,196 @@ const cargarNotasCurso = useCallback(async () => {
             </span>
           </div>
 
-          {promediosCurso.length > 0 && (
-            <div className="table-container" style={{ marginBottom: 16 }}>
-              <h4>Promedio general del curso por materia</h4>
-              <div className="cards-grid">
-                {asignaciones.map((a) => {
-                  const insumosMateria = notasCurso.flatMap(
-                    (n) => n.notas.filter((x) => x.id_insumo === a.id_materia),
-                  );
-                  const promedioMateria =
-                    insumosMateria.length > 0
-                      ? (insumosMateria.reduce(
-                          (acc, x) => acc + (x.calificacion ?? x.valor ?? 0),
-                          0,
-                        ) / insumosMateria.length).toFixed(2)
-                      : "—";
-                  return (
-                    <div key={a.id_cmd} className="stat-card">
-                      <p className="stat-label">{a.materia?.nombre || a.id_materia}</p>
-                      <h3 className="stat-value">{promedioMateria}</h3>
-                      <p className="stat-sub">
-                        {insumosMateria.length} calificación(es)
-                      </p>
-                    </div>
-                  );
-                })}
+          <div className="cards-grid course-hub-summary-grid course-hub-summary-grid-compact">
+            {resumenNotasPorMateria.map((a) => (
+              <button
+                key={a.id_cmd}
+                type="button"
+                className={`stat-card course-hub-materia-summary-card course-hub-materia-summary-card-compact course-hub-materia-summary-card-button${String(materiaDetalleSeleccionada) === String(a.id_cmd) ? " is-active" : ""}`}
+                onClick={() =>
+                  setMateriaDetalleSeleccionada((prev) =>
+                    String(prev) === String(a.id_cmd) ? "" : String(a.id_cmd),
+                  )
+                }
+              >
+                <p className="stat-label">{a.materia?.nombre || a.id_materia}</p>
+                <h3 className="stat-value">{formatAverage(a.promedio)}</h3>
+                <p className="stat-sub">
+                  {a.insumosMateria.length} insumo(s) · {a.notasMateria.length} nota(s)
+                </p>
+              </button>
+            ))}
+          </div>
+
+          <div className="table-container" style={{ marginTop: 16 }}>
+            {materiaDetalleActiva ? (
+              <>
+                <div className="docentes-header" style={{ marginBottom: 12 }}>
+                  <div>
+                    <h4 style={{ marginBottom: 4 }}>
+                      Detalle de {materiaDetalleActiva.materia?.nombre || materiaDetalleActiva.id_materia}
+                    </h4>
+                    <span className="panel-sub">
+                      Tres trimestres, suma y promedio por estudiante
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setMateriaDetalleSeleccionada("")}
+                  >
+                    Volver al resumen
+                  </button>
+                </div>
+
+                <table className="materias-base-table course-hub-notas-matrix course-hub-notas-detail-table">
+                  <colgroup>
+                    <col style={{ width: "40%" }} />
+                    {periodosDetalleMateria.map((periodo) => (
+                      <col key={periodo.numero_periodo} style={{ width: "12%" }} />
+                    ))}
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "12%" }} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>Estudiante</th>
+                      {periodosDetalleMateria.map((periodo) => (
+                        <th key={periodo.numero_periodo}>
+                            {periodo.nombre_periodo || `Trimestre ${periodo.numero_periodo}`}
+                          </th>
+                        ))}
+                        <th>Suma</th>
+                        <th>Promedio</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detalleMateriaPorEstudiante.map(({ estudiante, periodos, suma, promedio }) => {
+                        const tieneDatos = periodos.some((periodo) => periodo.promedio !== null);
+                        return (
+                          <tr key={estudiante.id_estudiante}>
+                            <td>
+                              <button
+                                type="button"
+                                className="admin-link-btn"
+                                onClick={() => {
+                                  setEstSel(String(estudiante.id_estudiante));
+                                  setTab("consulta");
+                                }}
+                              >
+                                {nombreEstudiante(estudiante.id_estudiante)}
+                              </button>
+                            </td>
+                            {periodos.map((periodo) => (
+                              <td key={periodo.numero_periodo}>
+                                {formatAverage(periodo.promedio)}
+                              </td>
+                            ))}
+                            <td>{tieneDatos ? formatAverage(suma) : "—"}</td>
+                            <td>{formatAverage(promedio)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+              </>
+            ) : matrizNotasCurso.length > 0 ? (
+              <>
+                <h4 style={{ marginTop: 0 }}>Promedio por estudiante y materia</h4>
+                <div className="course-hub-matrix-scroll">
+                  <table
+                    className="materias-base-table course-hub-notas-matrix"
+                    style={{ minWidth: `${280 + materiasOrdenadas.length * 120}px` }}
+                  >
+                    <colgroup>
+                      <col style={{ width: "280px" }} />
+                      {materiasOrdenadas.map((materia) => (
+                        <col key={materia.id_cmd} style={{ width: "120px" }} />
+                      ))}
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th>Estudiante</th>
+                        {materiasOrdenadas.map((materia) => (
+                          <th key={materia.id_cmd}>
+                            {materia.materia?.nombre || materia.id_materia}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {matrizNotasCurso.map(({ estudiante, materias }) => (
+                        <tr key={estudiante.id_estudiante}>
+                          <td>
+                            <button
+                              type="button"
+                              className="admin-link-btn"
+                              onClick={() => {
+                                setEstSel(String(estudiante.id_estudiante));
+                                setTab("consulta");
+                              }}
+                            >
+                              {nombreEstudiante(estudiante.id_estudiante)}
+                            </button>
+                          </td>
+                          {materias.map((materia) => (
+                            <td key={materia.id_cmd}>{formatAverage(materia.promedio)}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <div className="empty-state" style={{ marginTop: 8 }}>
+                <p>No hay notas registradas para este curso.</p>
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!cargando && tab === "reportes" && (
+        <>
+          <div className="empty-state" style={{ marginBottom: 16 }}>
+            <h3>Reportes del curso</h3>
+            <p>
+              Selecciona una materia del curso para exportar y previsualizar sus reportes en formato académico.
+            </p>
+          </div>
+
+          <div className="admin-consulta-filters" style={{ marginBottom: 16 }}>
+            <CustomSelect
+              value={materiaReporteSeleccionada}
+              onChange={setMateriaReporteSeleccionada}
+              placeholder="Materia"
+              searchable
+              className="custom-select-white"
+              options={materiasOrdenadas.map((a) => ({
+                value: String(a.id_cmd),
+                label: a.materia?.nombre || a.id_materia,
+              }))}
+            />
+          </div>
+
+          {materiaReporteActiva ? (
+            <TabReportes
+              activeTab="reportes"
+              estudiantesCurso={estudiantesOrdenados}
+              periodos={periodosConfigurados}
+              insumosMateria={insumosMateriaReporte}
+              notasPorEstudiante={notasCursoPorEstudianteReporte}
+              materiaSeleccionada={materiaReporteActiva}
+              cursoDetalle={curso}
+              compactPreview
+            />
+          ) : (
+            <div className="empty-state">
+              <p>No hay materias asignadas para generar reportes.</p>
             </div>
           )}
-
-          <table>
-            <thead>
-              <tr>
-                <th>Estudiante</th>
-                <th>Notas</th>
-                <th>Promedio</th>
-              </tr>
-            </thead>
-            <tbody>
-              {promediosCurso.map((p) => (
-                <tr key={p.id_estudiante}>
-                  <td>
-                    <button
-                      type="button"
-                      className="admin-link-btn"
-                      onClick={() => {
-                        setEstSel(String(p.id_estudiante));
-                        setTab("consulta");
-                      }}
-                    >
-                      {nombreEstudiante(p.id_estudiante)}
-                    </button>
-                  </td>
-                  <td>{p.insumos} insumo(s)</td>
-                  <td>
-                    {p.promedio !== null && p.promedio !== undefined
-                      ? Number(p.promedio).toFixed(2)
-                      : "—"}
-                  </td>
-                </tr>
-              ))}
-              {promediosCurso.length === 0 && (
-                <tr>
-                  <td colSpan={3} style={{ textAlign: "center" }}>
-                    No hay notas registradas para este curso
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        </>
       )}
 
       {!cargando && tab === "consulta" && (
@@ -842,17 +1337,17 @@ const cargarNotasCurso = useCallback(async () => {
           </div>
 
           <div className="admin-consulta-filters">
-            <select
+            <CustomSelect
               value={estSel}
-              onChange={(e) => setEstSel(e.target.value)}
-            >
-              <option value="">Estudiante</option>
-              {estudiantes.map((e) => (
-                <option key={e.id_estudiante} value={e.id_estudiante}>
-                  {e.nombre} {e.apellido}
-                </option>
-              ))}
-            </select>
+              onChange={setEstSel}
+              placeholder="Estudiante"
+              searchable
+              className="custom-select-white"
+              options={estudiantes.map((e) => ({
+                value: String(e.id_estudiante),
+                label: `${e.nombre} ${e.apellido}`,
+              }))}
+            />
           </div>
 
           {estudianteActual && (
@@ -881,36 +1376,60 @@ const cargarNotasCurso = useCallback(async () => {
 
           {subConsulta === "notas" && (
             <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Insumo</th>
-                    <th>Calificación</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {notas.map((n) => (
-                    <tr key={n.id_nota}>
-                      <td>{nombreInsumo(n.id_insumo)}</td>
-                      <td>{n.calificacion ?? n.valor ?? "—"}</td>
-                    </tr>
+              {!estSel ? (
+                <div className="empty-state">
+                  <p>Seleccione un estudiante para ver el detalle por materia.</p>
+                </div>
+              ) : (
+                <div className="cards-grid course-hub-summary-grid">
+                  {detalleNotasEstudiante.map((asignacion) => (
+                    <div key={asignacion.id_cmd} className="table-container course-hub-notas-materia-card">
+                      <div className="docentes-header" style={{ marginBottom: 12 }}>
+                        <div>
+                          <h4 style={{ marginBottom: 4 }}>
+                            {asignacion.materia?.nombre || asignacion.id_materia}
+                          </h4>
+                          <span className="panel-sub">
+                            {asignacion.insumosMateria.length} insumo(s) · promedio {formatAverage(asignacion.promedio)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <table className="materias-base-table">
+                        <thead>
+                          <tr>
+                            <th>Insumo</th>
+                            <th>Ponderación</th>
+                            <th>Calificación</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {asignacion.insumosMateria.length > 0 ? (
+                            asignacion.insumosMateria.map((insumo) => {
+                              const nota = notas.find(
+                                (n) => String(n.id_insumo) === String(insumo.id_insumo),
+                              );
+                              return (
+                                <tr key={insumo.id_insumo}>
+                                  <td>{insumo.nombre}</td>
+                                  <td>{insumo.ponderacion ?? "—"}</td>
+                                  <td>{nota ? (nota.calificacion ?? nota.valor ?? "—") : "—"}</td>
+                                </tr>
+                              );
+                            })
+                          ) : (
+                            <tr>
+                              <td colSpan={3} style={{ textAlign: "center" }}>
+                                Sin insumos configurados para esta materia
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   ))}
-                  {!estSel && (
-                    <tr>
-                      <td colSpan={2} style={{ textAlign: "center" }}>
-                        Seleccione un estudiante
-                      </td>
-                    </tr>
-                  )}
-                  {estSel && notas.length === 0 && (
-                    <tr>
-                      <td colSpan={2} style={{ textAlign: "center" }}>
-                        Sin notas registradas
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                </div>
+              )}
             </div>
           )}
 
@@ -978,25 +1497,26 @@ const cargarNotasCurso = useCallback(async () => {
                   value={anioPromedio}
                   onChange={(e) => setAnioPromedio(e.target.value)}
                 />
-                <select
+                <CustomSelect
                   value={modoPromedio}
-                  onChange={(e) => setModoPromedio(e.target.value)}
-                >
-                  <option value="periodo">Periodo</option>
-                  <option value="final">Acumulado</option>
-                </select>
+                  onChange={setModoPromedio}
+                  className="custom-select-white"
+                  options={[
+                    { value: "periodo", label: "Periodo" },
+                    { value: "final", label: "Acumulado" },
+                  ]}
+                />
                 {modoPromedio === "periodo" && (
-                  <select
+                  <CustomSelect
                     value={periodoSeleccionado}
-                    onChange={(e) => setPeriodoSeleccionado(e.target.value)}
-                  >
-                    <option value="" disabled>Seleccione periodo</option>
-                    {periodosConfigurados.map((periodo) => (
-                      <option key={periodo.id_periodo} value={periodo.numero_periodo}>
-                        {periodo.nombre_periodo || `Periodo ${periodo.numero_periodo}`}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setPeriodoSeleccionado}
+                    placeholder="Seleccione periodo"
+                    className="custom-select-white"
+                    options={periodosConfigurados.map((periodo) => ({
+                      value: String(periodo.numero_periodo),
+                      label: periodo.nombre_periodo || `Periodo ${periodo.numero_periodo}`,
+                    }))}
+                  />
                 )}
                 <button
                   type="button"
@@ -1140,6 +1660,70 @@ const cargarNotasCurso = useCallback(async () => {
                 Cancelar
               </button>
               <button type="button" className="btn-success btn-inline-icon" onClick={guardarAsignacion}>
+                <Save size={14} />
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ImportarEstudiantesModal
+        open={modalImportOpen}
+        onClose={() => setModalImportOpen(false)}
+        onSaved={async () => {
+          const [estCurso] = await Promise.all([
+            estudiantesAPI.buscar({ id_curso: idCurso, size: 100 }),
+            cargarEstudiantesDisponibles(),
+          ]);
+          setEstudiantes(estCurso || []);
+        }}
+        cursos={[]}
+        cursoFijoId={idCurso}
+        mostrarCurso={false}
+        titulo="Importar estudiantes al curso"
+        subtitulo="Selecciona un archivo Excel. Todos los estudiantes se guardarán directamente en este curso."
+      />
+
+      {modalCrearEstOpen && (
+        <div className="admin-modal">
+          <div className="admin-modal-content admin-modal-tight">
+            <button type="button" className="admin-modal-close-btn" onClick={() => setModalCrearEstOpen(false)} aria-label="Cerrar modal">
+              <X size={14} />
+            </button>
+            <h3 className="admin-modal-title admin-modal-title-center">Agregar estudiante al curso</h3>
+            <p className="panel-sub" style={{ marginTop: 0 }}>
+              El estudiante se creará y quedará asignado a este curso.
+            </p>
+            <input
+              type="text"
+              placeholder="Nombre"
+              value={nuevoEstudiante.nombre}
+              onChange={(e) => setNuevoEstudiante((prev) => ({ ...prev, nombre: e.target.value }))}
+            />
+            <input
+              type="text"
+              placeholder="Apellido"
+              value={nuevoEstudiante.apellido}
+              onChange={(e) => setNuevoEstudiante((prev) => ({ ...prev, apellido: e.target.value }))}
+            />
+            <input
+              type="text"
+              placeholder="Cédula"
+              value={nuevoEstudiante.cedula}
+              onChange={(e) => setNuevoEstudiante((prev) => ({ ...prev, cedula: e.target.value }))}
+            />
+            <input
+              type="date"
+              value={nuevoEstudiante.fecha_nacimiento}
+              onChange={(e) => setNuevoEstudiante((prev) => ({ ...prev, fecha_nacimiento: e.target.value }))}
+            />
+            <div className="modal-buttons">
+              <button type="button" className="btn-neutral btn-inline-icon" onClick={() => setModalCrearEstOpen(false)}>
+                <X size={14} />
+                Cancelar
+              </button>
+              <button type="button" className="btn-success btn-inline-icon" onClick={guardarNuevoEstudiante}>
                 <Save size={14} />
                 Guardar
               </button>

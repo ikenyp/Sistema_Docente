@@ -104,7 +104,7 @@ function AppShell({ sessionState, handleStay, handleLogout, clearSessionState })
           }
         />
         <Route
-          path="/admin/estructura-academica"
+          path="/admin/materias"
           element={
             <ProtectedRoute
               allowRoles={["administrativo"]}
@@ -115,13 +115,13 @@ function AppShell({ sessionState, handleStay, handleLogout, clearSessionState })
           }
         />
         <Route
-          path="/admin/materias"
+          path="/admin/estructura-academica"
           element={
             <ProtectedRoute
               allowRoles={["administrativo"]}
               allowModes={["institucional"]}
             >
-              <Navigate to="/admin/estructura-academica" replace />
+              <Navigate to="/admin/materias" replace />
             </ProtectedRoute>
           }
         />

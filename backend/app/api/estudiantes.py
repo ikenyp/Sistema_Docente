@@ -20,6 +20,7 @@ from app.schemas.estudiantes import (
     EstadoEstudiante
 )
 from app.crud import estudiantes as crud
+from app.crud import anios_lectivos as crud_anios_lectivos
 from app.services import estudiantes as service
 from app.auth.dependencies import get_current_user
 from app.models.usuarios import Usuario
@@ -156,6 +157,7 @@ async def _preparar_fila_importacion(
     request: Request,
     current_user: Usuario,
     id_contexto: int | None,
+    anio_lectivo: str,
     valores: dict,
     cedulas_vistas: set[str],
     validar_bd: bool = True,
@@ -206,7 +208,7 @@ async def _preparar_fila_importacion(
     if cedula:
         if cedula in cedulas_vistas:
             errores.append("La cédula se repite dentro del archivo")
-        elif validar_bd and await crud.obtener_por_cedula(db, cedula):
+        elif validar_bd and await crud.obtener_por_cedula(db, cedula, id_contexto, anio_lectivo):
             errores.append("La cédula ya está registrada")
         else:
             cedulas_vistas.add(cedula)
@@ -230,6 +232,7 @@ async def _preparar_fila_importacion(
         "nombre": nombre,
         "apellido": apellido,
         "cedula": cedula,
+        "anio_lectivo": anio_lectivo,
         "fecha_nacimiento": fecha_nacimiento.isoformat() if fecha_nacimiento else "",
         "estado": estado,
         "id_curso_actual": id_curso_actual,
@@ -250,15 +253,26 @@ def _validar_gestion_estudiantes(current_user: Usuario, request: Request):
             detail="Solo administrativos pueden gestionar estudiantes"
         )
 
+
+async def _obtener_anio_lectivo_activo(db: AsyncSession, id_contexto: int) -> str:
+    anio = await crud_anios_lectivos.obtener_activo(db, id_contexto)
+    if not anio:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No hay un año lectivo activo para este contexto",
+        )
+    return anio.anio_lectivo
+
 @router.post("/", response_model=EstudianteResponse)
 async def crear_estudiante(
     data: EstudianteCreate,
     db: AsyncSession = Depends(get_session),
     request: Request = None,
     current_user: Usuario = Depends(get_current_user)
-):
+): 
     _validar_gestion_estudiantes(current_user, request)
     id_contexto = await resolve_contexto_id(db, current_user, request)
+    anio_lectivo = await _obtener_anio_lectivo_activo(db, id_contexto)
 
     if is_personal_mode(request) and data.id_curso_actual is not None:
         await validar_docente_puede_editar_curso(db, data.id_curso_actual, current_user.id_usuario, id_contexto)
@@ -271,7 +285,7 @@ async def crear_estudiante(
         logging.debug("No se pudo loggear request info")
 
     try:
-        return await service.crear_estudiante(db, data)
+        return await service.crear_estudiante(db, data, id_contexto, anio_lectivo)
     except HTTPException:
         raise
     except Exception as e:
@@ -291,9 +305,10 @@ async def listar_estudiantes(
     current_user: Usuario = Depends(get_current_user),
     request: Request = None,
     db: AsyncSession = Depends(get_session)
-):
+): 
+    id_contexto = await resolve_contexto_id(db, current_user, request)
+    anio_lectivo = await _obtener_anio_lectivo_activo(db, id_contexto)
     if current_user.rol != RolUsuarioEnum.administrativo:
-        id_contexto = await resolve_contexto_id(db, current_user, request)
         if id_curso is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Debes filtrar por curso para listar estudiantes")
         if is_personal_mode(request):
@@ -302,6 +317,8 @@ async def listar_estudiantes(
             await validar_usuario_puede_ver_curso(db, id_curso, current_user, id_contexto)
     return await service.listar_estudiantes(
         db=db,
+        id_contexto=id_contexto,
+        anio_lectivo=anio_lectivo,
         estado=estado,
         nombre=nombre,
         apellido=apellido,
@@ -321,6 +338,7 @@ async def previsualizar_importacion_estudiantes(
 ):
     _validar_gestion_estudiantes(current_user, request)
     id_contexto = await resolve_contexto_id(db, current_user, request)
+    anio_lectivo = await _obtener_anio_lectivo_activo(db, id_contexto)
 
     if is_personal_mode(request) and id_curso_actual is not None:
         await validar_docente_puede_editar_curso(
@@ -379,6 +397,7 @@ async def previsualizar_importacion_estudiantes(
                 request,
                 current_user,
                 id_contexto,
+                anio_lectivo,
                 valores,
                 cedulas_vistas,
                 validar_bd=True,
@@ -401,6 +420,7 @@ async def previsualizar_importacion_estudiantes(
                 request,
                 current_user,
                 id_contexto,
+                anio_lectivo,
                 fila,
                 cedulas_vistas,
                 validar_bd=True,
@@ -428,6 +448,7 @@ async def importar_estudiantes_desde_excel(
 ):
     _validar_gestion_estudiantes(current_user, request)
     id_contexto = await resolve_contexto_id(db, current_user, request)
+    anio_lectivo = await _obtener_anio_lectivo_activo(db, id_contexto)
 
     payload = await request.json()
     filas = payload.get("estudiantes", []) if isinstance(payload, dict) else []
@@ -448,6 +469,7 @@ async def importar_estudiantes_desde_excel(
             request,
             current_user,
             id_contexto,
+            anio_lectivo,
             fila,
             cedulas_vistas,
             validar_bd=True,
@@ -473,6 +495,8 @@ async def importar_estudiantes_desde_excel(
                     estado=EstadoEstudiante(preparado["estado"]),
                     id_curso_actual=preparado["id_curso_actual"],
                 ),
+                id_contexto,
+                anio_lectivo,
             )
             creados.append({"fila": idx, "id_estudiante": estudiante.id_estudiante, "cedula": estudiante.cedula})
         except Exception as exc:
@@ -498,7 +522,8 @@ async def obtener_estudiante(
     db: AsyncSession = Depends(get_session)
 ):
     id_contexto = await resolve_contexto_id(db, current_user, request)
-    estudiante = await service.obtener_estudiante(db, id_estudiante=id_estudiante)
+    anio_lectivo = await _obtener_anio_lectivo_activo(db, id_contexto)
+    estudiante = await service.obtener_estudiante(db, id_estudiante=id_estudiante, id_contexto=id_contexto, anio_lectivo=anio_lectivo)
 
     if is_personal_mode(request) and current_user.rol == RolUsuarioEnum.docente and estudiante.id_curso_actual is not None:
         await validar_docente_puede_editar_curso(db, estudiante.id_curso_actual, current_user.id_usuario, id_contexto)
@@ -516,14 +541,15 @@ async def actualizar_estudiante(
 ):
     _validar_gestion_estudiantes(current_user, request)
     id_contexto = await resolve_contexto_id(db, current_user, request)
+    anio_lectivo = await _obtener_anio_lectivo_activo(db, id_contexto)
 
     if is_personal_mode(request):
-        estudiante_actual = await service.obtener_estudiante(db, id_estudiante=id_estudiante)
+        estudiante_actual = await service.obtener_estudiante(db, id_estudiante=id_estudiante, id_contexto=id_contexto, anio_lectivo=anio_lectivo)
         curso_objetivo = data.id_curso_actual if data.id_curso_actual is not None else estudiante_actual.id_curso_actual
         if curso_objetivo is not None:
             await validar_docente_puede_editar_curso(db, curso_objetivo, current_user.id_usuario, id_contexto)
 
-    return await service.actualizar_estudiante(db, id_estudiante, data)
+    return await service.actualizar_estudiante(db, id_estudiante, data, id_contexto=id_contexto, anio_lectivo=anio_lectivo)
 
 
 @router.delete("/{id_estudiante}", status_code=200)
@@ -532,16 +558,17 @@ async def eliminar_estudiante(
     request: Request,
     current_user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
-): 
+):
     _validar_gestion_estudiantes(current_user, request)
     id_contexto = await resolve_contexto_id(db, current_user, request)
+    anio_lectivo = await _obtener_anio_lectivo_activo(db, id_contexto)
 
     if is_personal_mode(request):
-        estudiante_actual = await service.obtener_estudiante(db, id_estudiante=id_estudiante)
+        estudiante_actual = await service.obtener_estudiante(db, id_estudiante=id_estudiante, id_contexto=id_contexto, anio_lectivo=anio_lectivo)
         if estudiante_actual.id_curso_actual is not None:
             await validar_docente_puede_editar_curso(db, estudiante_actual.id_curso_actual, current_user.id_usuario, id_contexto)
 
-    return await service.eliminar_estudiante(db, id_estudiante)
+    return await service.eliminar_estudiante(db, id_estudiante, id_contexto=id_contexto, anio_lectivo=anio_lectivo)
 
 
 

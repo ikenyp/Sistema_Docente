@@ -5,30 +5,50 @@ from app.schemas.estudiantes import EstadoEstudiante
 
 
 #  Obtener por ID
-async def obtener_por_id(db: AsyncSession, id_estudiante: int):
-    result = await db.execute(
-        select(Estudiante).where(
-            Estudiante.id_estudiante == id_estudiante,
-            Estudiante.eliminado == False
-        )
-    )
+async def obtener_por_id(
+    db: AsyncSession,
+    id_estudiante: int,
+    id_contexto: int | None = None,
+    anio_lectivo: str | None = None,
+):
+    condiciones = [
+        Estudiante.id_estudiante == id_estudiante,
+        Estudiante.eliminado == False,
+    ]
+    if id_contexto is not None:
+        condiciones.append(Estudiante.id_contexto == id_contexto)
+    if anio_lectivo is not None:
+        condiciones.append(Estudiante.anio_lectivo == anio_lectivo)
+
+    result = await db.execute(select(Estudiante).where(*condiciones))
     return result.scalar_one_or_none()
 
 
 #  Obtener por cédula
-async def obtener_por_cedula(db: AsyncSession, cedula: str):
-    result = await db.execute(
-        select(Estudiante).where(
-            Estudiante.cedula == cedula,
-            Estudiante.eliminado == False
-        )
-    )
+async def obtener_por_cedula(
+    db: AsyncSession,
+    cedula: str,
+    id_contexto: int | None = None,
+    anio_lectivo: str | None = None,
+):
+    condiciones = [
+        Estudiante.cedula == cedula,
+        Estudiante.eliminado == False,
+    ]
+    if id_contexto is not None:
+        condiciones.append(Estudiante.id_contexto == id_contexto)
+    if anio_lectivo is not None:
+        condiciones.append(Estudiante.anio_lectivo == anio_lectivo)
+
+    result = await db.execute(select(Estudiante).where(*condiciones))
     return result.scalar_one_or_none()
 
 
 #  Listar estudiantes
 async def listar_estudiantes(
     db: AsyncSession, 
+    id_contexto: int | None = None,
+    anio_lectivo: str | None = None,
     estado: EstadoEstudiante | None = None, 
     nombre: str | None = None, 
     apellido: str | None = None, 
@@ -37,6 +57,10 @@ async def listar_estudiantes(
     size: int = 10
 ):
     query = select(Estudiante).where(Estudiante.eliminado == False)
+    if id_contexto is not None:
+        query = query.where(Estudiante.id_contexto == id_contexto)
+    if anio_lectivo is not None:
+        query = query.where(Estudiante.anio_lectivo == anio_lectivo)
     
     if estado:
         query = query.where(Estudiante.estado == estado)

@@ -96,6 +96,7 @@ export const TabModalNotasInsumo = ({
                       max="10"
                       step="0.1"
                       defaultValue={notas[estudiante.id_estudiante]?.calificacion || ""}
+                      key={`nota-${estudiante.id_estudiante}-${notas[estudiante.id_estudiante]?.id_nota || "new"}-${notas[estudiante.id_estudiante]?.calificacion || ""}`}
                       placeholder="--"
                       className="input-nota"
                       id={`nota-${estudiante.id_estudiante}`}
