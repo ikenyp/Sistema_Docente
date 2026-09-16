@@ -9,6 +9,7 @@ from app.models.insumos import Insumo
 from app.models.estudiantes import Estudiante
 from app.models.cursos_materias_docentes import CursoMateriaDocente
 from app.models.cursos import Curso
+from app.core.pagination import normalizar_paginacion
 from app.crud import notas as crud
 from app.schemas.notas import NotaCreate, NotaUpdate
 
@@ -87,10 +88,7 @@ async def listar_notas(
     page: int = 1,
     size: int = 10
 ):
-    if page < 1:
-        page = 1
-    if size < 1 or size > 100:
-        size = 10
+    page, size = normalizar_paginacion(page, size)
 
     return await crud.listar_notas(
         db=db,

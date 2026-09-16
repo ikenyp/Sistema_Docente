@@ -1,3 +1,5 @@
+import { API_ROOT_URL } from "./apiConfig";
+
 const WARNING_MINUTES = 5;
 const WARNING_MS = WARNING_MINUTES * 60 * 1000;
 
@@ -108,8 +110,7 @@ export async function refreshSession() {
   const token = localStorage.getItem("token");
   if (!token) return null;
 
-  const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:8000";
-  const response = await fetch(`${apiUrl}/auth/refresh`, {
+  const response = await fetch(`${API_ROOT_URL}/auth/refresh`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,

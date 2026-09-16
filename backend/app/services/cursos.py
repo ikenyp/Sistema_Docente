@@ -7,6 +7,7 @@ from app.models.contextos import Contexto
 from app.models.estructuras_academicas import EstructuraAcademica
 from app.models.usuarios import Usuario
 from app.models.enums import RolUsuarioEnum
+from app.core.pagination import calcular_offset, normalizar_paginacion
 from app.schemas.cursos import CursoCreate, CursoUpdate
 from app.crud import cursos as crud
 from sqlalchemy import select
@@ -133,9 +134,8 @@ async def listar_cursos(
     anio_lectivo: str | None = None,
     tutor_id: int | None = None,
 ):
-    if page < 1: page = 1
-    if size < 1 or size > 100: size = 10
-    offset = (page - 1) * size
+    page, size = normalizar_paginacion(page, size)
+    offset = calcular_offset(page, size)
     return await crud.listar(db, id_contexto, nombre, anio_lectivo, tutor_id, offset, size)
 
 

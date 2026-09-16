@@ -3,6 +3,7 @@ import { Save, Trash2, X } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import { aniosLectivosAPI, cursosAPI, periodizacionAPI } from "../../services/api";
 import { notify } from "../../components/notify";
+import { normalizarAnioLectivo, validarAnioLectivo } from "../../utils/anioLectivo";
 
 const TIPOS_PERIODIZACION = {
   quimestral: { label: "Quimestral", cantidad: 2, singular: "Quimestre", meses: 5 },
@@ -77,26 +78,7 @@ function PeriodizacionPage({ embedded = false } = {}) {
   }, []);
 
   const aniosDisponibles = anios.length > 0 ? anios : aniosSugeridos;
-
-  const normalizarAnioLectivo = (valor) => {
-    if (!valor) return "";
-    if (/^\d{4}$/.test(valor)) {
-      return `${valor}-${Number(valor) + 1}`;
-    }
-    return valor;
-  };
-
-  const validarAnioLectivo = (anio) => {
-    const patron = /^\d{4}-\d{4}$/;
-    if (!patron.test(anio)) {
-      return "Formato inválido. Usa: 2026-2027";
-    }
-    const [inicio, fin] = anio.split("-").map(Number);
-    if (fin !== inicio + 1) {
-      return "El año final debe ser +1 del inicial (ej: 2026-2027)";
-    }
-    return null;
-  };
+  const anioActivoGuardado = localStorage.getItem("anio_lectivo_activo") || "";
 
   const resumenConfiguracion = useMemo(() => {
     const cantidad = configuracionActual?.periodos?.length || 0;
@@ -140,9 +122,13 @@ function PeriodizacionPage({ embedded = false } = {}) {
 
   useEffect(() => {
     if (!anioSel && aniosDisponibles.length > 0) {
-      setAnioSel(aniosDisponibles[0]);
+      setAnioSel(
+        aniosDisponibles.includes(anioActivoGuardado)
+          ? anioActivoGuardado
+          : aniosDisponibles[0],
+      );
     }
-  }, [aniosDisponibles, anioSel]);
+  }, [anioActivoGuardado, aniosDisponibles, anioSel]);
 
   useEffect(() => {
     if (anioSel && !aniosDisponibles.includes(anioSel) && aniosDisponibles.length > 0) {

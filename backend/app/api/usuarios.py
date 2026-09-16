@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import require_role
 from app.core.database import get_session
 from app.schemas.usuarios import (
     RolUsuarioEnum,
@@ -13,7 +14,8 @@ from app.schemas.usuarios import (
 from app.services import usuarios as service
 
 router = APIRouter(
-    tags=["Usuarios"]
+    tags=["Usuarios"],
+    dependencies=[Depends(require_role(RolUsuarioEnum.administrativo))],
 )
 
 @router.post("/", response_model=UsuarioResponse)

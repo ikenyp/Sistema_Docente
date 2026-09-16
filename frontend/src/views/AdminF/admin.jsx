@@ -6,6 +6,11 @@ import CustomSelect from "../../components/admin/CustomSelect";
 import { notify } from "../../components/notify";
 import PeriodizacionPage from "../Periodizacion/PeriodizacionPage";
 import {
+  formatearAnioLectivoInput,
+  normalizarAnioLectivo,
+  validarAnioLectivo,
+} from "../../utils/anioLectivo";
+import {
   aniosLectivosAPI,
   usuariosAPI,
   cursosAPI,
@@ -109,26 +114,6 @@ function Admin() {
     cargar();
   }, [cargar]);
 
-  function normalizarAnioLectivo(valor) {
-    if (!valor) return "";
-    if (/^\d{4}$/.test(valor)) return `${valor}-${Number(valor) + 1}`;
-    return valor;
-  }
-
-  const formatarAnioLectivo = (valor) => {
-    const soloNumeros = String(valor || "").replace(/\D/g, "");
-    if (soloNumeros.length <= 4) return soloNumeros;
-    return `${soloNumeros.slice(0, 4)}-${soloNumeros.slice(4, 8)}`;
-  };
-
-  const validarAnioLectivo = (anio) => {
-    const patron = /^\d{4}-\d{4}$/;
-    if (!patron.test(anio)) return "Formato inválido. Usa: 2026-2027";
-    const [inicio, fin] = anio.split("-").map(Number);
-    if (fin !== inicio + 1) return "El año final debe ser +1 del inicial (ej: 2026-2027)";
-    return null;
-  };
-
   const anios = useMemo(() => {
     const base = aniosLectivos
       .map((item) => normalizarAnioLectivo(item.anio_lectivo))
@@ -153,7 +138,7 @@ function Admin() {
   };
 
   const guardarNuevoAnio = async () => {
-    const formato = formatarAnioLectivo(anioNuevo);
+    const formato = formatearAnioLectivoInput(anioNuevo);
     const error = validarAnioLectivo(formato);
     if (error) {
       notify("error", error);
@@ -388,7 +373,7 @@ function Admin() {
               type="text"
               placeholder="Año lectivo (ej: 2026-2027)"
               value={anioNuevo}
-              onChange={(e) => setAnioNuevo(formatarAnioLectivo(e.target.value))}
+              onChange={(e) => setAnioNuevo(formatearAnioLectivoInput(e.target.value))}
             />
             <p style={{ marginTop: -2, marginBottom: 10, fontSize: "0.85rem", color: "#6b7a99" }}>
               Formato: YYYY-YYYY (ej: 2026-2027)

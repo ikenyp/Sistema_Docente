@@ -12,6 +12,7 @@ import {
   estructurasAcademicasAPI,
 } from "../../services/api";
 import { notify, requestConfirm } from "../../components/notify";
+import { normalizarAnioLectivo } from "../../utils/anioLectivo";
 
 function CursosAdmin() {
   const navigate = useNavigate();
@@ -30,14 +31,6 @@ function CursosAdmin() {
     id_tutor: "",
   });
   const filtroAlerta = searchParams.get("filtro") || "";
-
-  const normalizarAnioLectivo = (valor) => {
-    if (!valor) return "";
-    if (/^\d{4}$/.test(valor)) {
-      return `${valor}-${Number(valor) + 1}`;
-    }
-    return valor;
-  };
 
   const cargar = useCallback(async () => {
     try {
@@ -123,8 +116,8 @@ function CursosAdmin() {
   }, [cursos, filtroAnio, filtroAlerta, asignaciones]);
 
   const anioLectivoCurso = useMemo(
-    () => localStorage.getItem("anio_lectivo_activo") || aniosDisponibles[0] || "",
-    [aniosDisponibles],
+    () => filtroAnio || localStorage.getItem("anio_lectivo_activo") || aniosDisponibles[0] || "",
+    [aniosDisponibles, filtroAnio],
   );
 
   const nombreTutor = (id_tutor) => {

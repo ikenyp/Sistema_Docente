@@ -25,11 +25,6 @@ export const TabInsumos = ({
   abrirInsumosNotas,
   abrirEdicionInsumo,
   eliminarInsumo,
-  cargarInsumos,
-  requestConfirm,
-  notasAPI,
-  cargarNotasEstudiante,
-  estudianteSeleccionado,
 }) => {
   return activeTab === "insumos" && materiaSeleccionada ? (
     <div className="insumos-section">

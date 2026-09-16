@@ -22,6 +22,7 @@ import { TabModalNotasInsumo } from "./components/TabModalNotasInsumo";
 import { TabPromedios } from "./components/TabPromedios";
 import { TabReportes } from "./components/TabReportes";
 import { TabPeriodizacion } from "./components/TabPeriodizacion";
+import { clearSessionStorage } from "../../services/session";
 import "../../styles/cursoPrincipal.css";
 import { notify, requestConfirm } from "../../components/notify";
 
@@ -1078,9 +1079,7 @@ function CursoPrincipal() {
 
   const cerrarSesion = () => {
     const appMode = localStorage.getItem("app_mode") || "institucional";
-    localStorage.removeItem("token");
-    localStorage.removeItem("usuario");
-    localStorage.removeItem("app_mode");
+    clearSessionStorage();
     // Volver al login con el modo que estaba usando
     navigate(`/?mode=${appMode}`);
   };
@@ -1404,8 +1403,6 @@ function CursoPrincipal() {
                 <TabInsumos
                   activeTab={activeTab}
                   materiaSeleccionada={materiaSeleccionada}
-                  materiaNombre={materiaNombre}
-                  materiasOptions={materiasOptions}
                   nuevoInsumo={nuevoInsumo}
                   setNuevoInsumo={setNuevoInsumo}
                   periodosOptions={periodosOptions}
@@ -1426,10 +1423,6 @@ function CursoPrincipal() {
                   abrirInsumosNotas={abrirInsumosNotas}
                   abrirEdicionInsumo={abrirEdicionInsumo}
                   eliminarInsumo={eliminarInsumo}
-                  requestConfirm={requestConfirm}
-                  notasAPI={notasAPI}
-                  cargarNotasEstudiante={cargarNotasEstudiante}
-                  estudianteSeleccionado={estudianteSeleccionado}
                 />
             )}
 

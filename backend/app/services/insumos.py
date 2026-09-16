@@ -10,6 +10,7 @@ from app.models.configuracion_periodizacion import ConfiguracionPeriodizacion
 from app.models.periodos_academicos import PeriodoAcademico
 from app.models.enums import TipoInsumoEnum
 from app.models.notas import Nota
+from app.core.pagination import normalizar_paginacion
 from app.crud import insumos as crud
 from app.schemas.insumos import InsumoCreate, InsumoUpdate
 from app.schemas.usuarios import RolUsuarioEnum
@@ -142,10 +143,7 @@ async def listar_insumos(
     page: int,
     size: int
 ):
-    if page < 1:
-        page = 1
-    if size < 1 or size > 100:
-        size = 10
+    page, size = normalizar_paginacion(page, size)
 
     return await crud.listar_insumos(
         db=db,

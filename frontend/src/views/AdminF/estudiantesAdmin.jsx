@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Pencil, Brush, Save, X, UserPlus, Upload } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
@@ -6,12 +6,7 @@ import CustomSelect from "../../components/admin/CustomSelect";
 import ImportarEstudiantesModal from "../../components/estudiantes/ImportarEstudiantesModal";
 import { estudiantesAPI, cursosAPI } from "../../services/api";
 import { notify } from "../../components/notify";
-
-function normalizarAnioLectivo(valor) {
-  if (!valor) return "";
-  if (/^\d{4}$/.test(valor)) return `${valor}-${Number(valor) + 1}`;
-  return String(valor).trim();
-}
+import { normalizarAnioLectivo } from "../../utils/anioLectivo";
 
 function EstudiantesAdmin() {
   const [searchParams] = useSearchParams();
@@ -68,7 +63,7 @@ function EstudiantesAdmin() {
     }
   };
 
-  const cargarConFiltros = async (filtrosAplicados) => {
+  const cargarConFiltros = useCallback(async (filtrosAplicados) => {
     setCargando(true);
     setError("");
     try {
@@ -94,7 +89,13 @@ function EstudiantesAdmin() {
       resultados.forEach((est) => {
         if (est?.id_estudiante) mapa.set(est.id_estudiante, est);
       });
-      const filtrados = Array.from(mapa.values());
+      const idsCursosAnioActivo = new Set(
+        cursosAnioActivo.map((curso) => String(curso.id_curso)),
+      );
+      const filtrados = Array.from(mapa.values()).filter((estudiante) => {
+        if (!anioActivo || filtrosAplicados.id_curso) return true;
+        return idsCursosAnioActivo.has(String(estudiante.id_curso_actual));
+      });
       const inicio = (filtrosAplicados.page - 1) * filtrosAplicados.size;
       setTotalFiltrados(filtrados.length);
       setData(filtrados.slice(inicio, inicio + filtrosAplicados.size));
@@ -103,7 +104,7 @@ function EstudiantesAdmin() {
     } finally {
       setCargando(false);
     }
-  };
+  }, [anioActivo, cursosAnioActivo]);
 
   const formatValue = (v) => {
     if (v === null || v === undefined) return "";
@@ -166,7 +167,7 @@ function EstudiantesAdmin() {
       cargarConFiltros(filtros);
     }, 250);
     return () => clearTimeout(timeout);
-  }, [filtros, cursosAnioActivo, anioActivo]);
+  }, [filtros, cargarConFiltros]);
 
   const limpiarFiltros = () => {
     const base = {
@@ -487,7 +488,7 @@ function EstudiantesAdmin() {
         open={modalImportOpen}
         onClose={() => setModalImportOpen(false)}
       onSaved={() => cargarConFiltros(filtros)}
-      cursos={cursos}
+      cursos={cursosAnioActivo}
       mostrarCurso
       titulo="Importar estudiantes"
       subtitulo="Carga un archivo Excel, revisa cada fila y guarda solo cuando todo esté listo."

@@ -30,7 +30,9 @@ import {
   notasAPI,
   periodizacionAPI,
 } from "../../services/api";
+import { clearSessionStorage } from "../../services/session";
 import { notify } from "../../components/notify";
+import { normalizarAnioLectivo, validarAnioLectivo } from "../../utils/anioLectivo";
 
 function Docente() {
   const navigate = useNavigate();
@@ -248,21 +250,6 @@ function Docente() {
     anioContextoVisible,
     resumenOperacion.aniosSinPeriodizacion,
   ]);
-
-  const normalizarAnioLectivo = (valor) => {
-    if (!valor) return "";
-    if (/^\d{4}$/.test(valor)) return `${valor}-${Number(valor) + 1}`;
-    return valor;
-  };
-
-  const validarAnioLectivo = (anio) => {
-    const patron = /^\d{4}-\d{4}$/;
-    if (!patron.test(anio)) return "Formato inválido. Usa: 2026-2027";
-    const [inicio, fin] = anio.split("-").map(Number);
-    if (fin !== inicio + 1)
-      return "El año final debe ser +1 del inicial (ej: 2026-2027)";
-    return null;
-  };
 
   const cursosVisibles = useMemo(() => {
     let lista = [...cursos];
@@ -740,9 +727,7 @@ function Docente() {
 
   const cerrarSesion = () => {
     const appMode = localStorage.getItem("app_mode") || "institucional";
-    localStorage.removeItem("token");
-    localStorage.removeItem("usuario");
-    localStorage.removeItem("app_mode");
+    clearSessionStorage();
     // Volver al login con el modo que estaba usando
     navigate(`/?mode=${appMode}`);
   };
@@ -1119,8 +1104,7 @@ function Docente() {
 
   const volverAlLogin = () => {
     const appMode = localStorage.getItem("app_mode") || "institucional";
-    localStorage.removeItem("token");
-    localStorage.removeItem("usuario");
+    clearSessionStorage();
     // Volver al login con el modo que estaba usando
     navigate(`/?mode=${appMode}`);
   };

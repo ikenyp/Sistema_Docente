@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { ADMIN_NAV, PERSONAL_DOCENTE_NAV } from "./adminNav";
+import { clearSessionStorage } from "../../services/session";
+import { normalizarAnioLectivo } from "../../utils/anioLectivo";
 import "../../styles/admin.css";
 
 function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, headerActions }) {
@@ -16,14 +18,6 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
     navItems || (appMode === "personal" ? PERSONAL_DOCENTE_NAV : ADMIN_NAV);
   const resolvedUserLabel =
     defaultUserLabel || (appMode === "personal" ? "Docente" : "Administrador");
-
-  const normalizarAnioLectivo = (valor) => {
-    if (!valor) return "";
-    if (/^\d{4}$/.test(valor)) {
-      return `${valor}-${Number(valor) + 1}`;
-    }
-    return String(valor).trim();
-  };
 
   const anioLectivoActivo = normalizarAnioLectivo(
     localStorage.getItem("anio_lectivo_activo") || "",
@@ -54,9 +48,7 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
 
   const cerrarSesion = () => {
     const appMode = localStorage.getItem("app_mode") || "institucional";
-    localStorage.removeItem("token");
-    localStorage.removeItem("usuario");
-    localStorage.removeItem("app_mode");
+    clearSessionStorage();
     navigate(`/?mode=${appMode}`);
   };
 

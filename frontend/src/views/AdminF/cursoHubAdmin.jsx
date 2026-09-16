@@ -18,6 +18,7 @@ import {
   materiasAPI,
 } from "../../services/api";
 import { notify, requestConfirm } from "../../components/notify";
+import { normalizarAnioLectivo } from "../../utils/anioLectivo";
 
 const TABS = [
   { id: "resumen", label: "Resumen" },
@@ -86,13 +87,6 @@ function CursoHubAdmin() {
     if (!cursoReciente?.id_curso) return;
     const key = "admin_recent_courses";
     const actual = JSON.parse(localStorage.getItem(key) || "[]");
-    const normalizarAnioLectivo = (valor) => {
-      if (!valor) return "";
-      if (/^\d{4}$/.test(valor)) {
-        return `${valor}-${Number(valor) + 1}`;
-      }
-      return String(valor).trim();
-    };
     const siguiente = [
       {
         id_curso: cursoReciente.id_curso,
@@ -126,7 +120,7 @@ function CursoHubAdmin() {
       const resultados = await Promise.all(
         asignacionesDelCurso.map(async (asignacion) => {
           try {
-            const lista = await insumosAPI.listar({ id_cmd: asignacion.id_cmd, size: 100 });
+            const lista = await insumosAPI.listarPorCMD(asignacion.id_cmd);
             return [String(asignacion.id_cmd), Array.isArray(lista) ? lista : []];
           } catch {
             return [String(asignacion.id_cmd), []];
@@ -553,7 +547,7 @@ function CursoHubAdmin() {
     const ordenados = [...periodosConfigurados].sort(
       (a, b) => Number(a.numero_periodo) - Number(b.numero_periodo),
     );
-    if (ordenados.length > 0) return ordenados.slice(0, 3);
+    if (ordenados.length > 0) return ordenados;
     return [
       { numero_periodo: 1, nombre_periodo: "1er trimestre" },
       { numero_periodo: 2, nombre_periodo: "2do trimestre" },
@@ -565,14 +559,17 @@ function CursoHubAdmin() {
     if (!materiaDetalleActiva) return [];
 
     const insumosMateria = insumosPorCMD[String(materiaDetalleActiva.id_cmd)] || [];
-    const insumosPorPeriodo = periodosDetalleMateria.map((periodo) => ({
-      ...periodo,
-      idsInsumos: new Set(
-        insumosMateria
-          .filter((insumo) => String(insumo.id_periodo) === String(periodo.numero_periodo))
-          .map((insumo) => String(insumo.id_insumo)),
-      ),
-    }));
+    const insumosPorPeriodo = periodosDetalleMateria.map((periodo) => {
+      const idPeriodo = periodo.id_periodo ?? periodo.numero_periodo;
+      return {
+        ...periodo,
+        idsInsumos: new Set(
+          insumosMateria
+            .filter((insumo) => String(insumo.id_periodo) === String(idPeriodo))
+            .map((insumo) => String(insumo.id_insumo)),
+        ),
+      };
+    });
 
     return estudiantesOrdenados.map((estudiante) => {
       const notasEstudiante = notasCursoPorEstudiante.get(String(estudiante.id_estudiante)) || [];

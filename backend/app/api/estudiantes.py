@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, File, Form, UploadFile
 import logging
-import traceback
 from datetime import date, datetime
 from io import BytesIO
 import re
@@ -277,20 +276,12 @@ async def crear_estudiante(
     if is_personal_mode(request) and data.id_curso_actual is not None:
         await validar_docente_puede_editar_curso(db, data.id_curso_actual, current_user.id_usuario, id_contexto)
 
-    # Log incoming data and auth header for debugging
-    try:
-        logging.debug("crear_estudiante headers: %s", request.headers.get("authorization") if request else None)
-        logging.debug("crear_estudiante payload: %s", data.model_dump() if hasattr(data, 'model_dump') else dict(data))
-    except Exception:
-        logging.debug("No se pudo loggear request info")
-
     try:
         return await service.crear_estudiante(db, data, id_contexto, anio_lectivo)
     except HTTPException:
         raise
-    except Exception as e:
-        logging.error("Error en crear_estudiante: %s", e)
-        logging.error(traceback.format_exc())
+    except Exception:
+        logging.exception("Error en crear_estudiante")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno del servidor")
 
 

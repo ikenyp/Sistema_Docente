@@ -6,6 +6,7 @@ from app.models.estudiantes import Estudiante
 from app.crud import estudiantes as crud
 from app.crud import cursos as crud_cursos
 from app.crud import anios_lectivos as crud_anios_lectivos
+from app.core.pagination import normalizar_paginacion
 from app.schemas.estudiantes import EstudianteCreate, EstudianteUpdate, EstadoEstudiante
 from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
@@ -110,11 +111,7 @@ async def listar_estudiantes(
     page: int,
     size: int
 ):
-    # Paginacion
-    if page < 1:
-        page = 1
-    if size < 1 or size > 100:
-        size = 10
+    page, size = normalizar_paginacion(page, size)
 
     return await crud.listar_estudiantes(
         db=db, 
@@ -196,7 +193,7 @@ async def eliminar_estudiante(db: AsyncSession, id_estudiante: int, id_contexto:
     estudiante = await obtener_estudiante(db, id_estudiante=id_estudiante, id_contexto=id_contexto, anio_lectivo=anio_lectivo)
 
     # Validacion antes de eliminar
-    if estudiante.estado == EstadoEstudiante.ACTIVO:
+    if estudiante.estado == EstadoEstudiante.matriculado:
         raise HTTPException(
             status_code= status.HTTP_400_BAD_REQUEST,
             detail="No se puede eliminar un estudiante activo"

@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from email_validator import validate_email, EmailNotValidError
 
 from app.core.security import hash_contrasena
+from app.core.pagination import normalizar_paginacion
 
 from app.models.usuarios import Usuario
 from app.crud import usuarios as crud
@@ -52,11 +53,7 @@ async def listar_usuarios(
     page: int = 1,
     size: int = 10
 ):
-    # Validación básica de paginación
-    if page < 1:
-        page = 1
-    if size < 1 or size > 100:
-        size = 10
+    page, size = normalizar_paginacion(page, size)
 
     return await crud.listar_usuarios(
         db=db,

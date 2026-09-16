@@ -6,6 +6,7 @@ from sqlalchemy import select, func
 from app.models.materias import Materia
 from app.models.cursos_materias_docentes import CursoMateriaDocente
 from app.models.estructuras_academicas import EstructuraMateria
+from app.core.pagination import normalizar_paginacion
 from app.crud import materias as crud
 from app.schemas.materias import MateriaCreate, MateriaUpdate
 
@@ -57,10 +58,7 @@ async def listar_materias(
     page: int,
     size: int
 ):
-    if page < 1:
-        page = 1
-    if size < 1 or size > 100:
-        size = 10
+    page, size = normalizar_paginacion(page, size)
 
     return await crud.listar_materias(
         db=db,

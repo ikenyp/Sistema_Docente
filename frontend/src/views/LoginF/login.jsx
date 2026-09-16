@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import "../../styles/login.css";
-import { scheduleSessionWatch } from "../../services/session";
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+import { clearSessionStorage, scheduleSessionWatch } from "../../services/session";
+import { API_ROOT_URL } from "../../services/apiConfig";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -72,7 +71,7 @@ export default function Login() {
 
       const appMode = selectedMode || "institucional";
 
-      const res = await fetch(`${API_URL}/auth/login`, {
+      const res = await fetch(`${API_ROOT_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -93,7 +92,7 @@ export default function Login() {
       scheduleSessionWatch(data.access_token);
 
       // Obtener datos completos del usuario
-      const userRes = await fetch(`${API_URL}/auth/me`, {
+      const userRes = await fetch(`${API_ROOT_URL}/auth/me`, {
         headers: {
           Authorization: `Bearer ${data.access_token}`,
           "X-App-Mode": appMode,
@@ -112,6 +111,7 @@ export default function Login() {
       else if (role === "docente") navigate("/docente");
       else throw new Error(`Rol desconocido: ${role}`);
     } catch (err) {
+      clearSessionStorage();
       setError(err.message || "Error al iniciar sesión");
     } finally {
       setLoading(false);
@@ -129,7 +129,7 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/auth/register-personal`, {
+      const res = await fetch(`${API_ROOT_URL}/auth/register-personal`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -161,7 +161,7 @@ export default function Login() {
     resetFlowMessages();
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/auth/password-reset/request`, {
+      const res = await fetch(`${API_ROOT_URL}/auth/password-reset/request`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -195,7 +195,7 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/auth/password-reset/confirm`, {
+      const res = await fetch(`${API_ROOT_URL}/auth/password-reset/confirm`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
