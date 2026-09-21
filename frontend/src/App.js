@@ -12,10 +12,10 @@ import Login from "./views/LoginF/login";
 import Admin from "./views/AdminF/admin";
 import Docente from "./views/DocenteF/docente";
 import CursoPrincipal from "./views/DocenteF/cursoPrincipal";
-import NotasCurso from "./views/Notas/notasCurso.jsx";
 
 import NotificationCenter from "./components/NotificationCenter";
 import SessionModal from "./components/SessionModal";
+import "./styles/shared-ui.css";
 import {
   clearSessionStorage,
   getSessionExpiration,
@@ -243,17 +243,6 @@ function AppShell({ sessionState, handleStay, handleLogout, clearSessionState })
               allowModes={["institucional", "personal"]}
             >
               <CursoPrincipal />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/curso/:id_curso/notas"
-          element={
-            <ProtectedRoute
-              allowRoles={["docente", "administrativo"]}
-              allowModes={["institucional", "personal"]}
-            >
-              <NotasCurso />
             </ProtectedRoute>
           }
         />

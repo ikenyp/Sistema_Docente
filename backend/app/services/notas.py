@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from datetime import date
 
@@ -12,17 +13,15 @@ from app.models.cursos import Curso
 from app.core.pagination import normalizar_paginacion
 from app.crud import notas as crud
 from app.schemas.notas import NotaCreate, NotaUpdate
+from app.services.validaciones_academicas import validar_calificacion, validar_estudiante_en_curso
+from app.services.validaciones_academicas import manejar_error_integridad
 
 
 # Crear nota
 async def crear_nota(db: AsyncSession, data: NotaCreate, id_contexto: int):
 
     # Validar rango de nota (0 - 10)
-    if not 0 <= data.calificacion <= 10:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La nota debe estar entre 0 y 10"
-        )
+    validar_calificacion(data.calificacion)
 
     # Validar que el insumo exista
     insumo = await db.execute(
@@ -41,7 +40,11 @@ async def crear_nota(db: AsyncSession, data: NotaCreate, id_contexto: int):
 
     # Validar que el estudiante exista
     estudiante = await db.execute(
-        select(Estudiante).where(Estudiante.id_estudiante == data.id_estudiante)
+        select(Estudiante).where(
+            Estudiante.id_estudiante == data.id_estudiante,
+            Estudiante.id_contexto == id_contexto,
+            Estudiante.eliminado.is_(False),
+        )
     )
     estudiante_obj = estudiante.scalar_one_or_none()
     if not estudiante_obj:
@@ -51,11 +54,11 @@ async def crear_nota(db: AsyncSession, data: NotaCreate, id_contexto: int):
         )
 
     # VALIDACIÓN CRÍTICA: Estudiante debe estar en el curso del insumo
-    if estudiante_obj.id_curso_actual != insumo_obj.cmd.id_curso:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El estudiante no está matriculado en el curso del insumo"
-        )
+    validar_estudiante_en_curso(
+        estudiante_obj,
+        insumo_obj.cmd.id_curso,
+        "El estudiante no está matriculado en el curso del insumo",
+    )
 
     # Validar que no exista nota para ese estudiante + insumo
     if await crud.obtener_por_estudiante_insumo(
@@ -76,7 +79,10 @@ async def crear_nota(db: AsyncSession, data: NotaCreate, id_contexto: int):
         fecha_asignacion=date.today()
     )
 
-    return await crud.crear(db, nota)
+    try:
+        return await crud.crear(db, nota)
+    except IntegrityError:
+        await manejar_error_integridad(db, "La nota para este estudiante e insumo ya existe")
 
 
 # Listar notas
@@ -126,11 +132,7 @@ async def actualizar_nota(
 
     # Validar rango de nota si se actualiza
     if "calificacion" in values:
-        if not 0 <= values["calificacion"] <= 10:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="La nota debe estar entre 0 y 10"
-            )
+        validar_calificacion(values["calificacion"])
 
     # Validar que nuevo insumo exista si se modifica
     if "id_insumo" in values:
@@ -149,7 +151,11 @@ async def actualizar_nota(
     # Validar que nuevo estudiante exista si se modifica
     if "id_estudiante" in values:
         est = await db.execute(
-            select(Estudiante).where(Estudiante.id_estudiante == values["id_estudiante"])
+            select(Estudiante).where(
+                Estudiante.id_estudiante == values["id_estudiante"],
+                Estudiante.id_contexto == id_contexto,
+                Estudiante.eliminado.is_(False),
+            )
         )
         if not est.scalar_one_or_none():
             raise HTTPException(
@@ -174,14 +180,19 @@ async def actualizar_nota(
         
         # Obtener el estudiante actualizado
         est_actual = await db.execute(
-            select(Estudiante).where(Estudiante.id_estudiante == nuevo_estudiante)
+            select(Estudiante).where(
+                Estudiante.id_estudiante == nuevo_estudiante,
+                Estudiante.id_contexto == id_contexto,
+                Estudiante.eliminado.is_(False),
+            )
         )
         est_obj = est_actual.scalar_one_or_none()
         
-        if est_obj and insumo_obj and est_obj.id_curso_actual != insumo_obj.cmd.id_curso:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El estudiante no está matriculado en el curso del insumo"
+        if est_obj and insumo_obj:
+            validar_estudiante_en_curso(
+                est_obj,
+                insumo_obj.cmd.id_curso,
+                "El estudiante no está matriculado en el curso del insumo",
             )
 
     # Validar unicidad si cambia estudiante o insumo
@@ -208,7 +219,10 @@ async def actualizar_nota(
     if "calificacion" in values:
         nota.calificacion = values["calificacion"]
 
-    return await crud.actualizar(db, nota)
+    try:
+        return await crud.actualizar(db, nota)
+    except IntegrityError:
+        await manejar_error_integridad(db, "Ya existe una nota para este estudiante e insumo")
 
 
 # Eliminar nota (eliminación física)

@@ -1,19 +1,15 @@
 import React from "react";
+import { nombrePersona } from "../../../utils/personas";
 import { Trash2, Save } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
 
 const VALORES = ["A", "B", "C", "D"];
-const PERIODOS = [
-  { value: "1", label: "Trimestre 1" },
-  { value: "2", label: "Trimestre 2" },
-  { value: "3", label: "Trimestre 3" },
-];
-
 export const TabComportamiento = ({
   activeTab,
   estudiantesCurso,
   mesComportamiento,
   setMesComportamiento,
+  periodos = [],
   soloLecturaTutor,
   valoresTemporales,
   setValoresTemporales,
@@ -24,6 +20,13 @@ export const TabComportamiento = ({
   onEliminarUno,
   onGuardarTodo,
 }) => {
+  const periodosOptions = periodos.map((periodo) => ({
+    value: String(periodo.numero_periodo),
+    label: periodo.nombre_periodo || `Periodo ${periodo.numero_periodo}`,
+  }));
+
+  // Registra una observación por estudiante y periodo académico, separada de las
+  // notas y la asistencia.
   if (activeTab !== "comportamiento") return null;
 
   return (
@@ -38,8 +41,8 @@ export const TabComportamiento = ({
           <CustomSelect
             value={mesComportamiento}
             onChange={setMesComportamiento}
-            options={PERIODOS}
-            placeholder="Selecciona trimestre"
+            options={periodosOptions}
+            placeholder={periodosOptions.length ? "Selecciona periodo" : "Sin periodización configurada"}
             className="custom-select-white comportamiento-select"
           />
         </div>
@@ -69,7 +72,7 @@ export const TabComportamiento = ({
                 const observacionActual = observacionesTemporales[estudiante.id_estudiante] || "";
                 return (
                   <tr key={estudiante.id_estudiante}>
-                    <td>{estudiante.apellido} {estudiante.nombre}</td>
+                    <td>{nombrePersona(estudiante)}</td>
                     <td>
                       <div className="radio-group-horizontal radio-group-behavior">
                         {VALORES.map((valor) => (

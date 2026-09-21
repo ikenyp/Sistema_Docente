@@ -13,7 +13,7 @@ class ValorComportamiento(str, Enum):
 class ComportamientoBase(BaseModel):
     id_estudiante: int
     id_curso: int
-    mes: str  
+    periodo: str
     valor: ValorComportamiento
     observaciones: Optional[str] = None
 
@@ -23,7 +23,7 @@ class ComportamientoCreate(ComportamientoBase):
 
 # Schema para actualizar
 class ComportamientoUpdate(BaseModel):
-    mes: Optional[str] = None
+    periodo: Optional[str] = None
     valor: Optional[ValorComportamiento] = None
     observaciones: Optional[str] = None
 

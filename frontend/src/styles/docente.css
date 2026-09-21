@@ -50,55 +50,6 @@
   padding: 0.25rem 0.48rem;
 }
 
-.navbar-user {
-  position: relative;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 10px;
-  padding: 0.48rem 0.8rem;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition:
-    transform 0.2s,
-    box-shadow 0.2s,
-    background 0.2s;
-}
-
-.navbar-user:hover {
-  transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.24);
-  box-shadow: 0 8px 14px rgba(38, 62, 106, 0.26);
-}
-
-.menu-usuario {
-  position: absolute;
-  top: 68px;
-  right: 12px;
-  min-width: 180px;
-  background: #fff;
-  border: 1px solid #dde5f4;
-  border-radius: 12px;
-  padding: 0.35rem;
-  box-shadow: 0 14px 28px rgba(25, 37, 62, 0.2);
-  z-index: 80;
-}
-
-.menu-usuario button {
-  width: 100%;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: #25304a;
-  text-align: left;
-  padding: 0.62rem 0.75rem;
-  cursor: pointer;
-}
-
-.menu-usuario button:hover {
-  background: linear-gradient(135deg, #2f72b5 0%, #4f5ebf 100%);
-  color: #fff;
-}
-
 .docente-container {
   max-width: 1180px;
   margin: 0 auto;
@@ -1078,6 +1029,10 @@
   width: max-content;
 }
 
+.tutor-pill-institutional {
+  margin-left: auto;
+}
+
 .toolbar-dropdown-menu {
   position: absolute;
   top: calc(100% + 6px);
@@ -1522,6 +1477,17 @@
   margin-top: 0.8rem;
 }
 
+.personal-year-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.personal-year-actions button {
+  width: 100%;
+  justify-content: center;
+}
+
 .course-tutor-toggle {
   display: inline-flex;
   align-items: center;
@@ -1780,8 +1746,9 @@
 }
 
 .stat-card.accent {
-  background: linear-gradient(135deg, #2f72b5 0%, #4f5ebf 100%);
-  color: #fff;
+  background: #e2eefb;
+  border-color: #b7cee8;
+  color: #314d78;
 }
 
 .stat-label {
@@ -1795,7 +1762,7 @@
 .stat-card.accent .stat-label,
 .stat-card.accent .stat-value,
 .stat-card.accent .stat-sub {
-  color: #fff;
+  color: inherit;
 }
 
 .stat-value {

@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, UserPlus, BookOpen, Clipboard, Calendar, Link2, Link2Off, Trash2, X, Save, Pencil, Upload } from "lucide-react";
+import { ArrowLeft, UserPlus, BookOpen, Clipboard, Calendar, FileText, Link2, Link2Off, Trash2, X, Save, Pencil, Upload } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import CustomSelect from "../../components/admin/CustomSelect";
 import ImportarEstudiantesModal from "../../components/estudiantes/ImportarEstudiantesModal";
+import { AnalisisAcademico } from "../../components/AnalisisAcademico";
 import TabReportes from "../DocenteF/components/TabReportes";
 import {
   cursosAPI,
@@ -14,11 +15,12 @@ import {
   notasAPI,
   asistenciaAPI,
   comportamientoAPI,
-  promediosAPI,
   materiasAPI,
 } from "../../services/api";
 import { notify, requestConfirm } from "../../components/notify";
 import { normalizarAnioLectivo } from "../../utils/anioLectivo";
+import { calcularPromedioInteractivo } from "../../utils/promedios";
+import { nombrePersona } from "../../utils/personas";
 
 const TABS = [
   { id: "resumen", label: "Resumen" },
@@ -66,10 +68,6 @@ function CursoHubAdmin() {
   const [materiaDetalleSeleccionada, setMateriaDetalleSeleccionada] = useState("");
   const [materiaReporteSeleccionada, setMateriaReporteSeleccionada] = useState("");
 
-  const [anioPromedio, setAnioPromedio] = useState("");
-  const [periodoSeleccionado, setPeriodoSeleccionado] = useState("");
-  const [modoPromedio, setModoPromedio] = useState("periodo");
-  const [resultadoPromedio, setResultadoPromedio] = useState(null);
   const [periodosConfigurados, setPeriodosConfigurados] = useState([]);
 
   const [notasCurso, setNotasCurso] = useState([]);
@@ -190,7 +188,6 @@ function CursoHubAdmin() {
       const estudiantesDashboard = dashboard?.estudiantes || [];
 
       setCurso(c);
-      setAnioPromedio(c?.anio_lectivo || "");
       setEstudiantes(estudiantesDashboard);
       setAsignaciones(asignacionesDashboard);
       setMateriasEstructura(dashboard?.materias_estructura || []);
@@ -208,7 +205,6 @@ function CursoHubAdmin() {
 
       const periodos = dashboard?.periodizacion?.periodos || [];
       setPeriodosConfigurados(periodos);
-      setPeriodoSeleccionado(periodos[0]?.numero_periodo?.toString() || "");
 
       const insumosMap = await cargarInsumosDelCurso(asignacionesDashboard);
       await cargarNotasCurso(estudiantesDashboard, asignacionesDashboard, insumosMap);
@@ -235,7 +231,6 @@ function CursoHubAdmin() {
         const c = dashboard?.curso || null;
         setCurso(c);
         registrarCursoReciente(c);
-        setAnioPromedio(c?.anio_lectivo || "");
         setEstudiantes(dashboard?.estudiantes || []);
         setAsignaciones(dashboard?.asignaciones || []);
         setMateriasList(lm || []);
@@ -257,7 +252,6 @@ function CursoHubAdmin() {
         if (!cancelled) {
           const periodos = dashboard?.periodizacion?.periodos || [];
           setPeriodosConfigurados(periodos);
-          setPeriodoSeleccionado(periodos[0]?.numero_periodo?.toString() || "");
         }
       } catch (e) {
         notify("error", e.message || "No se pudo cargar el curso");
@@ -338,7 +332,7 @@ function CursoHubAdmin() {
 
   const quitarEstudianteDelCurso = async (estudiante) => {
     const ok = await requestConfirm(
-      `¿Quitar a ${estudiante.nombre} ${estudiante.apellido} de este curso?`,
+      `¿Quitar a ${nombrePersona(estudiante)} de este curso?`,
     );
     if (!ok) return;
     try {
@@ -360,7 +354,7 @@ function CursoHubAdmin() {
     const t = searchEst.trim().toLowerCase();
     if (!t) return estudiantes;
     return estudiantes.filter((e) =>
-      `${e.nombre} ${e.apellido}`.toLowerCase().includes(t),
+      nombrePersona(e).toLowerCase().includes(t),
     );
   }, [estudiantes, searchEst]);
 
@@ -368,21 +362,15 @@ function CursoHubAdmin() {
     const t = searchAgregarEst.trim().toLowerCase();
     if (!t) return estudiantesDisponibles;
     return estudiantesDisponibles.filter((e) =>
-      `${e.nombre} ${e.apellido} ${e.cedula || ""}`.toLowerCase().includes(t),
+      `${nombrePersona(e)} ${e.cedula || ""}`.toLowerCase().includes(t),
     );
   }, [estudiantesDisponibles, searchAgregarEst]);
-
-  const estudianteActual = useMemo(
-    () => estudiantes.find((e) => String(e.id_estudiante) === String(estSel)),
-    [estSel, estudiantes],
-  );
 
   useEffect(() => {
     if (!estSel || tab !== "consulta") {
       setNotas([]);
       setAsistencias([]);
       setComportamientos([]);
-      setResultadoPromedio(null);
       return;
     }
     const filtros = { id_estudiante: Number(estSel), size: 100 };
@@ -402,35 +390,6 @@ function CursoHubAdmin() {
     })();
   }, [estSel, tab]);
 
-  const calcularPromedio = async () => {
-    if (!estSel || !anioPromedio) {
-      notify("error", "Seleccione estudiante y año lectivo");
-      return;
-    }
-    try {
-      if (modoPromedio === "periodo") {
-        setResultadoPromedio(
-          await promediosAPI.obtenerPeriodo(
-            Number(estSel),
-            idCurso,
-            Number(periodoSeleccionado),
-            anioPromedio,
-          ),
-        );
-      } else {
-        setResultadoPromedio(
-          await promediosAPI.obtenerAcumulado(
-            Number(estSel),
-            idCurso,
-            anioPromedio,
-          ),
-        );
-      }
-    } catch (e) {
-      notify("error", e.message || "No se pudo calcular el promedio");
-    }
-  };
-
   useEffect(() => {
     if (tab === "notas" || tab === "reportes") {
       refrescarCursoNotas();
@@ -443,7 +402,7 @@ function CursoHubAdmin() {
 
   const nombreEstudiante = (idEst) => {
     const e = estudiantes.find((es) => es.id_estudiante === idEst);
-    return e ? `${e.nombre} ${e.apellido}` : `#${idEst}`;
+    return e ? nombrePersona(e) : `#${idEst}`;
   };
 
   const formatAverage = (value) => {
@@ -461,9 +420,24 @@ function CursoHubAdmin() {
           .filter((nota) => idsInsumos.has(String(nota.id_insumo)))
           .map((nota) => ({ ...nota, id_estudiante: registro.id_estudiante })),
       );
-      const promedio = notasMateria.length
-        ? notasMateria.reduce((acc, nota) => acc + Number(nota.calificacion ?? nota.valor ?? 0), 0) /
-          notasMateria.length
+      const promediosEstudiantes = notasCurso
+        .map((registro) => {
+          const notasEstudiante = (registro.notas || []).filter((nota) =>
+            idsInsumos.has(String(nota.id_insumo)),
+          );
+          if (!notasEstudiante.length) return null;
+          const notasPorInsumo = new Map(
+            notasEstudiante.map((nota) => [String(nota.id_insumo), nota]),
+          );
+          return calcularPromedioInteractivo(
+            insumosMateria,
+            (insumo) => notasPorInsumo.get(String(insumo.id_insumo))?.calificacion
+              ?? notasPorInsumo.get(String(insumo.id_insumo))?.valor,
+          ).promedio;
+        })
+        .filter((promedio) => promedio !== null);
+      const promedio = promediosEstudiantes.length
+        ? promediosEstudiantes.reduce((acc, valor) => acc + valor, 0) / promediosEstudiantes.length
         : null;
 
       return {
@@ -519,9 +493,15 @@ function CursoHubAdmin() {
         const insumosMateria = insumosPorCMD[String(asignacion.id_cmd)] || [];
         const idsInsumos = new Set(insumosMateria.map((insumo) => String(insumo.id_insumo)));
         const notasMateria = notasEstudiante.filter((nota) => idsInsumos.has(String(nota.id_insumo)));
+        const notasPorInsumo = new Map(
+          notasMateria.map((nota) => [String(nota.id_insumo), nota]),
+        );
         const promedio = notasMateria.length
-          ? notasMateria.reduce((acc, nota) => acc + Number(nota.calificacion ?? nota.valor ?? 0), 0) /
-            notasMateria.length
+          ? calcularPromedioInteractivo(
+              insumosMateria,
+              (insumo) => notasPorInsumo.get(String(insumo.id_insumo))?.calificacion
+                ?? notasPorInsumo.get(String(insumo.id_insumo))?.valor,
+            ).promedio
           : null;
 
         return {
@@ -548,11 +528,7 @@ function CursoHubAdmin() {
       (a, b) => Number(a.numero_periodo) - Number(b.numero_periodo),
     );
     if (ordenados.length > 0) return ordenados;
-    return [
-      { numero_periodo: 1, nombre_periodo: "1er trimestre" },
-      { numero_periodo: 2, nombre_periodo: "2do trimestre" },
-      { numero_periodo: 3, nombre_periodo: "3er trimestre" },
-    ];
+    return [];
   }, [periodosConfigurados]);
 
   const detalleMateriaPorEstudiante = useMemo(() => {
@@ -577,11 +553,15 @@ function CursoHubAdmin() {
         const notasPeriodo = notasEstudiante.filter((nota) =>
           periodo.idsInsumos.has(String(nota.id_insumo)),
         );
+        const notasPorInsumo = new Map(
+          notasPeriodo.map((nota) => [String(nota.id_insumo), nota]),
+        );
         const promedio = notasPeriodo.length
-          ? notasPeriodo.reduce(
-              (acc, nota) => acc + Number(nota.calificacion ?? nota.valor ?? 0),
-              0,
-            ) / notasPeriodo.length
+          ? calcularPromedioInteractivo(
+              insumosMateria.filter((insumo) => periodo.idsInsumos.has(String(insumo.id_insumo))),
+              (insumo) => notasPorInsumo.get(String(insumo.id_insumo))?.calificacion
+                ?? notasPorInsumo.get(String(insumo.id_insumo))?.valor,
+            ).promedio
           : null;
 
         return {
@@ -611,9 +591,15 @@ function CursoHubAdmin() {
       const insumosMateria = insumosPorCMD[String(asignacion.id_cmd)] || [];
       const idsInsumos = new Set(insumosMateria.map((insumo) => String(insumo.id_insumo)));
       const notasMateria = notas.filter((nota) => idsInsumos.has(String(nota.id_insumo)));
+      const notasPorInsumo = new Map(
+        notasMateria.map((nota) => [String(nota.id_insumo), nota]),
+      );
       const promedio = notasMateria.length
-        ? notasMateria.reduce((acc, nota) => acc + Number(nota.calificacion ?? nota.valor ?? 0), 0) /
-          notasMateria.length
+        ? calcularPromedioInteractivo(
+            insumosMateria,
+            (insumo) => notasPorInsumo.get(String(insumo.id_insumo))?.calificacion
+              ?? notasPorInsumo.get(String(insumo.id_insumo))?.valor,
+          ).promedio
         : null;
 
       return {
@@ -667,11 +653,21 @@ function CursoHubAdmin() {
       return;
     }
     try {
-      await asignacionesAPI.crear({
+      const asignacionExistente = asignaciones.find(
+        (asignacion) => Number(asignacion.id_materia) === Number(nuevaAsignacion.id_materia),
+      );
+      const datos = {
         id_curso: idCurso,
         id_materia: Number(nuevaAsignacion.id_materia),
         id_docente: Number(nuevaAsignacion.id_docente),
-      });
+      };
+      if (asignacionExistente) {
+        await asignacionesAPI.actualizar(asignacionExistente.id_cmd, {
+          id_docente: datos.id_docente,
+        });
+      } else {
+        await asignacionesAPI.crear(datos);
+      }
       setAsignacionModalOpen(false);
       setNuevaAsignacion({ id_materia: "", id_docente: "" });
       const [asig, lm, ld] = await Promise.all([
@@ -682,7 +678,7 @@ function CursoHubAdmin() {
       setAsignaciones(asig || []);
       setMateriasList(lm || []);
       setDocentes(ld || []);
-      notify("success", "Asignación creada");
+      notify("success", asignacionExistente ? "Docente actualizado" : "Asignación creada");
     } catch (e) {
       notify("error", e.message || "No se pudo crear la asignación");
     }
@@ -798,7 +794,7 @@ function CursoHubAdmin() {
           <div className="stat-card course-hub-summary-card course-hub-summary-card-tutor">
             <p className="stat-label">Tutor a cargo</p>
             <h3 className="stat-value" style={{ fontSize: "1.1rem" }}>
-              {tutor ? `${tutor.nombre} ${tutor.apellido}` : "Sin asignar"}
+              {tutor ? nombrePersona(tutor) : "Sin asignar"}
             </h3>
             <p className="stat-sub">
               {tutor
@@ -843,7 +839,7 @@ function CursoHubAdmin() {
       )}
 
       {!cargando && tab === "resumen" && (
-        <div className="dashboard-grid dashboard-grid-2 admin-action-grid" style={{ marginTop: 16 }}>
+        <div className="dashboard-grid dashboard-grid-2 admin-action-grid admin-action-grid-4" style={{ marginTop: 24 }}>
           <button
             type="button"
             className="admin-action-card"
@@ -858,7 +854,7 @@ function CursoHubAdmin() {
           <button
             type="button"
             className="admin-action-card"
-            onClick={() => setAsignacionModalOpen(true)}
+            onClick={() => setTab("materias")}
           >
             <span className="admin-action-title">
               <BookOpen size={16} style={{ verticalAlign: "middle", marginRight: 4 }} />
@@ -923,7 +919,7 @@ function CursoHubAdmin() {
                 estudiantesDisponiblesFiltrados.map((est) => (
                   <div key={est.id_estudiante} className="course-hub-add-item">
                     <div>
-                      <strong>{est.nombre} {est.apellido}</strong>
+                    <strong>{nombrePersona(est)}</strong>
                       <span>{est.cedula || "Sin cédula"}</span>
                     </div>
                     <button
@@ -978,7 +974,7 @@ function CursoHubAdmin() {
               {estudiantesFiltrados.map((e) => (
                 <tr key={e.id_estudiante}>
                   <td>
-                    {e.nombre} {e.apellido}
+                    {nombrePersona(e)}
                   </td>
                   <td>{e.cedula || "—"}</td>
                   <td>{e.estado || "—"}</td>
@@ -1022,12 +1018,17 @@ function CursoHubAdmin() {
       {!cargando && tab === "materias" && (
         <div className="table-container">
           <div className="docentes-header">
-            <h3>Materias y docentes</h3>
+            <div>
+              <h3>Materias y docentes</h3>
+              <p className="panel-sub">
+                Asigna, cambia o retira el docente responsable de cada materia del curso.
+              </p>
+            </div>
           </div>
           <table className="plantillas-academicas-table course-hub-materias-table">
             <colgroup>
-              <col style={{ width: "42%" }} />
-              <col style={{ width: "30%" }} />
+                <col style={{ width: "32%" }} />
+                <col style={{ width: "40%" }} />
               <col style={{ width: "28%" }} />
             </colgroup>
             <thead>
@@ -1047,7 +1048,7 @@ function CursoHubAdmin() {
                     <td>{item.materia?.nombre || item.id_materia}</td>
                     <td>
                       {asignacion?.docente
-                        ? `${asignacion.docente.nombre} ${asignacion.docente.apellido}`
+                        ? nombrePersona(asignacion.docente)
                         : asignacion?.id_docente || "Sin asignar"}
                     </td>
                     <td>
@@ -1093,7 +1094,7 @@ function CursoHubAdmin() {
                     <td>{a.materia?.nombre || a.id_materia}</td>
                     <td>
                       {a.docente
-                        ? `${a.docente.nombre} ${a.docente.apellido}`
+                        ? nombrePersona(a.docente)
                         : a.id_docente}
                     </td>
                     <td>
@@ -1124,7 +1125,12 @@ function CursoHubAdmin() {
       {!cargando && tab === "notas" && (
         <div className="table-container">
           <div className="docentes-header">
-            <h3>Notas del curso</h3>
+            <div>
+              <h3>Notas del curso</h3>
+              <p className="panel-sub">
+                Revisa los promedios por materia y consulta el detalle de cada estudiante.
+              </p>
+            </div>
             <span className="panel-sub">
               {estudiantes.length} estudiante(s) ·{" "}
               {asignaciones.length} materia(s)
@@ -1161,7 +1167,7 @@ function CursoHubAdmin() {
                       Detalle de {materiaDetalleActiva.materia?.nombre || materiaDetalleActiva.id_materia}
                     </h4>
                     <span className="panel-sub">
-                      Tres trimestres, suma y promedio por estudiante
+                      Periodos configurados, suma y promedio por estudiante
                     </span>
                   </div>
                   <button
@@ -1187,7 +1193,7 @@ function CursoHubAdmin() {
                       <th>Estudiante</th>
                       {periodosDetalleMateria.map((periodo) => (
                         <th key={periodo.numero_periodo}>
-                            {periodo.nombre_periodo || `Trimestre ${periodo.numero_periodo}`}
+                            {periodo.nombre_periodo || `Periodo ${periodo.numero_periodo}`}
                           </th>
                         ))}
                         <th>Suma</th>
@@ -1283,11 +1289,16 @@ function CursoHubAdmin() {
 
       {!cargando && tab === "reportes" && (
         <>
-          <div className="empty-state" style={{ marginBottom: 16 }}>
-            <h3>Reportes del curso</h3>
-            <p>
-              Selecciona una materia del curso para exportar y previsualizar sus reportes en formato académico.
-            </p>
+          <div className="course-hub-reportes-intro">
+            <div className="course-hub-reportes-intro-icon" aria-hidden="true">
+              <FileText size={22} />
+            </div>
+            <div>
+              <h3>Reportes del curso</h3>
+              <p>
+                Selecciona una materia del curso para exportar y previsualizar sus reportes en formato académico.
+              </p>
+            </div>
           </div>
 
           <div className="admin-consulta-filters" style={{ marginBottom: 16 }}>
@@ -1308,6 +1319,7 @@ function CursoHubAdmin() {
             <TabReportes
               activeTab="reportes"
               estudiantesCurso={estudiantesOrdenados}
+              materiasCurso={materiasOrdenadas}
               periodos={periodosConfigurados}
               insumosMateria={insumosMateriaReporte}
               notasPorEstudiante={notasCursoPorEstudianteReporte}
@@ -1325,12 +1337,16 @@ function CursoHubAdmin() {
 
       {!cargando && tab === "consulta" && (
         <>
-          <div className="empty-state" style={{ marginBottom: 16 }}>
-            <h3>Consulta (solo lectura)</h3>
-            <p>
-              Elija un estudiante del curso para revisar notas, asistencia,
-              comportamiento y promedios.
-            </p>
+          <div className="course-hub-reportes-intro course-hub-consulta-intro">
+            <div className="course-hub-reportes-intro-icon" aria-hidden="true">
+              <Calendar size={22} />
+            </div>
+            <div>
+              <h3>Consulta académica <span>(solo lectura)</span></h3>
+              <p>
+                Elige un estudiante del curso para revisar notas, asistencia, comportamiento y promedios.
+              </p>
+            </div>
           </div>
 
           <div className="admin-consulta-filters">
@@ -1342,16 +1358,10 @@ function CursoHubAdmin() {
               className="custom-select-white"
               options={estudiantes.map((e) => ({
                 value: String(e.id_estudiante),
-                label: `${e.nombre} ${e.apellido}`,
+                label: `${e.apellido} ${e.nombre}`,
               }))}
             />
           </div>
-
-          {estudianteActual && (
-            <p className="panel-sub" style={{ marginBottom: 12 }}>
-              {estudianteActual.nombre} {estudianteActual.apellido}
-            </p>
-          )}
 
           <div className="admin-subtabs">
             {[
@@ -1392,7 +1402,7 @@ function CursoHubAdmin() {
                         </div>
                       </div>
 
-                      <table className="materias-base-table">
+                      <table className="materias-base-table course-hub-consulta-notas-table">
                         <thead>
                           <tr>
                             <th>Insumo</th>
@@ -1464,19 +1474,21 @@ function CursoHubAdmin() {
                 <thead>
                   <tr>
                     <th>Fecha</th>
+                    <th>Valor</th>
                     <th>Observación</th>
                   </tr>
                 </thead>
                 <tbody>
                   {comportamientos.map((c) => (
                     <tr key={c.id_comportamiento}>
-                      <td>{c.fecha}</td>
+                      <td>{c.periodo || c.fecha || "—"}</td>
+                      <td>{c.valor || "—"}</td>
                       <td>{c.observaciones || c.descripcion || "—"}</td>
                     </tr>
                   ))}
                   {estSel && comportamientos.length === 0 && (
                     <tr>
-                      <td colSpan={2} style={{ textAlign: "center" }}>
+                      <td colSpan={3} style={{ textAlign: "center" }}>
                         Sin registros de comportamiento
                       </td>
                     </tr>
@@ -1488,84 +1500,52 @@ function CursoHubAdmin() {
 
           {subConsulta === "promedios" && (
             <div className="table-container">
-              <div className="admin-consulta-filters">
-                <input
-                  placeholder="Año lectivo"
-                  value={anioPromedio}
-                  onChange={(e) => setAnioPromedio(e.target.value)}
-                />
-                <CustomSelect
-                  value={modoPromedio}
-                  onChange={setModoPromedio}
-                  className="custom-select-white"
-                  options={[
-                    { value: "periodo", label: "Periodo" },
-                    { value: "final", label: "Acumulado" },
-                  ]}
-                />
-                {modoPromedio === "periodo" && (
-                  <CustomSelect
-                    value={periodoSeleccionado}
-                    onChange={setPeriodoSeleccionado}
-                    placeholder="Seleccione periodo"
-                    className="custom-select-white"
-                    options={periodosConfigurados.map((periodo) => ({
-                      value: String(periodo.numero_periodo),
-                      label: periodo.nombre_periodo || `Periodo ${periodo.numero_periodo}`,
-                    }))}
-                  />
-                )}
-                <button
-                  type="button"
-                  className="btn-view"
-                  onClick={calcularPromedio}
-                  disabled={!estSel}
-                >
-                  Calcular
-                </button>
-              </div>
-              {resultadoPromedio ? (
-                <div className="cards-grid" style={{ marginTop: 12 }}>
-                  {modoPromedio === "periodo" ? (
-                    <>
-                      <div className="stat-card accent">
-                        <p className="stat-label">Promedio del periodo</p>
-                        <h3 className="stat-value">
-                          {resultadoPromedio.promedio_periodo ?? "—"}
-                        </h3>
-                      </div>
-                      <div className="stat-card">
-                        <p className="stat-label">Actividades</p>
-                        <h3 className="stat-value">
-                          {resultadoPromedio.promedio_actividades ?? "—"}
-                        </h3>
-                      </div>
-                      <div className="stat-card">
-                        <p className="stat-label">Proyecto</p>
-                        <h3 className="stat-value">
-                          {resultadoPromedio.promedio_proyecto ?? "—"}
-                        </h3>
-                      </div>
-                      <div className="stat-card">
-                        <p className="stat-label">Examen</p>
-                        <h3 className="stat-value">
-                          {resultadoPromedio.promedio_examen ?? "—"}
-                        </h3>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="stat-card accent">
-                        <p className="stat-label">Promedio acumulado</p>
-                        <h3 className="stat-value">
-                          {resultadoPromedio.promedio_acumulado ?? "—"}
-                        </h3>
-                      </div>
-                  )}
+              {!estSel ? (
+                <div className="empty-state">
+                  <p>Seleccione un estudiante para consultar sus promedios por materia.</p>
                 </div>
               ) : (
-                <p className="panel-sub">
-                  Calcule el promedio del estudiante seleccionado.
-                </p>
+                <table className="course-hub-promedios-table">
+                  <thead>
+                    <tr>
+                      <th>Materia</th>
+                      {periodosConfigurados.map((periodo) => (
+                        <th key={periodo.id_periodo}>{periodo.nombre_periodo || `Periodo ${periodo.numero_periodo}`}</th>
+                      ))}
+                      <th>Suma de periodos</th>
+                      <th>Promedio general</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                  {detalleNotasEstudiante.map((asignacion) => {
+                    const notasPorInsumo = new Map(
+                      asignacion.notasMateria.map((nota) => [String(nota.id_insumo), nota]),
+                    );
+                    const promedios = periodosConfigurados.map((periodo) =>
+                      calcularPromedioInteractivo(
+                        asignacion.insumosMateria.filter(
+                          (insumo) => String(insumo.id_periodo) === String(periodo.id_periodo),
+                        ),
+                        (insumo) => notasPorInsumo.get(String(insumo.id_insumo))?.calificacion
+                          ?? notasPorInsumo.get(String(insumo.id_insumo))?.valor,
+                      ).promedio,
+                    );
+                    const disponibles = promedios.filter((promedio) => promedio !== null);
+                    const suma = disponibles.reduce((total, promedio) => total + promedio, 0);
+                    const promedioGeneral = disponibles.length ? suma / disponibles.length : null;
+                    return (
+                      <React.Fragment key={asignacion.id_cmd}>
+                        <tr className="course-hub-promedios-row">
+                          <td>{asignacion.materia?.nombre || asignacion.id_materia}</td>
+                          {promedios.map((promedio, index) => <td key={index}>{promedio === null ? "—" : promedio.toFixed(2)}</td>)}
+                          <td>{disponibles.length ? suma.toFixed(2) : "—"}</td>
+                          <td>{promedioGeneral === null ? "—" : promedioGeneral.toFixed(2)}</td>
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })}
+                  </tbody>
+                </table>
               )}
             </div>
           )}
@@ -1582,7 +1562,7 @@ function CursoHubAdmin() {
                 { value: "", label: "Seleccionar docente" },
                 ...docentes.map((d) => ({
                   value: String(d.id_usuario),
-                  label: `${d.nombre} ${d.apellido}`,
+                  label: nombrePersona(d),
                 })),
               ]}
               placeholder="Seleccionar docente"
@@ -1614,7 +1594,7 @@ function CursoHubAdmin() {
       {asignacionModalOpen && (
         <div className="admin-modal">
           <div className="admin-modal-content course-hub-assignment-modal">
-            <h3>Asignar docente</h3>
+            <h3>{asignaciones.some((a) => Number(a.id_materia) === Number(nuevaAsignacion.id_materia)) ? "Cambiar docente" : "Asignar docente"}</h3>
             <div className="course-hub-assignment-materia">
               <span>Materia</span>
               <strong>
@@ -1635,7 +1615,7 @@ function CursoHubAdmin() {
                 { value: "", label: "Seleccionar docente" },
                 ...docentes.map((d) => ({
                   value: String(d.id_usuario),
-                  label: `${d.nombre} ${d.apellido}`,
+                  label: nombrePersona(d),
                 })),
               ]}
               placeholder="Seleccionar docente"
@@ -1728,6 +1708,10 @@ function CursoHubAdmin() {
           </div>
         </div>
       )}
+      <AnalisisAcademico
+        idCurso={idCurso}
+        nombreCurso={curso?.nombre}
+      />
     </AdminLayout>
   );
 }

@@ -11,6 +11,5 @@ export const ADMIN_NAV = [
 export const PERSONAL_DOCENTE_NAV = [
   { kind: "link", to: "/docente", label: "Inicio", end: true },
   { kind: "heading", label: "Configuración" },
-  { kind: "link", to: "/docente/estructura-academica", label: "Materias" },
   { kind: "link", to: "/docente/periodizacion", label: "Periodizacion" },
 ];

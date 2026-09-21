@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Save, Trash2 } from "lucide-react";
+import { nombrePersona } from "../../../utils/personas";
 
 export const TabModalNotasInsumo = ({
   insumo,
@@ -88,7 +89,7 @@ export const TabModalNotasInsumo = ({
               {estudiantesOrdenados.map((estudiante, index) => (
                 <tr key={estudiante.id_estudiante}>
                   <td>{index + 1}</td>
-                  <td>{estudiante.apellido} {estudiante.nombre}</td>
+                  <td>{nombrePersona(estudiante)}</td>
                   <td>
                     <input
                       type="number"

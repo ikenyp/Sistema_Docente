@@ -2,16 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeftRight } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
 import { Save } from "lucide-react";
-
-const toNumber = (value) => {
-  const n = Number.parseFloat(value);
-  return Number.isFinite(n) ? n : null;
-};
-
-const toScore = (value) => {
-  const n = toNumber(value);
-  return n === null ? 0 : n;
-};
+import { calcularPromedioInteractivo } from "../../../utils/promedios";
+import { nombrePersona } from "../../../utils/personas";
 
 const formatAverage = (value) => {
   if (value === null || value === undefined) return "-";
@@ -29,6 +21,8 @@ export const TabNotasEstudiante = ({
   cargandoNotasIndividual,
   onGuardarNota,
 }) => {
+  // Muestra las notas de un estudiante por periodo y aplica la ponderación
+  // dinámica usada en las vistas interactivas.
   const [busquedaEstudiante, setBusquedaEstudiante] = useState("");
   const [periodoFiltrado, setPeriodoFiltrado] = useState("todos");
 
@@ -53,16 +47,20 @@ export const TabNotasEstudiante = ({
         (registro) => String(registro.insumo?.id_periodo) === String(periodo.id_periodo),
       );
 
-      const valores = notasPeriodo.map((registro) => toScore(registro.valor));
-
-      const promedio = valores.length
-        ? valores.reduce((acc, valor) => acc + valor, 0) / valores.length
-        : null;
+      const calculo = calcularPromedioInteractivo(
+        notasPeriodo.map((registro) => registro.insumo).filter(Boolean),
+        (insumo) => {
+          const registro = notasPeriodo.find(
+            (item) => String(item.insumo?.id_insumo) === String(insumo.id_insumo),
+          );
+          return registro?.valor ?? registro?.calificacion;
+        },
+      );
 
       return {
         ...periodo,
         notasPeriodo,
-        promedio,
+        promedio: calculo.promedio,
       };
     });
   }, [notasIndividuales, periodosOrdenados]);
@@ -96,10 +94,15 @@ export const TabNotasEstudiante = ({
     );
     if (!periodo) return null;
 
-    const valores = periodo.notasPeriodo.map((registro) => toScore(registro.valor));
-    if (!valores.length) return null;
-
-    return valores.reduce((acc, valor) => acc + valor, 0) / valores.length;
+    return calcularPromedioInteractivo(
+      periodo.notasPeriodo.map((registro) => registro.insumo).filter(Boolean),
+      (insumo) => {
+        const registro = periodo.notasPeriodo.find(
+          (item) => String(item.insumo?.id_insumo) === String(insumo.id_insumo),
+        );
+        return registro?.valor ?? registro?.calificacion;
+      },
+    ).promedio;
   }, [periodoFiltrado, periodosConNotas]);
 
   const mostrarPromedioGeneral = Boolean(estudianteSeleccionado);
@@ -124,7 +127,7 @@ export const TabNotasEstudiante = ({
     if (!query) return estudiantesOrdenados;
 
     return estudiantesOrdenados.filter((est) => {
-      const nombreCompleto = `${est.nombre} ${est.apellido}`.toLowerCase();
+      const nombreCompleto = nombrePersona(est).toLowerCase();
       const apellidoNombre = `${est.apellido} ${est.nombre}`.toLowerCase();
       return nombreCompleto.includes(query) || apellidoNombre.includes(query);
     });
@@ -217,7 +220,7 @@ export const TabNotasEstudiante = ({
                 { value: "todos", label: "Todos los periodos" },
                 ...periodosOrdenados.map((periodo) => ({
                   value: String(periodo.numero_periodo),
-                  label: periodo.nombre_periodo || `Trimestre ${periodo.numero_periodo}`,
+                  label: periodo.nombre_periodo || `Periodo ${periodo.numero_periodo}`,
                 })),
               ]}
               placeholder="Filtrar periodo"
@@ -235,7 +238,7 @@ export const TabNotasEstudiante = ({
             <section key={periodo.id_periodo} className="periodo-notas-block">
               {periodoFiltrado === "todos" && (
                 <div className="periodo-notas-header">
-                  <h4>{periodo.nombre_periodo || `Trimestre ${periodo.numero_periodo}`}</h4>
+                    <h4>{periodo.nombre_periodo || `Periodo ${periodo.numero_periodo}`}</h4>
                   <div className="periodo-notas-average">
                     Promedio: <strong>{formatAverage(periodo.promedio)}</strong>
                   </div>

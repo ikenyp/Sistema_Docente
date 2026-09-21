@@ -33,8 +33,11 @@ import {
 import { clearSessionStorage } from "../../services/session";
 import { notify } from "../../components/notify";
 import { normalizarAnioLectivo, validarAnioLectivo } from "../../utils/anioLectivo";
+import { nombrePersona } from "../../utils/personas";
 
 function Docente() {
+  // Panel principal del docente. Une cursos, materias personales, años lectivos
+  // y pendientes, pero delega la edición detallada a modales y CursoPrincipal.
   const navigate = useNavigate();
 
   const [cursos, setCursos] = useState([]);
@@ -46,6 +49,7 @@ function Docente() {
     (localStorage.getItem("app_mode") || "institucional").toLowerCase(),
   );
   const [aniosLectivosPersonales, setAniosLectivosPersonales] = useState([]);
+  const [aniosLectivosPersonalesDetalles, setAniosLectivosPersonalesDetalles] = useState([]);
   const [anioLectivoActivoPersonal, setAnioLectivoActivoPersonal] = useState(
     localStorage.getItem("anio_lectivo_activo") || "",
   );
@@ -63,6 +67,7 @@ function Docente() {
     estudiantesSinCurso: 0,
   });
   const [filtroAnio, setFiltroAnio] = useState("todos");
+  const filtroInstitucionalInicializado = useRef(false);
   const [ordenCursos, setOrdenCursos] = useState("colegio-asc");
   const [menuFiltroAbierto, setMenuFiltroAbierto] = useState(false);
   const [menuOrdenAbierto, setMenuOrdenAbierto] = useState(false);
@@ -92,6 +97,7 @@ function Docente() {
     useState(false);
   const [errorMateriaPersonal, setErrorMateriaPersonal] = useState(null);
   const [estudiantesPersonales, setEstudiantesPersonales] = useState([]);
+  const [estudiantesPorCurso, setEstudiantesPorCurso] = useState({});
   const [asignacionesPersonales, setAsignacionesPersonales] = useState([]);
   const [insumosSinNotasPorCurso, setInsumosSinNotasPorCurso] = useState({});
   const [mostrarPendientesModal, setMostrarPendientesModal] = useState(false);
@@ -112,10 +118,10 @@ function Docente() {
 
   const anioActualObjPersonal = useMemo(
     () =>
-      aniosLectivosPersonales.find(
-        (anio) => anio === anioLectivoActivoPersonal,
+      aniosLectivosPersonalesDetalles.find(
+        (anio) => anio.anio_lectivo === anioLectivoActivoPersonal,
       ) || null,
-    [aniosLectivosPersonales, anioLectivoActivoPersonal],
+    [aniosLectivosPersonalesDetalles, anioLectivoActivoPersonal],
   );
 
   const cursoTutorActual = useMemo(() => {
@@ -171,12 +177,6 @@ function Docente() {
     const idsConAsignacion = new Set(
       asignacionesPersonales.map((item) => item.id_curso).filter(Boolean),
     );
-    const cursosConEstudiantes = new Set(
-      estudiantesPersonales
-        .map((item) => item.id_curso_actual)
-        .filter((idCurso) => idCurso !== null && idCurso !== undefined),
-    );
-
     const cursosPendientesContexto =
       anioContextoVisible && anioContextoVisible !== "todos"
         ? cursos.filter((curso) => curso?.anio_lectivo === anioContextoVisible)
@@ -195,7 +195,14 @@ function Docente() {
         });
       }
 
-      if (!cursosConEstudiantes.has(curso.id_curso)) {
+      const cantidadEstudiantes = estudiantesPorCurso[curso.id_curso];
+      const tieneEstudiantes =
+        typeof cantidadEstudiantes === "number"
+          ? cantidadEstudiantes > 0
+          : estudiantesPersonales.some(
+              (estudiante) => Number(estudiante.id_curso_actual) === Number(curso.id_curso),
+            );
+      if (!tieneEstudiantes) {
         pendientes.push({
           id: `estudiantes-${curso.id_curso}`,
           tipo: "estudiantes",
@@ -203,17 +210,6 @@ function Docente() {
           titulo: curso.nombre,
           detalle: "No tiene estudiantes asignados",
           accion: "Abrir estudiantes",
-        });
-      }
-
-      if (!curso.id_tutor) {
-        pendientes.push({
-          id: `tutor-${curso.id_curso}`,
-          tipo: "tutor",
-          curso,
-          titulo: curso.nombre,
-          detalle: "No tiene tutor asignado",
-          accion: "Editar curso",
         });
       }
 
@@ -245,6 +241,7 @@ function Docente() {
     appMode,
     asignacionesPersonales,
     estudiantesPersonales,
+    estudiantesPorCurso,
     insumosSinNotasPorCurso,
     cursos,
     anioContextoVisible,
@@ -256,7 +253,7 @@ function Docente() {
 
     if (anioContextoVisible && anioContextoVisible !== "todos") {
       lista = lista.filter(
-        (curso) => curso?.anio_lectivo === anioContextoVisible,
+        (curso) => normalizarAnioLectivo(curso?.anio_lectivo) === anioContextoVisible,
       );
     }
 
@@ -307,11 +304,63 @@ function Docente() {
   }, [anioContextoVisible, cursos, ordenCursos]);
 
   const cursosVisiblesCount = cursosVisibles.length;
-  const cursosConAnioVisibles = useMemo(
-    () => cursosVisibles.filter((curso) => curso?.anio_lectivo).length,
-    [cursosVisibles],
+  const estudiantesACargo = cursosVisibles.reduce(
+    (total, curso) => total + (estudiantesPorCurso[curso.id_curso] || 0),
+    0,
   );
+  const idsCursosVisibles = new Set(cursosVisibles.map((curso) => curso.id_curso));
+  const asignacionesVisiblesCount = asignacionesPersonales.filter(
+    (asignacion) => idsCursosVisibles.has(asignacion.id_curso),
+  ).length;
+  useEffect(() => {
+    if (!cursosVisibles.length) {
+      setEstudiantesPorCurso({});
+      return undefined;
+    }
+    let activo = true;
+    Promise.all(
+      cursosVisibles.map(async (curso) => {
+        try {
+          const estudiantes = await estudiantesAPI.obtenerPorCurso(curso.id_curso);
+          return [curso.id_curso, Array.isArray(estudiantes) ? estudiantes.length : 0];
+        } catch {
+          return [curso.id_curso, null];
+        }
+      }),
+    ).then((resultados) => {
+      if (activo) setEstudiantesPorCurso(Object.fromEntries(resultados));
+    });
+    return () => {
+      activo = false;
+    };
+  }, [cursosVisibles]);
 
+  const resumenCurso = (curso) => {
+    const cantidadEstudiantes =
+      curso.cantidad_estudiantes ??
+      curso.total_estudiantes ??
+      curso.estudiantes_count ??
+      estudiantesPorCurso[curso.id_curso] ??
+      estudiantesPersonales.filter(
+        (estudiante) => Number(estudiante.id_curso_actual) === Number(curso.id_curso),
+      ).length;
+    const cantidadMaterias = asignacionesPersonales.filter(
+      (asignacion) => Number(asignacion.id_curso) === Number(curso.id_curso),
+    ).length;
+    const partes = [];
+    if (cantidadEstudiantes > 0) partes.push(`${cantidadEstudiantes} estudiante${cantidadEstudiantes === 1 ? "" : "s"}`);
+    if (cantidadMaterias > 0) partes.push(`${cantidadMaterias} materia${cantidadMaterias === 1 ? "" : "s"}`);
+    return partes.length ? partes.join(" · ") : "Sin información adicional";
+  };
+
+  useEffect(() => {
+    if (appMode !== "institucional" || filtroInstitucionalInicializado.current || !cursos.length) return;
+    const anios = [...new Set(cursos.map((curso) => normalizarAnioLectivo(curso?.anio_lectivo)).filter(Boolean))].sort();
+    if (anios.length) {
+      setFiltroAnio(anios[anios.length - 1]);
+      filtroInstitucionalInicializado.current = true;
+    }
+  }, [appMode, cursos]);
   const esTutorVisible = useMemo(
     () =>
       cursosVisibles.some(
@@ -343,10 +392,14 @@ function Docente() {
   useEffect(() => {
     if (appMode !== "personal") return;
 
+    // El año se recupera del servidor y se conserva solo si todavía existe;
+    // así evitamos trabajar con un año guardado de una sesión anterior.
     const cargarAniosPersonales = async () => {
       try {
         const data = await aniosLectivosAPI.listar();
-        const lista = (data || [])
+        const registros = data || [];
+        setAniosLectivosPersonalesDetalles(registros);
+        const lista = registros
           .map((item) => normalizarAnioLectivo(item.anio_lectivo))
           .filter(Boolean)
           .sort()
@@ -388,18 +441,22 @@ function Docente() {
       });
       setMateriasPersonales(data || []);
     } catch (err) {
-      console.error("Error al cargar materias personales:", err);
-      notify("error", err.message || "No se pudieron cargar las materias");
+      // Una cuenta nueva puede no tener todavía contexto o materias.
+      // Se muestra el estado vacío, no una notificación de conexión.
+      console.info("No hay materias personales para cargar todavía:", err.message);
+      setMateriasPersonales([]);
     }
   }, [appMode]);
 
   useEffect(() => {
-    if (!mostrarMateriasModal) return;
+    if (appMode !== "personal") return;
     cargarMateriasPersonales();
-  }, [mostrarMateriasModal, cargarMateriasPersonales]);
+  }, [appMode, cargarMateriasPersonales]);
 
   // ====================== CARGAR CURSOS DEL DOCENTE ======================
   const cargarCursos = useCallback(async () => {
+    // Las respuestas de cursos, asignaciones y estudiantes se combinan aquí
+    // porque cada endpoint entrega solo una parte del panel docente.
     try {
       setCargando(true);
       setError(null);
@@ -443,7 +500,7 @@ function Docente() {
       let cursosTutor = [];
       try {
         cursosTutor = await cursosAPI.listar({
-          id_tutor: usuario.id_usuario,
+          ...(modoActual === "institucional" ? { id_tutor: usuario.id_usuario } : {}),
           size: 100,
         });
       } catch {
@@ -479,10 +536,7 @@ function Docente() {
 
       if (modoActual === "personal") {
         try {
-          const cursosPropios = await cursosAPI.listar({
-            id_tutor: usuario.id_usuario,
-            size: 100,
-          });
+          const cursosPropios = await cursosAPI.listar({ size: 100 });
           (cursosPropios || []).forEach((curso) => {
             if (curso?.id_curso) {
               const cursoActual = cursosMap.get(curso.id_curso);
@@ -534,10 +588,15 @@ function Docente() {
         }
       }
 
-      const todasAsignaciones =
-        modoActual === "personal"
-          ? await asignacionesAPI.listar({ size: 100 })
-          : asignaciones || [];
+      let todasAsignaciones = asignaciones || [];
+      if (modoActual === "personal") {
+        try {
+          todasAsignaciones = (await asignacionesAPI.listar({ size: 100 })) || [];
+        } catch (err) {
+          console.info("No hay asignaciones personales para cargar todavía:", err.message);
+          todasAsignaciones = [];
+        }
+      }
 
       if (modoActual === "personal") {
         setAsignacionesPersonales(todasAsignaciones || []);
@@ -545,18 +604,15 @@ function Docente() {
         setAsignacionesPersonales(asignaciones || []);
       }
 
-      let estudiantesPersonalesData = [];
-      if (modoActual === "personal") {
-        try {
-          estudiantesPersonalesData =
-            (await estudiantesAPI.buscar({ estado: "matriculado", size: 100 })) || [];
-        } catch {
-          estudiantesPersonalesData = [];
-        }
-        setEstudiantesPersonales(estudiantesPersonalesData);
-      }
+      // Los docentes solo pueden consultar estudiantes dentro de un curso
+      // autorizado. Los conteos de las tarjetas se obtienen por curso más
+      // abajo mediante estudiantesAPI.obtenerPorCurso.
+      const estudiantesPersonalesData = [];
+      setEstudiantesPersonales(estudiantesPersonalesData);
 
-      let insumosSinNotasData = {};
+       // Este resumen no bloquea el panel si una consulta falla: solo marca
+       // los cursos que pudo revisar y deja el resto para una carga posterior.
+       let insumosSinNotasData = {};
       if (modoActual === "personal") {
         const cmdPorCurso = new Map();
         (todasAsignaciones || []).forEach((asignacion) => {
@@ -667,7 +723,8 @@ function Docente() {
   }, [navigate, anioContextoVisible]);
 
   useEffect(() => {
-    if (appMode === "personal" && !anioLectivoActivoPersonal) return;
+    // Una cuenta personal nueva puede no tener años ni cursos todavía.
+    // En ese caso igual cargamos el panel para mostrar el estado vacío.
     cargarCursos();
   }, [appMode, anioLectivoActivoPersonal, cargarCursos]);
 
@@ -750,6 +807,8 @@ function Docente() {
   };
 
   const guardarEdicionCurso = async () => {
+    // La edición se valida localmente, se guarda en la API y luego se consulta
+    // de nuevo para mostrar el registro real devuelto por el backend.
     if (!editarCursoData) return;
     const { id_curso, nombre, anio_lectivo } = editarCursoData;
 
@@ -824,6 +883,8 @@ function Docente() {
   };
 
   const comprobarNotasEnCurso = async (id_curso) => {
+    // Antes de eliminar un curso comprobamos si tiene notas; una eliminación
+    // con información académica debe pedir una confirmación más clara.
     try {
       // Obtener asignaciones (cmd) del curso
       const asignaciones = await cmdAPI.listar({ id_curso });
@@ -899,13 +960,26 @@ function Docente() {
 
     try {
       setGuardandoWizard(true);
-      await cursosAPI.crear({
+      const cursoCreado = await cursosAPI.crear({
         nombre: nuevoCurso.nombre,
         anio_lectivo: anioLectivoActivoPersonal,
         id_tutor: nuevoCurso.soyTutor ? datosUsuario.id_usuario : null,
       });
 
       await cargarCursos();
+      if (cursoCreado?.id_curso) {
+        const cursoVisible = {
+          ...cursoCreado,
+          anio_lectivo: normalizarAnioLectivo(
+            cursoCreado.anio_lectivo || anioLectivoActivoPersonal,
+          ),
+        };
+        setCursos((actuales) =>
+          actuales.some((curso) => curso.id_curso === cursoVisible.id_curso)
+            ? actuales
+            : [...actuales, cursoVisible],
+        );
+      }
       setMostrarWizard(false);
       setNuevoCurso({
         nombre: "",
@@ -936,7 +1010,11 @@ function Docente() {
     setErrorAnioPersonal(null);
 
     try {
-      await aniosLectivosAPI.crear({ anio_lectivo: formato, activo: true });
+      const nuevoAnio = await aniosLectivosAPI.crear({ anio_lectivo: formato, activo: true });
+      setAniosLectivosPersonalesDetalles((actuales) => [
+        nuevoAnio,
+        ...actuales.filter((item) => item.anio_lectivo !== formato),
+      ]);
       const listaActualizada = [
         formato,
         ...aniosLectivosPersonales.filter((item) => item !== formato),
@@ -991,6 +1069,9 @@ function Docente() {
       setMostrarConfigAnioModal(false);
       const listaActualizada = aniosLectivosPersonales.filter(
         (item) => item !== anioLectivoActivoPersonal,
+      );
+      setAniosLectivosPersonalesDetalles((actuales) =>
+        actuales.filter((item) => item.anio_lectivo !== anioLectivoActivoPersonal),
       );
       setAniosLectivosPersonales(listaActualizada);
       const siguiente = listaActualizada[0] || "";
@@ -1113,8 +1194,6 @@ function Docente() {
     <div className="docente-page">
       {/* ====================== NAVBAR ====================== */}
       <div className="navbar-docente">
-        <div className="menu-icon">☰</div>
-
         <div className="navbar-title navbar-title-docente">
           Panel de Gestión Docente
         </div>
@@ -1124,7 +1203,7 @@ function Docente() {
           onClick={() => setMenuUsuario(!menuUsuario)}
         >
           {datosUsuario
-            ? `${datosUsuario.nombre} ${datosUsuario.apellido}`
+            ? nombrePersona(datosUsuario)
             : "Docente"}
         </div>
 
@@ -1179,7 +1258,11 @@ function Docente() {
                 <button
                   type="button"
                   className="toolbar-blue-btn btn-inline-icon"
-                  onClick={() => setMostrarPeriodizacionModal(true)}
+                  onClick={() => {
+                    const anioGuardado = localStorage.getItem("anio_lectivo_activo") || "";
+                    if (anioGuardado) setAnioLectivoActivoPersonal(anioGuardado);
+                    setMostrarPeriodizacionModal(true);
+                  }}
                 >
                   <CalendarClock size={14} />
                   Periodización
@@ -1216,7 +1299,11 @@ function Docente() {
                   <X size={14} />
                 </button>
               </div>
-              <PeriodizacionPage embedded />
+              <PeriodizacionPage
+                key={anioLectivoActivoPersonal || "sin-anio"}
+                embedded
+                anioInicial={anioLectivoActivoPersonal}
+              />
             </div>
           </div>
         )}
@@ -1243,14 +1330,23 @@ function Docente() {
               <input
                 className="personal-input"
                 type="text"
+                inputMode="numeric"
+                pattern="[0-9]{4}-[0-9]{4}"
+                maxLength={9}
                 placeholder="2027-2028"
                 value={anioNuevoPersonal}
-                onChange={(e) => setAnioNuevoPersonal(e.target.value)}
+                onChange={(e) => {
+                  const numeros = e.target.value.replace(/\D/g, "").slice(0, 8);
+                  const formateado = numeros.length > 4
+                    ? `${numeros.slice(0, 4)}-${numeros.slice(4)}`
+                    : numeros;
+                  setAnioNuevoPersonal(formateado);
+                }}
               />
               {errorAnioPersonal && (
                 <div className="personal-modal-error">{errorAnioPersonal}</div>
               )}
-              <div className="wizard-actions" style={{ marginTop: "1rem" }}>
+              <div className="wizard-actions personal-year-actions" style={{ marginTop: "1rem" }}>
                 <button
                   type="button"
                   className="btn-cancel btn-inline-icon"
@@ -1541,8 +1637,8 @@ function Docente() {
             <h3 className="stat-value">{cursosVisiblesCount}</h3>
             <p className="stat-sub">
               {appMode === "personal"
-                ? "Filtrados por tu año lectivo activo"
-                : "Cargados según tu modo de trabajo"}
+                ? "Cursos del contexto activo"
+                : "Cursos disponibles"}
             </p>
           </div>
 
@@ -1574,13 +1670,13 @@ function Docente() {
             <>
               <div className="stat-card">
                 <p className="stat-label">Materias asignadas</p>
-                <h3 className="stat-value">{resumenOperacion.asignaciones}</h3>
-                <p className="stat-sub">Materias que ya puedes gestionar</p>
+                <h3 className="stat-value">{asignacionesVisiblesCount}</h3>
+                <p className="stat-sub">En los cursos visibles</p>
               </div>
               <div className="stat-card">
-                <p className="stat-label">Cursos con año lectivo</p>
-                <h3 className="stat-value">{cursosConAnioVisibles}</h3>
-                <p className="stat-sub">Útil para periodos y promedios</p>
+                <p className="stat-label">Estudiantes a cargo</p>
+                <h3 className="stat-value">{estudiantesACargo}</h3>
+                <p className="stat-sub">En los cursos visibles</p>
               </div>
               <div className="stat-card">
                 <p className="stat-label">Tutor</p>
@@ -1719,7 +1815,7 @@ function Docente() {
               )}
               <div className="toolbar-anchor toolbar-anchor-order">
                 <button
-                  className="toolbar-ghost-btn"
+                  className="toolbar-outline-btn"
                   type="button"
                   aria-label="Ordenar cursos"
                   onClick={() => {
@@ -1766,7 +1862,7 @@ function Docente() {
           <div className="docente-toolbar-statuses">
             <div className="toolbar-status-pill">
               <strong>Mostrando:</strong>{" "}
-              {filtroAnio === "todos" ? "Todos los años lectivos" : filtroAnio}
+              {anioContextoVisible === "todos" ? "Todos los años lectivos" : anioContextoVisible}
             </div>
             <div className="toolbar-status-pill">
               <strong>Orden:</strong>{" "}
@@ -1970,7 +2066,7 @@ function Docente() {
                     key={curso.id_curso}
                     style={{ position: "relative" }}
                   >
-                    <div style={{ position: "absolute", top: 12, right: 12 }}>
+                    {appMode === "personal" && <div style={{ position: "absolute", top: 12, right: 12 }}>
                       <button
                         className="menu-button"
                         type="button"
@@ -2012,21 +2108,19 @@ function Docente() {
                           </button>
                         </div>
                       )}
-                    </div>
+                    </div>}
 
                     <div className="curso-title-row">
                       <p className="curso-nombre">{curso.nombre}</p>
                       {esTutorDelCurso(curso) && (
-                          <span className="tutor-pill">TUTOR</span>
+                          <span className={`tutor-pill ${appMode === "institucional" ? "tutor-pill-institutional" : ""}`}>TUTOR</span>
                         )}
                     </div>
-                    {filtroAnio === "todos" ? (
-                      <p className="curso-info">Año: {curso.anio_lectivo}</p>
-                    ) : (
-                      <p className="curso-info curso-info-ghost">
-                        Año: {curso.anio_lectivo || " "}
-                      </p>
-                    )}
+                    <p className="curso-info">
+                      {appMode === "institucional" && filtroAnio === "todos"
+                        ? `Año: ${curso.anio_lectivo}`
+                        : resumenCurso(curso)}
+                    </p>
                     <button
                       className="btn-ingresar"
                       onClick={() => irAlCurso(curso)}

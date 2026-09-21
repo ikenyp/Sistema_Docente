@@ -1,8 +1,12 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.concurrency import run_in_threadpool
+from email.message import EmailMessage
+import smtplib
 
 from app.crud.usuarios import obtener_por_correo
 from app.core.security import verificar_contrasena, hash_contrasena
+from app.core.config import settings
 from app.auth.jwt import crear_access_token, crear_token_recuperacion, verificar_token_recuperacion
 from app.schemas.auth import (
     RegistroDocentePersonal,
@@ -72,15 +76,31 @@ async def solicitar_recuperacion_contrasena(
 ):
     usuario = await obtener_por_correo(db, data.correo)
     if not usuario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No existe una cuenta con ese correo"
-        )
+        return {"mensaje": "Si la cuenta existe, recibirás instrucciones de recuperación."}
 
     token = crear_token_recuperacion({"sub": str(usuario.id_usuario)})
+    if not settings.SMTP_ENABLED or not all((settings.SMTP_HOST, settings.SMTP_USERNAME, settings.SMTP_PASSWORD, settings.SMTP_FROM)):
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="El servicio de recuperación no está disponible")
+
+    enlace = f"{settings.FRONTEND_URL.rstrip('/')}/?view=recover&token={token}"
+    mensaje = EmailMessage()
+    mensaje["Subject"] = "Recuperación de contraseña"
+    mensaje["From"] = settings.SMTP_FROM
+    mensaje["To"] = usuario.correo
+    mensaje.set_content(
+        "Solicitaste cambiar tu contraseña. Abre este enlace para continuar:\n\n"
+        f"{enlace}\n\nEl enlace expira en 30 minutos. Si no lo solicitaste, ignora este mensaje."
+    )
+
+    def enviar():
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as smtp:
+            smtp.starttls()
+            smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+            smtp.send_message(mensaje)
+
+    await run_in_threadpool(enviar)
     return {
-        "mensaje": "Se generó un enlace temporal de recuperación",
-        "token": token,
+        "mensaje": "Si la cuenta existe, recibirás instrucciones de recuperación.",
     }
 
 

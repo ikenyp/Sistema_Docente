@@ -26,6 +26,8 @@ export const TabInsumos = ({
   abrirEdicionInsumo,
   eliminarInsumo,
 }) => {
+  // Administra los insumos de la materia seleccionada. Las acciones llegan
+  // desde CursoPrincipal para conservar una sola fuente de estado.
   return activeTab === "insumos" && materiaSeleccionada ? (
     <div className="insumos-section">
       <h3>📋 Insumos</h3>
@@ -99,8 +101,8 @@ export const TabInsumos = ({
           <strong>Mostrando:</strong>
           <span>
             {filtroPeriodo === "todos"
-              ? "Todos los Trimestres"
-              : `Trimestre ${filtroPeriodo}`}
+               ? "Todos los periodos"
+               : `Periodo ${filtroPeriodo}`}
           </span>
         </div>
         <div className="toolbar-status-pill toolbar-status-pill-compact toolbar-status-pill-tight">
@@ -112,7 +114,7 @@ export const TabInsumos = ({
             <button
               className="toolbar-ghost-btn"
               type="button"
-              aria-label="Filtrar por trimestre"
+               aria-label="Filtrar por periodo"
               onClick={() => {
                 setMenuOrdenInsumosAbierto(false);
                 setMenuFiltroPeriodoAbierto((prev) => !prev);
@@ -128,10 +130,10 @@ export const TabInsumos = ({
             {menuFiltroPeriodoAbierto && (
               <ul className="toolbar-dropdown-menu toolbar-dropdown-menu-right" role="listbox">
                 {[
-                  { value: "todos", label: "Todos los Trimestres" },
+                   { value: "todos", label: "Todos los periodos" },
                   ...periodosVisibles.map((p) => ({
                     value: String(p.numero_periodo),
-                    label: `Trimestre ${p.numero_periodo}`,
+                     label: p.nombre_periodo || `Periodo ${p.numero_periodo}`,
                   })),
                 ].map((option) => (
                   <li
@@ -206,7 +208,7 @@ export const TabInsumos = ({
             <div key={periodo.id_periodo} className="periodo-section">
               <h4 className="periodo-title">
                 {periodo.nombre_periodo ||
-                  `Trimestre ${periodo.numero_periodo}`}
+                   `Periodo ${periodo.numero_periodo}`}
               </h4>
               {insumosPeriodo.length === 0 ? (
                 <p className="no-insumos-periodo">Sin insumos</p>

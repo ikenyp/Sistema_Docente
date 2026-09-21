@@ -320,10 +320,44 @@ async def validar_usuario_puede_editar_comportamiento(
 ):
     comportamiento = await validar_usuario_puede_ver_comportamiento(db, id_comportamiento, current_user, id_contexto)
     if current_user.rol != RolUsuarioEnum.administrativo:
-        curso = await _obtener_curso(db, comportamiento.id_curso, id_contexto)
-        if curso.id_tutor != current_user.id_usuario:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Solo el tutor del curso o un administrador pueden modificar este comportamiento",
-            )
+        await validar_docente_puede_registrar_comportamiento(
+            db, comportamiento.id_curso, current_user.id_usuario, id_contexto
+        )
     return comportamiento
+
+
+async def validar_docente_puede_registrar_comportamiento(
+    db: AsyncSession,
+    id_curso: int,
+    id_docente: int,
+    id_contexto: int | None = None,
+):
+    """Permite al tutor o a un docente asignado al curso registrar comportamiento."""
+    curso = await _obtener_curso(db, id_curso, id_contexto)
+    if curso.id_tutor == id_docente:
+        return curso
+
+    contexto_result = await db.execute(
+        select(Contexto).where(Contexto.id_contexto == curso.id_contexto)
+    )
+    contexto = contexto_result.scalar_one_or_none()
+    if (
+        contexto
+        and contexto.tipo_modo == "personal"
+        and contexto.id_owner_docente == id_docente
+    ):
+        return curso
+
+    asignacion_result = await db.execute(
+        select(CursoMateriaDocente.id_cmd).where(
+            CursoMateriaDocente.id_curso == id_curso,
+            CursoMateriaDocente.id_docente == id_docente,
+        )
+    )
+    if asignacion_result.scalar_one_or_none() is not None:
+        return curso
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Solo el tutor o un docente asignado a una materia del curso puede registrar comportamiento",
+    )

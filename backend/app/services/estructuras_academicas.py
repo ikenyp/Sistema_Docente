@@ -13,6 +13,7 @@ from app.schemas.estructuras_academicas import (
     EstructuraAcademicaUpdate,
     EstructuraMateriaCreate,
 )
+from app.core.pagination import calcular_offset, normalizar_paginacion
 
 
 def _normalizar_anio(anio_lectivo: str | None) -> str | None:
@@ -126,16 +127,13 @@ async def listar_estructuras_academicas(
     size: int,
     anio_lectivo: str | None,
 ):
-    if page < 1:
-        page = 1
-    if size < 1 or size > 100:
-        size = 10
+    page, size = normalizar_paginacion(page, size)
 
     anio_lectivo = _normalizar_anio(anio_lectivo)
     if not anio_lectivo:
         anio_lectivo = await _resolver_anio_lectivo(db, id_contexto)
 
-    offset = (page - 1) * size
+    offset = calcular_offset(page, size)
     estructuras = await crud.listar_estructuras(
         db,
         id_contexto,

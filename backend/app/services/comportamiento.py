@@ -1,68 +1,104 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-import re
+from sqlalchemy.exc import IntegrityError
 
 from app.models.comportamiento import Comportamiento
 from app.models.estudiantes import Estudiante
 from app.models.cursos import Curso
+from app.models.configuracion_periodizacion import ConfiguracionPeriodizacion
 from app.crud import comportamiento as crud
 from app.schemas.comportamiento import (
     ComportamientoCreate,
     ComportamientoUpdate
 )
+from app.core.pagination import normalizar_paginacion
+from app.services.validaciones_academicas import manejar_error_integridad, validar_estudiante_en_curso
+
+
+async def _validar_periodo_configurado(
+    db: AsyncSession, curso: Curso, periodo: str, id_contexto: int
+):
+    if not str(periodo).isdigit() or int(periodo) < 1:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El periodo no es válido")
+    config_result = await db.execute(
+        select(ConfiguracionPeriodizacion).where(
+            ConfiguracionPeriodizacion.id_contexto == id_contexto,
+            ConfiguracionPeriodizacion.anio_lectivo == curso.anio_lectivo,
+        )
+    )
+    config = config_result.scalar_one_or_none()
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No existe una periodización configurada para este año lectivo",
+        )
+    cantidad = config.cantidad_periodos
+    if int(periodo) > cantidad:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"El periodo debe estar entre 1 y {cantidad} para este año lectivo",
+        )
 
 # Crear comportamiento
 async def crear_comportamiento(db: AsyncSession, data: ComportamientoCreate, id_contexto: int):
-    # Validar que mes tenga formato YYYY-MM
-    if not re.match(r'^\d{4}-(0[1-9]|1[0-2])$', data.mes):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El mes debe tener formato YYYY-MM (ejemplo: 2026-01)"
-        )
-
     # Validar que estudiante exista
     estudiante = await db.execute(
-        select(Estudiante).where(Estudiante.id_estudiante == data.id_estudiante)
+        select(Estudiante).where(
+            Estudiante.id_estudiante == data.id_estudiante,
+            Estudiante.id_contexto == id_contexto,
+            Estudiante.eliminado.is_(False),
+        )
     )
-    if not estudiante.scalar_one_or_none():
+    estudiante_obj = estudiante.scalar_one_or_none()
+    if not estudiante_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El estudiante no existe"
         )
 
     # Validar que curso exista
-    curso = await db.execute(
+    curso_result = await db.execute(
         select(Curso).where(Curso.id_curso == data.id_curso, Curso.id_contexto == id_contexto)
     )
-    if not curso.scalar_one_or_none():
+    curso_obj = curso_result.scalar_one_or_none()
+    if not curso_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El curso no existe"
         )
+    await _validar_periodo_configurado(db, curso_obj, data.periodo, id_contexto)
 
-    # Validar unicidad estudiante + curso + mes
-    if await crud.obtener_por_estudiante_curso_mes(
+    validar_estudiante_en_curso(estudiante_obj, data.id_curso)
+
+    # Validar unicidad estudiante + curso + periodo
+    if await crud.obtener_por_estudiante_curso_periodo(
         db,
         data.id_estudiante,
         data.id_curso,
-        data.mes,
+        data.periodo,
         id_contexto=id_contexto,
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Ya existe un registro de comportamiento para este estudiante, curso y mes"
+            detail="Ya existe un registro de comportamiento para este estudiante, curso y periodo"
         )
 
     comportamiento = Comportamiento(
         id_estudiante=data.id_estudiante,
         id_curso=data.id_curso,
-        mes=data.mes,
+        periodo=data.periodo,
         valor=data.valor,
         observaciones=data.observaciones
     )
 
-    return await crud.crear(db, comportamiento)
+    try:
+        return await crud.crear(db, comportamiento)
+    except IntegrityError:
+        await manejar_error_integridad(
+            db,
+            "Ya existe un registro de comportamiento para este estudiante, curso y periodo",
+        )
 
 
 # Listar comportamientos
@@ -71,21 +107,18 @@ async def listar_comportamientos(
     id_contexto: int,
     id_estudiante: int | None,
     id_curso: int | None,
-    mes: str | None,
+    periodo: str | None,
     page: int,
     size: int
 ):
-    if page < 1:
-        page = 1
-    if size < 1 or size > 100:
-        size = 10
+    page, size = normalizar_paginacion(page, size)
 
     return await crud.listar_comportamientos(
         db=db,
         id_contexto=id_contexto,
         id_estudiante=id_estudiante,
         id_curso=id_curso,
-        mes=mes,
+        periodo=periodo,
         page=page,
         size=size
     )
@@ -115,19 +148,23 @@ async def actualizar_comportamiento(
 
     values = data.model_dump(exclude_unset=True)
 
-    # Validar mes si se actualiza (formato YYYY-MM)
-    if "mes" in values:
-        import re
-        if not re.match(r'^\d{4}-(0[1-9]|1[0-2])$', values["mes"]):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El mes debe estar en formato YYYY-MM"
-            )
+    # Validar periodo si se actualiza.
+    if "periodo" in values:
+        curso_actual = await db.execute(
+            select(Curso).where(Curso.id_curso == comportamiento.id_curso, Curso.id_contexto == id_contexto)
+        )
+        curso_obj = curso_actual.scalar_one_or_none()
+        if curso_obj:
+            await _validar_periodo_configurado(db, curso_obj, values["periodo"], id_contexto)
 
     # Validar que estudiante exista si se modifica
     if "id_estudiante" in values:
         est = await db.execute(
-            select(Estudiante).where(Estudiante.id_estudiante == values["id_estudiante"])
+            select(Estudiante).where(
+                Estudiante.id_estudiante == values["id_estudiante"],
+                Estudiante.id_contexto == id_contexto,
+                Estudiante.eliminado.is_(False),
+            )
         )
         if not est.scalar_one_or_none():
             raise HTTPException(
@@ -146,27 +183,43 @@ async def actualizar_comportamiento(
                 detail="El curso no existe"
             )
 
-    # Si cambia el mes, estudiante o curso → validar unicidad
-    nuevo_mes = values.get("mes", comportamiento.mes)
+    # Si cambia el periodo, estudiante o curso, validar unicidad.
+    nuevo_periodo = values.get("periodo", comportamiento.periodo)
     nuevo_estudiante = values.get("id_estudiante", comportamiento.id_estudiante)
     nuevo_curso = values.get("id_curso", comportamiento.id_curso)
 
     if (
-        nuevo_mes != comportamiento.mes
+        nuevo_periodo != comportamiento.periodo
         or nuevo_estudiante != comportamiento.id_estudiante
         or nuevo_curso != comportamiento.id_curso
     ):
-        existente = await crud.obtener_por_estudiante_curso_mes(
+        estudiante_actual = await db.execute(
+            select(Estudiante).where(
+                Estudiante.id_estudiante == nuevo_estudiante,
+                Estudiante.id_contexto == id_contexto,
+                Estudiante.eliminado.is_(False),
+            )
+        )
+        estudiante_obj = estudiante_actual.scalar_one_or_none()
+        if not estudiante_obj:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="El estudiante no existe",
+            )
+
+        validar_estudiante_en_curso(estudiante_obj, nuevo_curso)
+
+        existente = await crud.obtener_por_estudiante_curso_periodo(
             db,
             nuevo_estudiante,
             nuevo_curso,
-            nuevo_mes,
+            nuevo_periodo,
             id_contexto=id_contexto,
         )
         if existente and existente.id_comportamiento != comportamiento.id_comportamiento:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Ya existe un comportamiento para este estudiante, curso y mes"
+                detail="Ya existe un comportamiento para este estudiante, curso y periodo"
             )
 
     for key, value in values.items():

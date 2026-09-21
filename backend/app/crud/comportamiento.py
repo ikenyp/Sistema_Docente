@@ -18,18 +18,18 @@ async def obtener_por_id(db: AsyncSession, id_comportamiento: int, id_contexto: 
     return result.scalar_one_or_none()
 
 
-# Obtener por estudiante + curso + mes (unicidad)
-async def obtener_por_estudiante_curso_mes(
+# Obtener por estudiante + curso + periodo (unicidad)
+async def obtener_por_estudiante_curso_periodo(
     db: AsyncSession,
     id_estudiante: int,
     id_curso: int,
-    mes: str,
+    periodo: str,
     id_contexto: int | None = None,
 ):
     query = select(Comportamiento).where(
         Comportamiento.id_estudiante == id_estudiante,
         Comportamiento.id_curso == id_curso,
-        Comportamiento.mes == mes
+        Comportamiento.periodo == periodo
     )
     if id_contexto is not None:
         query = query.join(Curso, Curso.id_curso == Comportamiento.id_curso).where(Curso.id_contexto == id_contexto)
@@ -45,7 +45,7 @@ async def listar_comportamientos(
     id_contexto: int,
     id_estudiante: int | None = None,
     id_curso: int | None = None,
-    mes: str | None = None,
+    periodo: str | None = None,
     page: int = 1,
     size: int = 10
 ):
@@ -59,8 +59,8 @@ async def listar_comportamientos(
         query = query.where(Comportamiento.id_estudiante == id_estudiante)
     if id_curso:
         query = query.where(Comportamiento.id_curso == id_curso)
-    if mes:
-        query = query.where(Comportamiento.mes == mes)
+    if periodo:
+        query = query.where(Comportamiento.periodo == periodo)
 
     query = query.offset((page - 1) * size).limit(size)
     result = await db.execute(query)

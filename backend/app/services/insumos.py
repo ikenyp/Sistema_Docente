@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from datetime import date
 
 from app.models.insumos import Insumo
@@ -14,6 +15,8 @@ from app.core.pagination import normalizar_paginacion
 from app.crud import insumos as crud
 from app.schemas.insumos import InsumoCreate, InsumoUpdate
 from app.schemas.usuarios import RolUsuarioEnum
+from app.services.validaciones_academicas import validar_ponderacion
+from app.services.validaciones_academicas import manejar_error_integridad
 
 
 async def _resolver_periodo(db: AsyncSession, id_curso: int, id_contexto: int, id_periodo: int):
@@ -83,11 +86,7 @@ async def crear_insumo(db: AsyncSession, data: InsumoCreate, current_user = None
         )
 
     # Validar ponderación (1 - 10)
-    if not 1 <= data.ponderacion <= 10:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La ponderación debe estar entre 1 y 10"
-        )
+    validar_ponderacion(data.ponderacion)
 
     periodo_obj, _ = await _resolver_periodo(
         db,
@@ -129,7 +128,10 @@ async def crear_insumo(db: AsyncSession, data: InsumoCreate, current_user = None
         fecha_creacion=date.today()
     )
 
-    return await crud.crear(db, insumo)
+    try:
+        return await crud.crear(db, insumo)
+    except IntegrityError:
+        await manejar_error_integridad(db, "Ya existe un insumo con ese nombre en esta asignación")
 
 
 # Listar insumos
@@ -200,11 +202,7 @@ async def actualizar_insumo(
 
     # Validar ponderación si se actualiza
     if "ponderacion" in values:
-        if not 1 <= values["ponderacion"] <= 10:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="La ponderación debe estar entre 1 y 10"
-            )
+        validar_ponderacion(values["ponderacion"])
 
     periodo_actualizado = insumo.id_periodo
     
@@ -267,7 +265,10 @@ async def actualizar_insumo(
     for key, value in values.items():
         setattr(insumo, key, value)
 
-    return await crud.actualizar(db, insumo)
+    try:
+        return await crud.actualizar(db, insumo)
+    except IntegrityError:
+        await manejar_error_integridad(db, "Ya existe un insumo con ese nombre en esta asignación")
 
 
 # Eliminar insumo (eliminación física)

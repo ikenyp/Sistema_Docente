@@ -10,31 +10,46 @@ from app.crud import usuarios as crud
 from app.schemas.usuarios import RolUsuarioEnum, UsuarioCreate, UsuarioUpdate
 
 
-#  Crear usuario
-async def crear_usuario(db: AsyncSession, data: UsuarioCreate):
-    # Validar formato de email
+#  Validaciones de usuario reutilizables
+def validar_email(correo: str) -> None:
+    # Se valida aquí además del schema porque el servicio también puede ser
+    # llamado desde tareas internas y no solo desde una petición HTTP.
     try:
-        validate_email(data.correo)
+        validate_email(correo)
     except EmailNotValidError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Correo inválido: {str(e)}"
         )
 
-    if await crud.obtener_por_correo(db, data.correo):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El correo ya está registrado"
-        )
-    
-    # Validar rol
-    if data.rol not in [RolUsuarioEnum.docente, RolUsuarioEnum.administrativo]:
+
+def validar_rol(rol) -> None:
+    if rol is None:
+        return
+    if rol not in [RolUsuarioEnum.docente, RolUsuarioEnum.administrativo]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El rol debe ser 'docente' o 'administrativo'"
         )
 
-    rol_norm = (data.rol.value if hasattr(data.rol, "value") else data.rol).lower()
+
+def normalizar_rol(rol) -> str:
+    return (rol.value if hasattr(rol, "value") else rol).lower()
+
+
+#  Crear usuario
+async def crear_usuario(db: AsyncSession, data: UsuarioCreate):
+    validar_email(data.correo)
+
+    if await crud.obtener_por_correo(db, data.correo):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El correo ya está registrado"
+        )
+
+    validar_rol(data.rol)
+
+    rol_norm = normalizar_rol(data.rol)
     usuario = Usuario(
         nombre=data.nombre,
         apellido=data.apellido,
@@ -79,38 +94,28 @@ async def actualizar_usuario(
     id_usuario: int,
     data: UsuarioUpdate
 ):
+    # Solo se modifican los campos enviados; así editar el nombre no borra por
+    # accidente contraseña, rol u otros datos existentes.
     usuario = await obtener_usuario(db, id_usuario)
 
     values = data.model_dump(exclude_unset=True)
 
     if "correo" in values:
-        # Validar formato de email
-        try:
-            validate_email(values["correo"])
-        except EmailNotValidError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Correo inválido: {str(e)}"
-            )
+        validar_email(values["correo"])
 
         existente = await crud.obtener_por_correo(db, values["correo"])
         if existente and existente.id_usuario != id_usuario:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El correo ya está registrado"
-            )    
-    
+            )
+
     if "contrasena" in values:
         values["contrasena"] = hash_contrasena(values["contrasena"])
 
     if "rol" in values and values["rol"] is not None:
-        # Validar rol
-        if values["rol"] not in [RolUsuarioEnum.docente, RolUsuarioEnum.administrativo]:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El rol debe ser 'docente' o 'administrativo'"
-            )
-        values["rol"] = (values["rol"].value if hasattr(values["rol"], "value") else values["rol"]).lower()
+        validar_rol(values["rol"])
+        values["rol"] = normalizar_rol(values["rol"])
 
     for key, value in values.items():
         setattr(usuario, key, value)
@@ -122,35 +127,35 @@ async def eliminar_usuario(db: AsyncSession, id_usuario: int):
     from app.models.cursos_materias_docentes import CursoMateriaDocente
     from app.models.cursos import Curso
     from sqlalchemy import select
-    
+
     usuario = await obtener_usuario(db, id_usuario)
-    
+
     # Verificar si tiene asignaciones como docente
     stmt_asignaciones = select(CursoMateriaDocente).where(
         CursoMateriaDocente.id_docente == id_usuario
     )
     result_asignaciones = await db.execute(stmt_asignaciones)
     asignaciones = result_asignaciones.scalars().all()
-    
+
     if asignaciones:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"No se puede eliminar el usuario porque tiene {len(asignaciones)} asignación(es) de curso/materia. Elimine primero sus asignaciones."
         )
-    
+
     # Verificar si es tutor de algún curso
     stmt_cursos = select(Curso).where(
         Curso.id_tutor == id_usuario
     )
     result_cursos = await db.execute(stmt_cursos)
     cursos_tutor = result_cursos.scalars().all()
-    
+
     if cursos_tutor:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"No se puede eliminar el usuario porque es tutor de {len(cursos_tutor)} curso(s). Reasigne el tutor primero."
         )
-    
+
     usuario.activo = False
     await crud.actualizar(db, usuario)
     return None #status 204

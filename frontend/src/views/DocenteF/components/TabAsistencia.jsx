@@ -1,5 +1,6 @@
 import React from "react";
 import { Trash2, Save } from "lucide-react";
+import { nombrePersona } from "../../../utils/personas";
 
 const ESTADOS = [
   { value: "presente", label: "Presente" },
@@ -20,6 +21,8 @@ export const TabAsistencia = ({
   onEliminarUno,
   onGuardarTodo,
 }) => {
+  // La asistencia se edita por estudiante y fecha; repetir el guardado actualiza
+  // el registro existente en lugar de crear duplicados.
   if (activeTab !== "asistencia") return null;
 
   return (
@@ -61,7 +64,7 @@ export const TabAsistencia = ({
 
                 return (
                   <tr key={estudiante.id_estudiante}>
-                    <td>{estudiante.apellido} {estudiante.nombre}</td>
+                    <td>{nombrePersona(estudiante)}</td>
                     <td>
                       <div className="radio-group-horizontal">
                         {ESTADOS.map((estado) => (

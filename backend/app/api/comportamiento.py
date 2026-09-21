@@ -17,6 +17,7 @@ from app.services.authorization import (
     validar_usuario_puede_ver_comportamiento,
     validar_usuario_puede_ver_curso,
     validar_usuario_puede_ver_estudiante,
+    validar_docente_puede_registrar_comportamiento,
 )
 
 router = APIRouter(
@@ -35,9 +36,9 @@ async def crear_comportamiento(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tiene permisos para crear comportamiento")
     id_contexto = await resolve_contexto_id(db, current_user, request)
     if current_user.rol != RolUsuarioEnum.administrativo:
-        curso = await validar_usuario_puede_ver_curso(db, data.id_curso, current_user, id_contexto)
-        if curso.id_tutor != current_user.id_usuario:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo el tutor del curso o administradores pueden registrar comportamiento")
+        await validar_docente_puede_registrar_comportamiento(
+            db, data.id_curso, current_user.id_usuario, id_contexto
+        )
         await validar_usuario_puede_ver_estudiante(db, data.id_estudiante, current_user, id_contexto)
     return await service.crear_comportamiento(db, data, id_contexto)
 
@@ -46,7 +47,7 @@ async def crear_comportamiento(
 async def listar_comportamientos(
     id_estudiante: int | None = Query(None),
     id_curso: int | None = Query(None),
-    mes: str | None = Query(None),
+    periodo: str | None = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
     request: Request = None,
@@ -66,7 +67,7 @@ async def listar_comportamientos(
         id_contexto=id_contexto,
         id_estudiante=id_estudiante,
         id_curso=id_curso,
-        mes=mes,
+        periodo=periodo,
         page=page,
         size=size
     )

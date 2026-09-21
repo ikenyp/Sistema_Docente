@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.models.cursos_materias_docentes import CursoMateriaDocente
 from app.models.cursos import Curso
@@ -11,6 +12,8 @@ from app.models.usuarios import Usuario
 from app.models.enums import RolUsuarioEnum
 from app.crud import cursos_materias_docentes as crud
 from app.schemas.cursos_materias_docentes import CMDCreate, CMDUpdate
+from app.core.pagination import normalizar_paginacion
+from app.services.validaciones_academicas import manejar_error_integridad
 
 
 # Crear asignación Curso–Materia–Docente
@@ -88,7 +91,13 @@ async def crear_cmd(db: AsyncSession, data: CMDCreate, id_contexto: int):
         id_docente=data.id_docente
     )
 
-    created = await crud.crear(db, cmd)
+    try:
+        created = await crud.crear(db, cmd)
+    except IntegrityError:
+        await manejar_error_integridad(
+            db,
+            "Ya existe un docente asignado para esta materia en el curso",
+        )
     # Return the created object with related entities loaded
     return await crud.obtener_por_id(db, created.id_cmd, id_contexto)
 
@@ -103,10 +112,7 @@ async def listar_cmd(
     page: int,
     size: int
 ):
-    if page < 1:
-        page = 1
-    if size < 1 or size > 100:
-        size = 10
+    page, size = normalizar_paginacion(page, size)
 
     return await crud.listar_cmd(
         db=db,

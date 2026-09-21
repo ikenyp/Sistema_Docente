@@ -1,6 +1,7 @@
-from sqlalchemy import select
+from sqlalchemy import select, exists
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.usuarios import Usuario
+from app.models.contextos import Contexto
 from app.schemas.usuarios import RolUsuarioEnum
 
 #  Obtener por ID
@@ -31,7 +32,17 @@ async def listar_usuarios(
     page: int = 1,
     size: int = 10
 ):
-    query = select(Usuario).where(Usuario.activo == True)
+    tiene_contexto_personal = exists(
+        select(Contexto.id_contexto).where(
+            Contexto.id_owner_docente == Usuario.id_usuario,
+            Contexto.tipo_modo == "personal",
+            Contexto.activo == True,
+        )
+    )
+    query = select(Usuario).where(
+        Usuario.activo == True,
+        ~tiene_contexto_personal,
+    )
 
     if rol:
         query = query.where(Usuario.rol == rol)
@@ -49,7 +60,6 @@ async def listar_usuarios(
 #  Crear usuario
 async def crear(db: AsyncSession, usuario: Usuario):
     db.add(usuario)
-    db.flush
     await db.commit()
     await db.refresh(usuario)
     return usuario

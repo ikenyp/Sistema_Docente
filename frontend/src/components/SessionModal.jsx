@@ -41,7 +41,14 @@ export default function SessionModal({ state, onStay, onLogout }) {
 
   return (
     <div className="confirm-backdrop" onClick={() => {}}>
-      <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="confirm-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="session-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="session-modal-title" className="sr-only">Sesión</h2>
         <h3 style={{ marginTop: 0, marginBottom: 12 }}>{content.title}</h3>
         <p style={{ marginBottom: 16 }}>{content.message}</p>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>

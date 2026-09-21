@@ -1,25 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
-from app.core.app_mode import is_personal_mode
 from app.core.context_manager import resolve_contexto_id
 from app.core.database import get_session
 from app.models.anios_lectivos import AnioLectivo
 from app.models.usuarios import Usuario
 from app.schemas.anios_lectivos import AnioLectivoCreate, AnioLectivoResponse, AnioLectivoUpdate
-from app.schemas.usuarios import RolUsuarioEnum
 from app.crud import anios_lectivos as crud
+from app.services.authorization_mode import validar_gestion_por_modo
 
 router = APIRouter(prefix="/anios-lectivos", tags=["Años lectivos"])
 
 
 def _validar_gestion(current_user: Usuario, request: Request):
-    if is_personal_mode(request):
-        if current_user.rol != RolUsuarioEnum.docente:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="En modo personal solo docentes pueden gestionar años lectivos")
-    elif current_user.rol != RolUsuarioEnum.administrativo:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo administrativos pueden gestionar años lectivos")
+    validar_gestion_por_modo(current_user, request, "años lectivos")
 
 
 def _validar_formato(anio_lectivo: str):
@@ -51,6 +47,8 @@ async def crear_anio_lectivo(
     current_user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_session),
 ):
+    # El año activo se cambia en la misma transacción: primero se desactiva el
+    # anterior y luego se crea el nuevo para conservar un único activo.
     _validar_gestion(current_user, request)
     id_contexto = await resolve_contexto_id(db, current_user, request)
     anio_lectivo = _normalizar_anio_lectivo(data.anio_lectivo)
@@ -63,6 +61,15 @@ async def crear_anio_lectivo(
         anio_lectivo=anio_lectivo,
         activo=data.activo if data.activo is not None else True,
     )
+    if anio.activo:
+        await db.execute(
+            update(AnioLectivo)
+            .where(
+                AnioLectivo.id_contexto == id_contexto,
+                AnioLectivo.activo.is_(True),
+            )
+            .values(activo=False)
+        )
     return await crud.crear(db, anio)
 
 
@@ -84,6 +91,16 @@ async def actualizar_anio_lectivo(
         anio.anio_lectivo = data.anio_lectivo
     if data.activo is not None:
         anio.activo = data.activo
+        if data.activo:
+            await db.execute(
+                update(AnioLectivo)
+                .where(
+                    AnioLectivo.id_contexto == id_contexto,
+                    AnioLectivo.id_anio_lectivo != id_anio_lectivo,
+                    AnioLectivo.activo.is_(True),
+                )
+                .values(activo=False)
+            )
     return await crud.actualizar(db, anio)
 
 
@@ -105,6 +122,16 @@ async def actualizar_anio_lectivo_por_anio(
         anio.anio_lectivo = data.anio_lectivo
     if data.activo is not None:
         anio.activo = data.activo
+        if data.activo:
+            await db.execute(
+                update(AnioLectivo)
+                .where(
+                    AnioLectivo.id_contexto == id_contexto,
+                    AnioLectivo.id_anio_lectivo != anio.id_anio_lectivo,
+                    AnioLectivo.activo.is_(True),
+                )
+                .values(activo=False)
+            )
     return await crud.actualizar(db, anio)
 
 

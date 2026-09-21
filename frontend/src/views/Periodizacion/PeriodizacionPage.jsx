@@ -35,7 +35,12 @@ const parseFecha = (valor) => {
   return new Date(`${valor}T00:00:00Z`);
 };
 
-const formatearFecha = (fecha) => fecha.toISOString().slice(0, 10);
+const formatearFecha = (fecha) => {
+  if (!(fecha instanceof Date) || Number.isNaN(fecha.getTime())) return "";
+  // Evita propagar fechas parciales interpretadas por JavaScript como años 1-99.
+  if (fecha.getUTCFullYear() < 1000) return "";
+  return fecha.toISOString().slice(0, 10);
+};
 
 const sumarDias = (fecha, dias) => {
   const copia = new Date(fecha);
@@ -55,9 +60,9 @@ const inicioDesdeFin = (fin, mesesPeriodo) => sumarDias(restarMeses(fin, mesesPe
 
 const finDesdeInicio = (inicio, mesesPeriodo) => sumarDias(sumarMeses(inicio, mesesPeriodo), -1);
 
-function PeriodizacionPage({ embedded = false } = {}) {
+function PeriodizacionPage({ embedded = false, anioInicial = "" } = {}) {
   const [anios, setAnios] = useState([]);
-  const [anioSel, setAnioSel] = useState("");
+  const [anioSel, setAnioSel] = useState(anioInicial || "");
   const [cargando, setCargando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [tipoPeriodizacion, setTipoPeriodizacion] = useState("trimestral");
@@ -79,6 +84,10 @@ function PeriodizacionPage({ embedded = false } = {}) {
 
   const aniosDisponibles = anios.length > 0 ? anios : aniosSugeridos;
   const anioActivoGuardado = localStorage.getItem("anio_lectivo_activo") || "";
+
+  useEffect(() => {
+    if (anioInicial) setAnioSel(anioInicial);
+  }, [anioInicial]);
 
   const resumenConfiguracion = useMemo(() => {
     const cantidad = configuracionActual?.periodos?.length || 0;
@@ -121,14 +130,16 @@ function PeriodizacionPage({ embedded = false } = {}) {
   }, [cargar]);
 
   useEffect(() => {
-    if (!anioSel && aniosDisponibles.length > 0) {
+    if (anioInicial && aniosDisponibles.includes(anioInicial)) {
+      setAnioSel(anioInicial);
+    } else if (!anioSel && aniosDisponibles.length > 0) {
       setAnioSel(
         aniosDisponibles.includes(anioActivoGuardado)
           ? anioActivoGuardado
           : aniosDisponibles[0],
       );
     }
-  }, [anioActivoGuardado, aniosDisponibles, anioSel]);
+  }, [anioActivoGuardado, aniosDisponibles, anioSel, anioInicial]);
 
   useEffect(() => {
     if (anioSel && !aniosDisponibles.includes(anioSel) && aniosDisponibles.length > 0) {
@@ -155,13 +166,15 @@ function PeriodizacionPage({ embedded = false } = {}) {
             id_periodo: periodo.id_periodo,
           })),
         );
-      } catch {
-        if (!cancelado) {
+      } catch (error) {
+        if (!cancelado && error?.status === 404) {
           setConfiguracionActual(null);
           const tipoDetectado = detectarTipo(3);
           const cantidadObjetivo = TIPOS_PERIODIZACION[tipoDetectado].cantidad;
           setTipoPeriodizacion(tipoDetectado);
           setPeriodosForm(crearPeriodos(cantidadObjetivo, []));
+        } else if (!cancelado) {
+          notify("error", error.message || "No se pudo cargar la periodizacion");
         }
       } finally {
         if (!cancelado) setConfiguracionLista(true);

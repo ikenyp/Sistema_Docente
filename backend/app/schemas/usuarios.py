@@ -33,16 +33,3 @@ class UsuarioResponse(UsuarioBase):
     model_config = {
         "from_attributes": True 
     }
-
-# Schema para respuesta sin contraseña (más seguro)
-class UsuarioResponseMin(BaseModel):
-    id_usuario: int
-    nombre: str
-    apellido: str
-    correo: str
-    rol: RolUsuarioEnum
-    activo: bool
-
-    model_config = {
-        "from_attributes": True
-    }

@@ -10,7 +10,9 @@ class Comportamiento(Base):
     id_comportamiento = Column(Integer, primary_key=True)
     id_estudiante = Column(Integer, ForeignKey("estudiantes.id_estudiante", ondelete="CASCADE"), nullable=False)
     id_curso = Column(Integer, ForeignKey("cursos.id_curso", ondelete="CASCADE"), nullable=False)
-    mes = Column(String(7), nullable=False)  # Formato YYYY-MM
+    # La columna física conserva el nombre antiguo para evitar una migración
+    # destructiva; el contrato de aplicación usa periodos configurables.
+    periodo = Column("mes", String(1), nullable=False)  # Valores: 1 a 4
     valor = Column(Enum(ValorComportamientoEnum, name="valor_comportamiento"), nullable=False)
     observaciones = Column(Text)
 

@@ -19,6 +19,7 @@ from app.services.authorization import (
     validar_docente_puede_editar_curso,
     validar_usuario_puede_ver_curso,
 )
+from app.services.authorization_mode import validar_gestion_por_modo
 
 router = APIRouter(
     tags=["Cursos"]
@@ -26,17 +27,7 @@ router = APIRouter(
 
 
 def _validar_gestion_cursos(current_user: Usuario, request: Request):
-    if is_personal_mode(request):
-        if current_user.rol != RolUsuarioEnum.docente:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="En modo personal solo docentes pueden gestionar cursos"
-            )
-    elif current_user.rol != RolUsuarioEnum.administrativo:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo administrativos pueden gestionar cursos"
-        )
+    validar_gestion_por_modo(current_user, request, "cursos")
 
 # Crear un nuevo curso (solo admin)
 @router.post("/", response_model=CursoResponseDetailed)
@@ -72,8 +63,10 @@ async def listar_cursos(
 ):
     id_contexto = await resolve_contexto_id(db, current_user, request)
 
+    # En modo personal, todos los cursos del contexto pertenecen al docente,
+    # aunque alguno todavía no tenga tutor asignado.
     if is_personal_mode(request) and current_user.rol == RolUsuarioEnum.docente:
-        id_tutor = current_user.id_usuario
+        id_tutor = None
 
     return await service.listar_cursos(db, id_contexto, page, size, nombre, anio_lectivo, id_tutor)
 

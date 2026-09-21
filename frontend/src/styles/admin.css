@@ -841,6 +841,115 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.course-hub-reportes-intro {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.8rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid #dce5f4;
+  border-left: 4px solid #3f70c2;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f8fbff 0%, #eef4ff 100%);
+  color: #29466f;
+  text-align: left;
+}
+
+.course-hub-reportes-intro-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 9px;
+  background: #dbe9ff;
+  color: #3569b4;
+}
+
+.course-hub-reportes-intro h3 {
+  margin: 0 0 0.15rem;
+  color: #203d6b;
+  font-size: 1rem;
+}
+
+.course-hub-reportes-intro h3 span {
+  color: #6b7e9f;
+  font-size: 0.82em;
+  font-weight: 600;
+}
+
+.course-hub-reportes-intro p {
+  margin: 0;
+  color: #53688f;
+  font-size: 0.84rem;
+}
+
+.course-hub-consulta-notas-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.course-hub-consulta-notas-table th,
+.course-hub-consulta-notas-table td {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.course-hub-consulta-notas-table th:nth-child(1),
+.course-hub-consulta-notas-table td:nth-child(1) {
+  width: 58%;
+}
+
+.course-hub-consulta-notas-table th:nth-child(2),
+.course-hub-consulta-notas-table td:nth-child(2) {
+  width: 20%;
+}
+
+.course-hub-consulta-notas-table th:nth-child(3),
+.course-hub-consulta-notas-table td:nth-child(3) {
+  width: 22%;
+}
+
+.course-hub-promedios-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.course-hub-promedios-table th,
+.course-hub-promedios-table td {
+  padding: 0.7rem 0.65rem;
+  border-bottom: 1px solid #dce5f4;
+  text-align: center;
+}
+
+.course-hub-promedios-table th {
+  background: #edf4ff;
+  color: #29466f;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.course-hub-promedios-table th:first-child,
+.course-hub-promedios-table td:first-child {
+  text-align: left;
+}
+
+
+/* Las acciones del curso forman una segunda sección independiente de los indicadores. */
+.dashboard-grid.dashboard-grid-2.admin-action-grid.admin-action-grid-4 {
+  max-width: none;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 2rem !important;
+  padding-top: 1.1rem;
+  border-top: 1px solid #dce5f4;
+}
+
+@media (max-width: 920px) {
+  .dashboard-grid.dashboard-grid-2.admin-action-grid.admin-action-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .admin-action-card {
   min-height: 92px;
   border: 1px solid #dce5f4;
@@ -1014,55 +1123,6 @@
   padding: 0.3rem 0.5rem;
 }
 
-.navbar-user {
-  position: relative;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 10px;
-  padding: 0.48rem 0.8rem;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition:
-    transform 0.2s,
-    box-shadow 0.2s,
-    background 0.2s;
-}
-
-.navbar-user:hover {
-  transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.24);
-  box-shadow: 0 8px 14px rgba(38, 62, 106, 0.26);
-}
-
-.menu-usuario {
-  position: absolute;
-  top: 68px;
-  right: 12px;
-  min-width: 180px;
-  background: #fff;
-  border: 1px solid #dde5f4;
-  border-radius: 12px;
-  padding: 0.35rem;
-  box-shadow: 0 14px 28px rgba(25, 37, 62, 0.2);
-  z-index: 80;
-}
-
-.menu-usuario button {
-  width: 100%;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: #25304a;
-  text-align: left;
-  padding: 0.62rem 0.75rem;
-  cursor: pointer;
-}
-
-.menu-usuario button:hover {
-  background: linear-gradient(135deg, #2f72b5 0%, #4f5ebf 100%);
-  color: #fff;
-}
-
 .admin-title {
   margin: 0 0 1.2rem;
   text-align: center;
@@ -1110,6 +1170,49 @@
 
 .usuarios-table {
   table-layout: fixed;
+}
+
+.admin-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 5.5rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.admin-status-role-docente {
+  color: #486b9b;
+  background: #eaf2fc;
+  border-color: #cbdced;
+}
+
+.admin-status-role-administrativo {
+  color: #6b5b91;
+  background: #f1edfa;
+  border-color: #ddd2ef;
+}
+
+.admin-status-student-matriculado {
+  color: #47745e;
+  background: #eef8f2;
+  border-color: #c9e6d4;
+}
+
+.admin-status-student-retirado {
+  color: #8d4653;
+  background: #fff0f1;
+  border-color: #ecc8ce;
+}
+
+.admin-status-student-graduado {
+  color: #866331;
+  background: #fff8e9;
+  border-color: #ead7ad;
 }
 
 .estudiantes-table {
@@ -1271,17 +1374,17 @@
 
 .cursos-table th:nth-child(1),
 .cursos-table td:nth-child(1) {
-  width: 22%;
+  width: 16%;
 }
 
 .cursos-table th:nth-child(2),
 .cursos-table td:nth-child(2) {
-  width: 23%;
+  width: 22%;
 }
 
 .cursos-table th:nth-child(3),
 .cursos-table td:nth-child(3) {
-  width: 25%;
+  width: 24%;
 }
 
 .cursos-table th:nth-child(4),
@@ -1292,24 +1395,25 @@
 
 .cursos-table th:nth-child(5),
 .cursos-table td:nth-child(5) {
-  width: 20%;
+  width: 28%;
   white-space: nowrap;
 }
 
 .cursos-open-btn {
   min-width: 122px;
   white-space: nowrap;
+  margin-right: 0.45rem;
 }
 
 .cursos-delete-btn {
-  width: 34px;
-  min-width: 34px;
+  width: auto;
+  min-width: 92px;
   height: 38px;
   min-height: 38px;
   padding: 0;
   justify-content: center;
   margin-left: 0.35rem;
-  line-height: 0;
+  line-height: normal;
 }
 
 .cursos-delete-btn svg {
@@ -1645,6 +1749,54 @@ tr:hover {
   white-space: nowrap;
 }
 
+.course-hub-consulta-notas-table th,
+.course-hub-consulta-notas-table td {
+  padding: 0.42rem 0.3rem;
+}
+
+.course-hub-consulta-notas-table th:nth-child(1),
+.course-hub-consulta-notas-table td:nth-child(1) {
+  width: 56%;
+}
+
+.course-hub-consulta-notas-table th:nth-child(2),
+.course-hub-consulta-notas-table td:nth-child(2),
+.course-hub-consulta-notas-table th:nth-child(3),
+.course-hub-consulta-notas-table td:nth-child(3) {
+  width: 22%;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  font-size: 0.78rem;
+}
+
+.course-hub-notas-materia-card .course-hub-consulta-notas-table th {
+  padding: 0.3rem 0.18rem;
+  font-size: 0.74rem !important;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  white-space: normal !important;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+.course-hub-notas-materia-card .course-hub-consulta-notas-table th:nth-child(1),
+.course-hub-notas-materia-card .course-hub-consulta-notas-table td:nth-child(1) {
+  width: 52% !important;
+  min-width: 0 !important;
+}
+
+.course-hub-notas-materia-card .course-hub-consulta-notas-table th:nth-child(2),
+.course-hub-notas-materia-card .course-hub-consulta-notas-table td:nth-child(2),
+.course-hub-notas-materia-card .course-hub-consulta-notas-table th:nth-child(3),
+.course-hub-notas-materia-card .course-hub-consulta-notas-table td:nth-child(3) {
+  width: 24% !important;
+  min-width: 0 !important;
+  padding-left: 0.45rem;
+  padding-right: 0.45rem;
+  box-sizing: border-box;
+}
+
 .course-hub-notas-matrix th:first-child,
 .course-hub-notas-matrix td:first-child {
   text-align: left;
@@ -1653,6 +1805,17 @@ tr:hover {
 .course-hub-notas-matrix td:first-child .admin-link-btn {
   white-space: normal;
   text-align: left;
+}
+
+.course-hub-notas-matrix .admin-link-btn {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.course-hub-notas-matrix .admin-link-btn:hover {
+  color: #2f72b5;
+  text-decoration: none;
 }
 
 .course-hub-summary-card {

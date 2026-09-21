@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from datetime import date
 
 from app.models.asistencia import Asistencia
@@ -9,6 +10,9 @@ from app.models.cursos import Curso
 from app.models.estudiantes import Estudiante
 from app.crud import asistencia as crud
 from app.schemas.asistencia import AsistenciaCreate, AsistenciaUpdate, EstadoAsistencia
+from app.core.pagination import normalizar_paginacion
+from app.services.validaciones_academicas import validar_estudiante_en_curso
+from app.services.validaciones_academicas import manejar_error_integridad
 
 
 # Crear asistencia
@@ -28,7 +32,11 @@ async def crear_asistencia(db: AsyncSession, data: AsistenciaCreate, id_contexto
 
     # Validar que estudiante exista
     estudiante = await db.execute(
-        select(Estudiante).where(Estudiante.id_estudiante == data.id_estudiante)
+        select(Estudiante).where(
+            Estudiante.id_estudiante == data.id_estudiante,
+            Estudiante.id_contexto == id_contexto,
+            Estudiante.eliminado.is_(False),
+        )
     )
     estudiante_obj = estudiante.scalar_one_or_none()
     if not estudiante_obj:
@@ -38,11 +46,7 @@ async def crear_asistencia(db: AsyncSession, data: AsistenciaCreate, id_contexto
         )
 
     # VALIDACIÓN CRÍTICA: Estudiante debe estar en el curso del CMD
-    if estudiante_obj.id_curso_actual != cmd_obj.id_curso:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El estudiante no está matriculado en el curso"
-        )
+    validar_estudiante_en_curso(estudiante_obj, cmd_obj.id_curso)
 
     # Validar que fecha no sea futura
     if data.fecha > date.today():
@@ -80,7 +84,13 @@ async def crear_asistencia(db: AsyncSession, data: AsistenciaCreate, id_contexto
         estado=data.estado
     )
 
-    return await crud.crear(db, asistencia)
+    try:
+        return await crud.crear(db, asistencia)
+    except IntegrityError:
+        await manejar_error_integridad(
+            db,
+            "Ya existe un registro de asistencia para este estudiante, fecha y materia",
+        )
 
 
 # Listar asistencias
@@ -94,11 +104,7 @@ async def listar_asistencias(
     page: int,
     size: int
 ):
-    # Paginación
-    if page < 1:
-        page = 1
-    if size < 1 or size > 100:
-        size = 10
+    page, size = normalizar_paginacion(page, size)
 
     return await crud.listar_asistencias(
         db=db,
@@ -168,7 +174,11 @@ async def actualizar_asistencia(
     # Validar que estudiante exista si se modifica
     if "id_estudiante" in values:
         est = await db.execute(
-            select(Estudiante).where(Estudiante.id_estudiante == values["id_estudiante"])
+            select(Estudiante).where(
+                Estudiante.id_estudiante == values["id_estudiante"],
+                Estudiante.id_contexto == id_contexto,
+                Estudiante.eliminado.is_(False),
+            )
         )
         if not est.scalar_one_or_none():
             raise HTTPException(
@@ -189,7 +199,11 @@ async def actualizar_asistencia(
         cmd_actual = cmd_obj.scalar_one_or_none()
         
         est_obj = await db.execute(
-            select(Estudiante).where(Estudiante.id_estudiante == nuevo_est)
+            select(Estudiante).where(
+                Estudiante.id_estudiante == nuevo_est,
+                Estudiante.id_contexto == id_contexto,
+                Estudiante.eliminado.is_(False),
+            )
         )
         est_actual = est_obj.scalar_one_or_none()
         

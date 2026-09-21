@@ -10,11 +10,9 @@ from app.models.enums import RolUsuarioEnum
 from app.core.pagination import calcular_offset, normalizar_paginacion
 from app.schemas.cursos import CursoCreate, CursoUpdate
 from app.crud import cursos as crud
-from sqlalchemy import select
 from app.models.notas import Nota
 from app.models.insumos import Insumo
 from app.models.cursos_materias_docentes import CursoMateriaDocente
-from app.models.cursos import Curso
 
 # Compatibilidad con pruebas y validación puntual en memoria.
 def validar_tutor_unico_por_contexto(curso_actual_id, id_tutor, cursos_existentes):
@@ -91,22 +89,6 @@ async def crear_curso(db: AsyncSession, data: CursoCreate, id_contexto: int):
             anio_lectivo=data.anio_lectivo,
         )
         
-        # VALIDACIÓN: El docente tutor debe imparter al menos una materia en el curso
-        # (Esta validación se puede relajar según políticas de negocio)
-        # Por ahora, permitimos que un docente sea tutor aunque no imparta
-        # Si queremos ser estrictos, descomentar:
-        # cmd = await db.execute(
-        #     select(CursoMateriaDocente).where(
-        #         CursoMateriaDocente.id_curso == data.id_curso,
-        #         CursoMateriaDocente.id_docente == data.id_tutor
-        #     )
-        # )
-        # if not cmd.scalar_one_or_none():
-        #     raise HTTPException(
-        #         status_code=status.HTTP_400_BAD_REQUEST,
-        #         detail="El docente debe imparter al menos una materia en el curso"
-        #     )
-
     # Validar que no exista curso con mismo nombre y año lectivo
     existente = await crud.obtener_por_nombre_anio(db, data.nombre, data.anio_lectivo, id_contexto)
     if existente:
@@ -215,21 +197,6 @@ async def actualizar_curso(db: AsyncSession, id_curso: int, data: CursoUpdate, i
             curso_actual_id=curso.id_curso,
         )
         
-        # VALIDACIÓN MEJORADA: El docente debe imparter en el curso actual
-        # (Comentado por defecto, descomentar si se requiere política estricta)
-        # from app.models.cursos_materias_docentes import CursoMateriaDocente
-        # cmd = await db.execute(
-        #     select(CursoMateriaDocente).where(
-        #         CursoMateriaDocente.id_curso == id_curso,
-        #         CursoMateriaDocente.id_docente == values["id_tutor"]
-        #     )
-        # )
-        # if not cmd.scalar_one_or_none():
-        #     raise HTTPException(
-        #         status_code=status.HTTP_400_BAD_REQUEST,
-        #         detail="El docente debe imparter al menos una materia en el curso para ser tutor"
-        #     )
-
     # Validar unicidad si cambia nombre o anio_lectivo
     if "nombre" in values or "anio_lectivo" in values:
         nombre = values.get("nombre", curso.nombre)

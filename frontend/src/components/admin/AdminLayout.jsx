@@ -3,6 +3,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { ADMIN_NAV, PERSONAL_DOCENTE_NAV } from "./adminNav";
 import { clearSessionStorage } from "../../services/session";
 import { normalizarAnioLectivo } from "../../utils/anioLectivo";
+import { nombrePersona } from "../../utils/personas";
 import "../../styles/admin.css";
 
 function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, headerActions }) {
@@ -72,7 +73,7 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
           onKeyDown={(e) => e.key === "Enter" && setMenuUsuario(!menuUsuario)}
         >
           {datosUsuario
-            ? `${datosUsuario.nombre} ${datosUsuario.apellido}`
+            ? nombrePersona(datosUsuario)
             : resolvedUserLabel}
         </div>
         {menuUsuario && (

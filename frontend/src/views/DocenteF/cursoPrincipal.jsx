@@ -14,6 +14,7 @@ import {
 import { Save, UserPlus, BookOpen, Settings2, Trash2, Brush, X, Upload, Pencil } from "lucide-react";
 import CustomSelect from "../../components/admin/CustomSelect";
 import ImportarEstudiantesModal from "../../components/estudiantes/ImportarEstudiantesModal";
+import { AnalisisAcademico } from "../../components/AnalisisAcademico";
 import { TabInsumos } from "./components/TabInsumos";
 import { TabAsistencia } from "./components/TabAsistencia";
 import { TabComportamiento } from "./components/TabComportamiento";
@@ -23,10 +24,14 @@ import { TabPromedios } from "./components/TabPromedios";
 import { TabReportes } from "./components/TabReportes";
 import { TabPeriodizacion } from "./components/TabPeriodizacion";
 import { clearSessionStorage } from "../../services/session";
+import { nombrePersona } from "../../utils/personas";
 import "../../styles/cursoPrincipal.css";
 import { notify, requestConfirm } from "../../components/notify";
 
 function CursoPrincipal() {
+  // Esta vista coordina el trabajo dentro de un curso: materias, insumos,
+  // estudiantes, notas, asistencia y comportamiento. Los componentes Tab*
+  // dibujan cada sección, mientras aquí se conserva el estado compartido.
   const navigate = useNavigate();
   const { id_curso } = useParams();
   const location = useLocation();
@@ -266,7 +271,7 @@ function CursoPrincipal() {
     () =>
       periodos.map((periodo) => ({
         value: String(periodo.id_periodo),
-        label: periodo.nombre_periodo || `Trimestre ${periodo.numero_periodo}`,
+        label: periodo.nombre_periodo || `Periodo ${periodo.numero_periodo}`,
       })),
     [periodos],
   );
@@ -281,6 +286,8 @@ function CursoPrincipal() {
 
   // ====================== CARGA BASE ======================
   const cargarInsumos = useCallback(async (id_cmd) => {
+    // Un CMD representa la relación curso-materia-docente. Los insumos siempre
+    // se consultan por esa relación para no mezclar materias del mismo curso.
     if (!id_cmd) return;
     try {
       const insumos = await insumosAPI.listarPorCMD(id_cmd);
@@ -544,6 +551,8 @@ function CursoPrincipal() {
   };
 
   const cargarDatos = useCallback(async () => {
+    // El dashboard trae la fotografía inicial del curso. Después de guardar
+    // algo, las funciones específicas vuelven a cargar solo la sección afectada.
     try {
       setCargando(true);
       setError(null);
@@ -561,6 +570,8 @@ function CursoPrincipal() {
       const cursoActual = dashboard?.curso || curso;
       setCursoDetalle(cursoActual);
 
+      // El tutor puede revisar todo el curso; los demás docentes solo ven
+      // las materias que tienen asignadas dentro de ese mismo curso.
       const esTutorInstitucional =
         (localStorage.getItem("app_mode") || "institucional").toLowerCase() ===
           "institucional" &&
@@ -572,15 +583,20 @@ function CursoPrincipal() {
             (item) => item.id_docente === usuario.id_usuario,
           );
 
-      let asignacionesDocenteCurso = [];
-      try {
-        asignacionesDocenteCurso = await asignacionesAPI.listar({
-          id_curso: Number(id_curso),
-          size: 100,
-        });
-      } catch {
-        asignacionesDocenteCurso = [];
-      }
+      // Estas consultas no dependen entre sí. Ejecutarlas juntas evita que la
+      // pantalla espere una respuesta antes de iniciar la siguiente petición.
+      const [asignacionesDocenteCurso, cursosDisponibles] = await Promise.all([
+        asignacionesAPI
+          .listar({ id_curso: Number(id_curso), size: 100 })
+          .catch(() => []),
+        (esModoPersonal
+          ? cursosAPI.obtenerCursosPorDocente(usuario.id_usuario)
+          : cursosAPI.listar({ size: 100 })
+        ).catch((err) => {
+          console.error("Error al cargar cursos para edición:", err);
+          return [];
+        }),
+      ]);
 
       setMateriasGestionablesDocente(
         (asignacionesDocenteCurso || [])
@@ -588,6 +604,8 @@ function CursoPrincipal() {
           .filter(Boolean),
       );
       setMateriasCurso(cmd || []);
+      // Guardamos IDs normalizados como texto porque algunas respuestas de la
+      // API llegan como números y otras como strings.
       const gestionablesIds = new Set(
         (asignacionesDocenteCurso || [])
           .map((item) => item.id_cmd || item.cmd?.id_cmd || item.id_materia || item.materia?.id_materia)
@@ -604,16 +622,10 @@ function CursoPrincipal() {
       const estudiantes = dashboard?.estudiantes || [];
       setEstudiantesCurso(estudiantes || []);
 
-      try {
-        const cursosDisponibles = esModoPersonal
-          ? await cursosAPI.obtenerCursosPorDocente(usuario.id_usuario)
-          : await cursosAPI.listar({ size: 100 });
-        setCursosEdicion(cursosDisponibles || []);
-      } catch (err) {
-        console.error("Error al cargar cursos para edición:", err);
-        setCursosEdicion([]);
-      }
+      setCursosEdicion(cursosDisponibles || []);
 
+      // La configuración viene incluida en el dashboard. Si no hay periodos,
+      // mostramos una indicación útil en lugar de dejar un selector vacío.
       // Cargar periodizacion con el curso actual
       if (cursoActual) {
         setErrorPeriodos(null);
@@ -689,6 +701,8 @@ function CursoPrincipal() {
 
   // ====================== INSUMOS ======================
   const agregarInsumo = async () => {
+    // Primero validamos el formulario en el navegador y luego dejamos que el
+    // backend confirme periodo, permisos y duplicados antes de limpiar el form.
     if (!nuevoInsumo.nombre.trim() || !nuevoInsumo.ponderacion) {
       notify("error", "Debe completar nombre y ponderación");
       return;
@@ -731,6 +745,7 @@ function CursoPrincipal() {
         id_periodo: "",
       });
       await cargarInsumos(materiaSeleccionada.id_cmd);
+      notify("success", "Insumo creado correctamente");
     } catch (err) {
       notify("error", "Error al crear insumo: " + err.message);
     } finally {
@@ -745,6 +760,7 @@ function CursoPrincipal() {
     try {
       await insumosAPI.eliminar(id_insumo);
       await cargarInsumos(materiaSeleccionada.id_cmd);
+      notify("success", "Insumo eliminado correctamente");
     } catch (err) {
       notify("error", "Error al eliminar insumo: " + err.message);
     }
@@ -816,8 +832,10 @@ function CursoPrincipal() {
   );
 
   const guardarAsistenciaUno = async (id_estudiante, { silent = false } = {}) => {
+    // Si ya existe asistencia para esa fecha se actualiza; si no, se crea.
+    // Así el botón puede usarse varias veces sin generar registros duplicados.
     const estado = estadosTemporales[id_estudiante];
-    if (!estado) return;
+    if (!estado) return false;
 
     const existente = asistenciaExistentePorEstudiante(id_estudiante);
     const payload = {
@@ -837,8 +855,10 @@ function CursoPrincipal() {
       if (!silent) {
         notify("success", existente ? "Asistencia actualizada" : "Asistencia guardada");
       }
+      return true;
     } catch (err) {
-      notify("error", "No se pudo guardar: " + err.message);
+      if (!silent) notify("error", "No se pudo guardar: " + err.message);
+      return false;
     }
   };
 
@@ -865,20 +885,30 @@ function CursoPrincipal() {
 
   const guardarAsistenciaTodo = async () => {
     let guardadas = 0;
+    let fallidas = 0;
     for (const estudiante of estudiantesCurso) {
       if (estadosTemporales[estudiante.id_estudiante]) {
-        await guardarAsistenciaUno(estudiante.id_estudiante, { silent: true });
-        guardadas += 1;
+        const guardada = await guardarAsistenciaUno(estudiante.id_estudiante, { silent: true });
+        if (guardada) guardadas += 1;
+        else fallidas += 1;
       }
     }
     if (guardadas > 0) {
       notify("success", "Asistencia guardada correctamente");
     }
+    if (fallidas > 0) {
+      notify(
+        "error",
+        fallidas === 1
+          ? "1 registro no pudo guardarse. Revisa la fecha seleccionada."
+          : `${fallidas} registros no pudieron guardarse. Revisa la fecha seleccionada.`,
+      );
+    }
   };
 
   const comportamientoExistentePorEstudiante = (id_estudiante) =>
     comportamientos.find(
-      (c) => c.id_estudiante === id_estudiante && c.mes === comportamientoMes,
+      (c) => c.id_estudiante === id_estudiante && c.periodo === comportamientoMes,
     );
 
   const sincronizarEstadosTemporalesComportamiento = useCallback(
@@ -887,7 +917,7 @@ function CursoPrincipal() {
       const observaciones = {};
 
       (registros || [])
-        .filter((registro) => registro.mes === mes)
+        .filter((registro) => registro.periodo === mes)
         .forEach((registro) => {
           valores[registro.id_estudiante] = registro.valor;
           observaciones[registro.id_estudiante] = registro.observaciones || "";
@@ -910,15 +940,15 @@ function CursoPrincipal() {
     sincronizarEstadosTemporalesComportamiento,
   ]);
 
-  const guardarComportamientoUno = async (id_estudiante) => {
+  const guardarComportamientoUno = async (id_estudiante, { silent = false } = {}) => {
     const valor = valoresTemporales[id_estudiante];
-    if (!valor) return;
+    if (!valor) return false;
 
     const existente = comportamientoExistentePorEstudiante(id_estudiante);
     const payload = {
       id_curso: parseInt(id_curso, 10),
       id_estudiante: parseInt(id_estudiante, 10),
-      mes: comportamientoMes,
+      periodo: comportamientoMes,
       valor,
       observaciones: observacionesTemporales[id_estudiante] || "",
     };
@@ -930,9 +960,11 @@ function CursoPrincipal() {
         await comportamientoAPI.crear(payload);
       }
       await cargarComportamientos();
-      notify("success", "Comportamiento guardado correctamente");
+      if (!silent) notify("success", "Comportamiento guardado correctamente");
+      return true;
     } catch (err) {
-      notify("error", "No se pudo guardar: " + err.message);
+      if (!silent) notify("error", "No se pudo guardar: " + err.message);
+      return false;
     }
   };
 
@@ -992,6 +1024,8 @@ function CursoPrincipal() {
   }, [estudiantesCurso, insumosMateria, materiaSeleccionada]);
 
   const guardarNotaIndividual = async (registro, nuevoValor, idNotaAEliminar = null) => {
+    // Una celda vacía elimina la nota existente; un valor reemplaza o crea la
+    // nota. El backend sigue siendo quien valida el rango permitido.
     if (idNotaAEliminar) {
       try {
         await notasAPI.eliminar(idNotaAEliminar);
@@ -1052,10 +1086,25 @@ function CursoPrincipal() {
   };
 
   const guardarComportamientoTodo = async () => {
+    let guardados = 0;
+    let fallidos = 0;
     for (const estudiante of estudiantesCurso) {
       if (valoresTemporales[estudiante.id_estudiante]) {
-        await guardarComportamientoUno(estudiante.id_estudiante);
+        const guardado = await guardarComportamientoUno(estudiante.id_estudiante, { silent: true });
+        if (guardado) guardados += 1;
+        else fallidos += 1;
       }
+    }
+    if (guardados > 0) {
+      notify("success", `${guardados} registro${guardados === 1 ? "" : "s"} de comportamiento guardado${guardados === 1 ? "" : "s"}`);
+    }
+    if (fallidos > 0) {
+      notify(
+        "error",
+        fallidos === 1
+          ? "1 registro de comportamiento no pudo guardarse"
+          : `${fallidos} registros de comportamiento no pudieron guardarse`,
+      );
     }
   };
 
@@ -1100,7 +1149,7 @@ function CursoPrincipal() {
           onClick={() => setMenuUsuario(!menuUsuario)}
         >
           {datosUsuario
-            ? `${datosUsuario.nombre} ${datosUsuario.apellido}`
+            ? nombrePersona(datosUsuario)
             : "Usuario"}
         </div>
 
@@ -1159,7 +1208,7 @@ function CursoPrincipal() {
             </p>
             {esModoPersonal && (
               <div className="course-setup-actions course-setup-actions-primary">
-                <button type="button" className="btn-primary" onClick={abrirModalAgregarMateria}>
+                <button type="button" className="btn-success" onClick={abrirModalAgregarMateria}>
                   <BookOpen size={14} />
                   <span>Añadir materia</span>
                 </button>
@@ -1169,25 +1218,18 @@ function CursoPrincipal() {
         ) : (
           <>
             <div className="course-summary">
-                <div>
+                <div className="course-summary-main">
                   <p className="summary-label">Curso</p>
-                  <h3>{cursoDetalle?.nombre || "Curso"}</h3>
-                  <p className="summary-sub">
-                    Año lectivo: {cursoDetalle?.anio_lectivo || "-"}
-                  </p>
+                  <h3 className="course-summary-title">{cursoDetalle?.nombre || "Curso"}</h3>
                   {soloLecturaTutor && (
                     <p className="summary-sub" style={{ color: "#1f91de", fontWeight: 700 }}>
                       Tutor del curso · Vista global en solo lectura
                     </p>
                   )}
                 </div>
-                <div className="summary-badge">
-                  <span>{materiasCurso.length}</span>
-                  <small>Materias</small>
-                </div>
-                <div className="summary-badge">
-                  <span>{estudiantesCurso.length}</span>
-                  <small>Estudiantes</small>
+                <div className="course-summary-year">
+                  <span>Año lectivo</span>
+                  <strong>{cursoDetalle?.anio_lectivo || "-"}</strong>
                 </div>
             </div>
 
@@ -1200,19 +1242,17 @@ function CursoPrincipal() {
                 <div className="stat-card">
                   <p className="stat-label">Estudiantes</p>
                   <h3 className="stat-value">{estudiantesCurso.length}</h3>
-                  <p className="stat-sub">Puedes buscar, registrar y evaluar</p>
+                  <p className="stat-sub">Matriculados en este curso</p>
                 </div>
                 <div className="stat-card">
                   <p className="stat-label">Insumos</p>
                   <h3 className="stat-value">{insumosMateria.length}</h3>
-                  <p className="stat-sub">
-                    Peso de actividades, proyectos y exámenes
-                  </p>
+                  <p className="stat-sub">Actividades, proyecto y examen</p>
                 </div>
                 <div className="stat-card">
                   <p className="stat-label">Periodos</p>
                   <h3 className="stat-value">{periodos.length}</h3>
-                  <p className="stat-sub">Base para notas y promedios</p>
+                  <p className="stat-sub">Configurados para este año</p>
                 </div>
             </div>
 
@@ -1445,7 +1485,8 @@ function CursoPrincipal() {
                 estudiantesCurso={estudiantesCurso}
                 mesComportamiento={comportamientoMes}
                 setMesComportamiento={setComportamientoMes}
-                soloLecturaTutor={soloLecturaTutor}
+                periodos={periodos}
+                soloLecturaTutor={false}
                 valoresTemporales={valoresTemporales}
                 setValoresTemporales={setValoresTemporales}
                 observacionesTemporales={observacionesTemporales}
@@ -1483,6 +1524,7 @@ function CursoPrincipal() {
                 periodos={periodos}
                 insumosMateria={insumosMateria}
                 notasPorEstudiante={notasPorEstudiante}
+                materiasCurso={materiasCurso}
                 materiaSeleccionada={materiaSeleccionada}
                 cursoDetalle={cursoDetalle}
             />
@@ -1523,6 +1565,14 @@ function CursoPrincipal() {
                   }
                   await abrirInsumosNotas(insumoNotasAbierto);
                   await cargarNotasCurso();
+                  notify(
+                    "success",
+                    valor === null
+                      ? "Nota eliminada correctamente"
+                      : notaExistente
+                        ? "Nota actualizada correctamente"
+                        : "Nota guardada correctamente",
+                  );
                 }}
                 onClose={cerrarModalInsumo}
               />
@@ -1710,7 +1760,7 @@ function CursoPrincipal() {
                   <X size={14} />
                   <span>Cancelar</span>
                 </button>
-                <button className="btn-save btn-save-inline" type="button" onClick={guardarMateriaAlCurso} disabled={guardandoMateriaCurso || materiasAgregarSeleccionadas.length === 0}>
+                <button className="btn-save btn-save-inline course-add-materia-save" type="button" onClick={guardarMateriaAlCurso} disabled={guardandoMateriaCurso || materiasAgregarSeleccionadas.length === 0}>
                   <Save size={16} />
                   <span>{guardandoMateriaCurso ? "Guardando..." : "Agregar materias"}</span>
                 </button>
@@ -1902,6 +1952,11 @@ function CursoPrincipal() {
           cursoFijoId={String(id_curso)}
           titulo="Importar estudiantes"
           subtitulo="Carga un Excel y revisa los datos antes de guardarlos en este curso."
+        />
+
+        <AnalisisAcademico
+          idCurso={id_curso}
+          nombreCurso={cursoDetalle?.nombre || curso?.nombre}
         />
 
       </div>

@@ -8,7 +8,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Plus,
-  SlidersHorizontal,
+  BookOpen,
 } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import { estructurasAcademicasAPI, materiasAPI } from "../../services/api";
@@ -228,8 +228,9 @@ function MateriasAdmin() {
       if (editando) await materiasAPI.actualizar(editando.id_materia, form);
       else await materiasAPI.crear(form);
       setModalOpen(false);
-      cargar();
+      await cargar();
       await cargarCatalogo();
+      notify("success", editando ? "Materia actualizada" : "Materia creada");
     } catch (e) {
       notify("error", e.message || "Error al guardar");
     }
@@ -271,6 +272,7 @@ function MateriasAdmin() {
         obligatoria: true,
       });
       await cargarMateriasEstructura(estructuraSeleccionada);
+      notify("success", "Materia agregada a la plantilla");
     } catch (e) {
       notify("error", e.message || "No se pudo agregar la materia");
     }
@@ -323,6 +325,7 @@ function MateriasAdmin() {
     try {
       await estructurasAcademicasAPI.eliminarMateria(estructuraSeleccionada, idMateria);
       await cargarMateriasEstructura(estructuraSeleccionada);
+      notify("success", "Materia retirada de la plantilla");
     } catch (e) {
       notify("error", e.message || "No se pudo retirar la materia");
     }
@@ -335,6 +338,7 @@ function MateriasAdmin() {
       await materiasAPI.eliminar(m.id_materia);
       cargar();
       await cargarCatalogo();
+      notify("success", "Materia eliminada");
     } catch (e) {
       notify("error", e.message || "No se pudo eliminar");
     }
@@ -404,7 +408,7 @@ function MateriasAdmin() {
                           type="button"
                           onClick={() => abrirConfigurarEstructura(estructura)}
                         >
-                          <SlidersHorizontal size={14} style={{ verticalAlign: "middle" }} />
+                          <BookOpen size={14} style={{ verticalAlign: "middle" }} />
                           Materias
                         </button>
                         <button

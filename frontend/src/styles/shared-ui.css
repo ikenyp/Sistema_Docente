@@ -1,0 +1,48 @@
+.navbar-user {
+  position: relative;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 10px;
+  padding: 0.48rem 0.8rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s,
+    background 0.2s;
+}
+
+.navbar-user:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.24);
+  box-shadow: 0 8px 14px rgba(38, 62, 106, 0.26);
+}
+
+.menu-usuario {
+  position: absolute;
+  top: 68px;
+  right: 12px;
+  min-width: 180px;
+  background: #fff;
+  border: 1px solid #dde5f4;
+  border-radius: 12px;
+  padding: 0.35rem;
+  box-shadow: 0 14px 28px rgba(25, 37, 62, 0.2);
+  z-index: 80;
+}
+
+.menu-usuario button {
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #25304a;
+  text-align: left;
+  padding: 0.62rem 0.75rem;
+  cursor: pointer;
+}
+
+.menu-usuario button:hover {
+  background: linear-gradient(135deg, #2f72b5 0%, #4f5ebf 100%);
+  color: #fff;
+}

@@ -1,7 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Download, FileSpreadsheet } from "lucide-react";
-import * as XLSX from "xlsx-js-style";
+import { FileSpreadsheet } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
+import { asistenciaAPI, insumosAPI, notasAPI } from "../../../services/api";
+import { notify } from "../../../components/notify";
+
+let XLSX;
+
+const loadXlsx = async () => {
+  if (!XLSX) {
+    const module = await import("xlsx-js-style");
+    XLSX = module.default || module;
+  }
+  return XLSX;
+};
 
 const COL_BORDER = { style: "thin", color: { rgb: "C9D4E6" } };
 const DARK_BLUE = "2F5597";
@@ -29,6 +40,27 @@ const toNumber = (value) => {
 const scoreOrZero = (value) => {
   const n = toNumber(value);
   return n === null ? 0 : n;
+};
+
+const promedioFijoTrimestre = (insumos, notasPorInsumo, periodoId) => {
+  const delPeriodo = (insumos || []).filter(
+    (insumo) => String(insumo.id_periodo) === String(periodoId),
+  );
+  if (!delPeriodo.length) return null;
+
+  const grupos = {
+    actividades: delPeriodo.filter((insumo) => getTipoBase(insumo.tipo_insumo).includes("actividad")),
+    proyecto: delPeriodo.filter((insumo) => getTipoBase(insumo.tipo_insumo).includes("proyecto")),
+    examen: delPeriodo.filter((insumo) => getTipoBase(insumo.tipo_insumo).includes("examen")),
+  };
+  const promedioGrupo = (grupo) =>
+    grupo.length
+      ? grupo.reduce((total, insumo) => total + scoreOrZero(notasPorInsumo.get(String(insumo.id_insumo))), 0) / grupo.length
+      : 0;
+
+  return promedioGrupo(grupos.actividades) * 0.7
+    + promedioGrupo(grupos.proyecto) * 0.1
+    + promedioGrupo(grupos.examen) * 0.2;
 };
 
 const qualitative = (value) => {
@@ -79,6 +111,7 @@ const buildNotaMap = (notasPorEstudiante) => {
 };
 
 const getGroupMaxScore = (groupKey) => {
+  // El reporte oficial conserva la escala completa, aunque aún falte un grupo.
   if (groupKey === "activities") return 7;
   if (groupKey === "projects") return 1;
   if (groupKey === "exams") return 2;
@@ -617,7 +650,7 @@ const PreviewTable = ({ model, compact = false }) => {
           {Array.from({ length: model.totalCols }).map((_, idx) => (
             <col
               key={idx}
-              className={idx === 1 ? "preview-col-name" : "preview-col-default"}
+              className={idx === 0 ? "preview-col-number" : idx === 1 ? "preview-col-name" : "preview-col-default"}
             />
           ))}
         </colgroup>
@@ -660,12 +693,16 @@ export const TabReportes = ({
   insumosMateria = [],
   notasPorEstudiante = {},
   materiaSeleccionada,
+  materiasCurso = [],
   cursoDetalle,
   compactPreview = false,
 }) => {
+  // Genera el resultado oficial y mantiene siempre las ponderaciones 70/10/20.
   const [periodoId, setPeriodoId] = useState("");
   const [generando, setGenerando] = useState(false);
-  const [previewMode, setPreviewMode] = useState("trimestre");
+  const [reportType, setReportType] = useState("trimestre");
+  const [estudianteReporteId, setEstudianteReporteId] = useState("");
+  const [reporteIndividualPreview, setReporteIndividualPreview] = useState(null);
 
   const periodosOrdenados = useMemo(
     () => [...periodos].sort((a, b) => Number(a.numero_periodo) - Number(b.numero_periodo)),
@@ -703,14 +740,15 @@ export const TabReportes = ({
     });
   }, [periodosOrdenados, estudiantesCurso, insumosMateria, notasPorEstudiante, materiaSeleccionada, cursoDetalle]);
 
-  const previewModel = previewMode === "general" ? previewGeneralModel : previewTrimestreModel;
+  const previewModel = reportType === "anual" ? previewGeneralModel : previewTrimestreModel;
 
   if (activeTab !== "reportes") return null;
 
-  const exportarTrimestre = () => {
+  const exportarTrimestre = async () => {
     if (!periodoId) return;
     setGenerando(true);
     try {
+      await loadXlsx();
       const periodo = periodosOrdenados.find((p) => String(p.id_periodo) === String(periodoId));
       const wb = XLSX.utils.book_new();
       const report = buildPeriodSheet({
@@ -728,9 +766,10 @@ export const TabReportes = ({
     }
   };
 
-  const exportarGeneral = () => {
+  const exportarGeneral = async () => {
     setGenerando(true);
     try {
+      await loadXlsx();
       const wb = XLSX.utils.book_new();
       const periodResults = periodosOrdenados.map((periodo) =>
         buildPeriodSheet({
@@ -761,6 +800,102 @@ export const TabReportes = ({
     }
   };
 
+  const cargarReporteIndividual = async (idEstudiante = estudianteReporteId) => {
+      const estudiante = estudiantesCurso.find(
+        (item) => String(item.id_estudiante) === String(idEstudiante),
+      );
+      const [notas, asistencias, insumosPorMateria] = await Promise.all([
+        notasAPI.listar({ id_estudiante: idEstudiante, size: 100 }),
+        asistenciaAPI.listar({ id_estudiante: idEstudiante, size: 100 }),
+        Promise.all(
+          materiasCurso.map(async (asignacion) => [
+            asignacion,
+            await insumosAPI.listarPorCMD(asignacion.id_cmd),
+          ]),
+        ),
+      ]);
+      const notasPorInsumo = new Map(
+        (notas || []).map((nota) => [
+          String(nota.id_insumo),
+          nota.valor ?? nota.calificacion,
+        ]),
+      );
+      const filas = insumosPorMateria.map(([asignacion, insumos]) => {
+        const promedios = periodosOrdenados.map((periodo) =>
+          promedioFijoTrimestre(insumos, notasPorInsumo, periodo.id_periodo),
+        );
+        return [
+          asignacion.materia?.nombre || asignacion.nombre_materia || "Materia",
+          ...promedios.map((valor) => valor === null ? "" : Number(valor.toFixed(2))),
+          Number((promedios.reduce((total, valor) => total + (valor ?? 0), 0) / 3).toFixed(2)),
+        ];
+      });
+      const totalAsistencia = (asistencias || []).length;
+      const justificadas = (asistencias || []).filter((item) => item.estado === "justificado").length;
+      const ausencias = (asistencias || []).filter((item) => item.estado === "ausente").length;
+      const presentes = (asistencias || []).filter((item) => item.estado === "presente").length;
+      return {
+        estudiante,
+        filas,
+        asistencia: { totalAsistencia, justificadas, ausencias, presentes },
+      };
+  };
+
+  const previsualizarReporteIndividual = async (idEstudiante = estudianteReporteId) => {
+    if (!idEstudiante || !cursoDetalle?.id_curso) return;
+    setGenerando(true);
+    try {
+      setReporteIndividualPreview(await cargarReporteIndividual(idEstudiante));
+    } catch (error) {
+      notify("error", error.message || "No se pudo cargar el reporte individual");
+    } finally {
+      setGenerando(false);
+    }
+  };
+
+  const exportarReporteIndividual = async () => {
+    if (!estudianteReporteId || !cursoDetalle?.id_curso) return;
+    setGenerando(true);
+    try {
+      await loadXlsx();
+      const reporte = reporteIndividualPreview || await cargarReporteIndividual();
+      const { estudiante, filas, asistencia } = reporte;
+      const ws = XLSX.utils.aoa_to_sheet([
+        ["REPORTE INDIVIDUAL"],
+        ["Nombre", studentLabel(estudiante)],
+        ["Curso", cursoDetalle.nombre || ""],
+        ["Año lectivo", cursoDetalle.anio_lectivo || ""],
+        [],
+        ["MATERIA", "PERIODOS", "", "", "PROMEDIO ANUAL"],
+        ["", "PRIMERO", "SEGUNDO", "TERCERO", ""],
+        ...filas,
+        [],
+        ["ASISTENCIA", "JUSTIFICACIÓN", "INJUSTIFICADO", "TOTAL ASISTENCIA"],
+        ["", asistencia.justificadas, asistencia.ausencias, asistencia.totalAsistencia],
+      ]);
+      ws["A1"].s = { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: DARK_BLUE } } };
+      ws["A6"].s = { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: DARK_BLUE } }, alignment: { horizontal: "center" } };
+      ws["B6"].s = ws["A6"].s;
+      ws["C6"].s = ws["A6"].s;
+      ws["D6"].s = ws["A6"].s;
+      ws["E6"].s = ws["A6"].s;
+      ["A7", "B7", "C7", "D7", "E7"].forEach((cell) => { ws[cell].s = ws["A6"].s; });
+      ws["!merges"] = [
+        { s: { r: 5, c: 1 }, e: { r: 5, c: 3 } },
+        { s: { r: 5, c: 0 }, e: { r: 6, c: 0 } },
+        { s: { r: 5, c: 4 }, e: { r: 6, c: 4 } },
+      ];
+      ws["!cols"] = [{ wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 18 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Reporte individual");
+      XLSX.writeFile(wb, `reporte_${studentLabel(estudiante).replace(/\s+/g, "_") || "estudiante"}.xlsx`);
+    } catch (error) {
+      notify("error", error.message || "No se pudo generar el reporte individual");
+    } finally {
+      setGenerando(false);
+    }
+  };
+
   return (
     <div className="panel-card tab-pane active">
       <div className="panel-header">
@@ -770,54 +905,118 @@ export const TabReportes = ({
         </div>
       </div>
 
-      <div className="reportes-box">
-        <div className="reportes-card">
-          <h4>Reporte por trimestre</h4>
-          <p>Genera una hoja Excel con encabezados agrupados y calificaciones por insumo.</p>
-          <div style={{ marginBottom: "1rem" }}>
+      <div className="reportes-box reportes-selector-cards">
+        <div role="button" tabIndex="0" className={`reportes-card reportes-card-selectable ${reportType === "individual" ? "active" : ""}`} onClick={() => setReportType("individual")} onKeyDown={(event) => event.key === "Enter" && setReportType("individual")}>
+          <h4>Reporte individual</h4>
+          <p>Un estudiante, todas sus materias y sus tres periodos.</p>
+          {reportType === "individual" && (
+            <CustomSelect
+              value={estudianteReporteId}
+              onChange={(value) => {
+                setReportType("individual");
+                setEstudianteReporteId(value);
+                setReporteIndividualPreview(null);
+                previsualizarReporteIndividual(value);
+              }}
+              options={[...estudiantesCurso]
+                .sort((a, b) => studentLabel(a).localeCompare(studentLabel(b), "es"))
+                .map((estudiante) => ({
+                  value: String(estudiante.id_estudiante),
+                  label: studentLabel(estudiante),
+                }))}
+              placeholder="Selecciona estudiante"
+              className="custom-select-white"
+              searchable
+              searchPlaceholder="Buscar estudiante..."
+            />
+          )}
+        </div>
+
+        <div role="button" tabIndex="0" className={`reportes-card reportes-card-selectable ${reportType === "trimestre" ? "active" : ""}`} onClick={() => setReportType("trimestre")} onKeyDown={(event) => event.key === "Enter" && setReportType("trimestre")}>
+          <h4>Reporte por periodo</h4>
+          <p>Todos los estudiantes de la materia y un periodo.</p>
+          {reportType === "trimestre" && (
             <CustomSelect
               value={periodoId}
               onChange={setPeriodoId}
-              options={periodosOrdenados.map((periodo) => ({
-                value: String(periodo.id_periodo),
-                label: periodo.nombre_periodo || `Trimestre ${periodo.numero_periodo}`,
-              }))}
-              placeholder="Selecciona trimestre"
+              options={periodosOrdenados.map((periodo) => ({ value: String(periodo.id_periodo), label: periodo.nombre_periodo || `Periodo ${periodo.numero_periodo}` }))}
+              placeholder="Selecciona periodo"
               className="custom-select-white"
             />
-          </div>
-          <button type="button" className="btn-primary btn-inline-icon" onClick={exportarTrimestre} disabled={generando || !periodoId}>
-            <Download size={16} />
-            Exportar Excel
-          </button>
+          )}
         </div>
 
-        <div className="reportes-card">
-          <h4>Reporte general</h4>
-          <p>Exporta todos los trimestres y un consolidado final en un mismo archivo.</p>
-          <button type="button" className="btn-success btn-inline-icon" onClick={exportarGeneral} disabled={generando}>
-            <FileSpreadsheet size={16} />
-            Exportar Excel general
-          </button>
+        <div role="button" tabIndex="0" className={`reportes-card reportes-card-selectable ${reportType === "anual" ? "active" : ""}`} onClick={() => setReportType("anual")} onKeyDown={(event) => event.key === "Enter" && setReportType("anual")}>
+          <h4>Reporte anual</h4>
+          <p>Todos los estudiantes y periodos de la materia.</p>
         </div>
       </div>
 
       <div className="reportes-preview-card">
         <div className="reportes-preview-head">
           <div>
-            <h4>Previsualización</h4>
-            <p>Vista previa de cómo quedará el Excel antes de exportarlo.</p>
+              <h4>Previsualización {reportType === "individual" ? "individual" : reportType === "anual" ? "anual" : "por periodo"}</h4>
+              <p>Vista previa del reporte seleccionado antes de exportarlo.</p>
           </div>
-          <div className="reportes-preview-toggle">
-            <button type="button" className={`preview-toggle-btn ${previewMode === "trimestre" ? "active" : ""}`} onClick={() => setPreviewMode("trimestre")}>
-              Trimestre
-            </button>
-            <button type="button" className={`preview-toggle-btn ${previewMode === "general" ? "active" : ""}`} onClick={() => setPreviewMode("general")}>
-              General
-            </button>
-          </div>
+          <button
+            type="button"
+            className="btn-primary btn-inline-icon"
+            onClick={reportType === "individual" ? exportarReporteIndividual : reportType === "anual" ? exportarGeneral : exportarTrimestre}
+            disabled={generando || (reportType === "individual" && !estudianteReporteId) || (reportType === "trimestre" && !periodoId)}
+          >
+            <FileSpreadsheet size={16} />
+            {reportType === "individual" ? "Exportar Excel individual" : reportType === "anual" ? "Exportar Excel anual" : "Exportar Excel del periodo"}
+          </button>
         </div>
-        {previewModel ? (
+        {reportType === "individual" && reporteIndividualPreview ? (
+          <>
+            <div className="individual-report-student-info">
+              <p><strong>Nombre:</strong> {studentLabel(reporteIndividualPreview.estudiante)}</p>
+              <p><strong>Curso:</strong> {cursoDetalle?.nombre || "-"}</p>
+            </div>
+            <div className="reportes-preview-table-wrap">
+              <table className="reportes-preview-table individual-report-table">
+                <thead>
+                  <tr>
+                    <th rowSpan="2">Materia</th>
+                    <th colSpan="3">Periodos</th>
+                    <th rowSpan="2">Promedio anual</th>
+                  </tr>
+                  <tr>
+                    <th>Primero</th>
+                    <th>Segundo</th>
+                    <th>Tercero</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reporteIndividualPreview.filas.map((fila) => (
+                    <tr key={fila[0]}>
+                      {fila.map((valor, index) => <td key={`${fila[0]}-${index}`}>{valor === "" ? "-" : valor}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <table className="reportes-preview-table reportes-attendance-table">
+              <thead>
+                <tr>
+                  <th>Asistencia</th>
+                  <th>Justificación</th>
+                  <th>Injustificado</th>
+                  <th>Total asistencia</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td />
+                  <td>{reporteIndividualPreview.asistencia.justificadas}</td>
+                  <td>{reporteIndividualPreview.asistencia.ausencias}</td>
+                  <td>{reporteIndividualPreview.asistencia.totalAsistencia}</td>
+                </tr>
+              </tbody>
+            </table>
+          </>
+        ) : previewModel ? (
           <PreviewTable model={previewModel} compact={compactPreview} />
         ) : (
           <div className="reportes-preview-empty">No hay datos suficientes para mostrar la previsualización.</div>

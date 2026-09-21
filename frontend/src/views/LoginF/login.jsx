@@ -3,10 +3,15 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import "../../styles/login.css";
 import { clearSessionStorage, scheduleSessionWatch } from "../../services/session";
 import { API_ROOT_URL } from "../../services/apiConfig";
+import { requestHttp } from "../../services/http";
+import { validarContrasena } from "../../utils/password";
 
 export default function Login() {
+  // Esta pantalla contiene tres flujos relacionados: iniciar sesión, registrar
+  // una cuenta personal y recuperar la contraseña.
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [mostrarPassword, setMostrarPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedMode, setSelectedMode] = useState("");
@@ -17,10 +22,12 @@ export default function Login() {
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState("");
+  const [mostrarRegistroPassword, setMostrarRegistroPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
+  const [mostrarNuevaPassword, setMostrarNuevaPassword] = useState(false);
   const [success, setSuccess] = useState("");
   const navigate = useNavigate();
 
@@ -32,6 +39,15 @@ export default function Login() {
       (modeParam === "personal" || modeParam === "institucional")
     ) {
       setSelectedMode(modeParam);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const tokenParam = searchParams.get("token");
+    if (searchParams.get("view") === "recover" && tokenParam) {
+      setAuthView("recover");
+      setResetToken(tokenParam);
+      setSelectedMode("institucional");
     }
   }, [searchParams]);
 
@@ -71,18 +87,10 @@ export default function Login() {
 
       const appMode = selectedMode || "institucional";
 
-      const res = await fetch(`${API_ROOT_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "X-App-Mode": appMode,
-        },
-        body: form.toString(),
+      const data = await requestHttp(`${API_ROOT_URL}/auth/login`, "POST", form, {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-App-Mode": appMode,
       });
-
-      if (!res.ok) throw new Error("Credenciales inválidas");
-
-      const data = await res.json();
       const role = (data.role ?? data.rol ?? "").toLowerCase();
       if (!role) throw new Error("No se pudo iniciar sesión, intenta de nuevo");
 
@@ -92,17 +100,11 @@ export default function Login() {
       scheduleSessionWatch(data.access_token);
 
       // Obtener datos completos del usuario
-      const userRes = await fetch(`${API_ROOT_URL}/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${data.access_token}`,
-          "X-App-Mode": appMode,
-        },
+      const usuario = await requestHttp(`${API_ROOT_URL}/auth/me`, "GET", null, {
+        Authorization: `Bearer ${data.access_token}`,
+        "X-App-Mode": appMode,
       });
-
-      if (userRes.ok) {
-        const usuario = await userRes.json();
-        localStorage.setItem("usuario", JSON.stringify(usuario));
-      }
+      localStorage.setItem("usuario", JSON.stringify(usuario));
 
       if (appMode === "personal") {
         if (role === "docente") navigate("/docente");
@@ -126,25 +128,20 @@ export default function Login() {
       setError("Las contraseñas no coinciden");
       return;
     }
+    const errorContrasena = validarContrasena(registerPassword);
+    if (errorContrasena) {
+      setError(errorContrasena);
+      return;
+    }
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_ROOT_URL}/auth/register-personal`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-App-Mode": "personal",
-        },
-        body: JSON.stringify({
+      await requestHttp(`${API_ROOT_URL}/auth/register-personal`, "POST", {
           nombre: registerName,
           apellido: registerLastName,
           correo: registerEmail,
           contrasena: registerPassword,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "No se pudo crear la cuenta");
+        }, { "Content-Type": "application/json", "X-App-Mode": "personal" });
 
       setSuccess("Cuenta creada. Ya puedes iniciar sesión.");
       clearRegisterFields();
@@ -161,21 +158,10 @@ export default function Login() {
     resetFlowMessages();
     setLoading(true);
     try {
-      const res = await fetch(`${API_ROOT_URL}/auth/password-reset/request`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ correo: resetEmail }),
-      });
+      const data = await requestHttp(`${API_ROOT_URL}/auth/password-reset/request`, "POST", { correo: resetEmail }, { "Content-Type": "application/json" });
 
-      const data = await res.json();
-      if (!res.ok)
-        throw new Error(data.detail || "No se pudo generar la recuperación");
-
-      setResetToken(data.token || "");
       setSuccess(
-        "Se generó un token temporal de recuperación. Continúa con el cambio.",
+        data.mensaje || "Si la cuenta existe, recibirás instrucciones de recuperación.",
       );
     } catch (err) {
       setError(err.message || "Error al solicitar recuperación");
@@ -192,23 +178,18 @@ export default function Login() {
       setError("Las contraseñas no coinciden");
       return;
     }
+    const errorContrasena = validarContrasena(newPassword);
+    if (errorContrasena) {
+      setError(errorContrasena);
+      return;
+    }
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_ROOT_URL}/auth/password-reset/confirm`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      await requestHttp(`${API_ROOT_URL}/auth/password-reset/confirm`, "POST", {
           token: resetToken,
           nueva_contrasena: newPassword,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok)
-        throw new Error(data.detail || "No se pudo cambiar la contraseña");
+        }, { "Content-Type": "application/json" });
 
       setSuccess("Contraseña actualizada. Ya puedes iniciar sesión.");
       clearRecoveryFields();
@@ -226,7 +207,7 @@ export default function Login() {
         <div className="system-header">
           <div className="system-icon">🎓</div>
           <h1 className="system-title">
-            Sistema Inteligente de Gestión Estudiantil
+            Sistema Docente
           </h1>
         </div>
 
@@ -241,7 +222,7 @@ export default function Login() {
             <>
               <h2 className="login-title">Bienvenido</h2>
               <p className="login-subtitle">
-                ¿En qué modo quieres usar el sistema?
+                Elige cómo quieres ingresar
               </p>
               <div className="mode-selector">
                 <button
@@ -249,14 +230,18 @@ export default function Login() {
                   type="button"
                   onClick={() => setSelectedMode("institucional")}
                 >
-                  🏫 Institucional
+                  <span className="mode-icon">🏫</span>
+                  <span>Institucional</span>
+                  <small>Gestionado por la institución</small>
                 </button>
                 <button
                   className="login-button"
                   type="button"
                   onClick={() => setSelectedMode("personal")}
                 >
-                  👤 Personal
+                  <span className="mode-icon">👤</span>
+                  <span>Personal</span>
+                  <small>Tu espacio docente independiente</small>
                 </button>
               </div>
             </>
@@ -269,13 +254,12 @@ export default function Login() {
                   </h2>
                 </>
               ) : (
-                <h2 className="login-title">
-                  Iniciar Sesión (
-                  {selectedMode === "institucional"
-                    ? "Institucional"
-                    : "Personal"}
-                  )
-                </h2>
+                <>
+                  <h2 className="login-title">Iniciar sesión</h2>
+                  <p className="login-context-note">
+                    Acceso {selectedMode === "institucional" ? "institucional" : "personal"}
+                  </p>
+                </>
               )}
 
               {authView === "login" && (
@@ -289,14 +273,17 @@ export default function Login() {
                     required
                   />
 
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Contraseña"
-                    className="login-input"
-                    required
-                  />
+                  <div className="password-field">
+                    <input
+                      type={mostrarPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Contraseña"
+                      className="login-input"
+                      required
+                    />
+                    <button type="button" className="password-toggle" onClick={() => setMostrarPassword((value) => !value)}>{mostrarPassword ? "Ocultar" : "Mostrar"}</button>
+                  </div>
                   {(error || success) && (
                     <div className={error ? "login-error" : "login-success"}>
                       {error || success}
@@ -391,15 +378,17 @@ export default function Login() {
                       required
                     />
                     <input
-                      type="password"
+                      type={mostrarRegistroPassword ? "text" : "password"}
                       value={registerPassword}
                       onChange={(e) => setRegisterPassword(e.target.value)}
                       placeholder="Contraseña"
                       className="login-input"
                       required
+                      minLength={8}
+                      autoComplete="new-password"
                     />
                     <input
-                      type="password"
+                      type={mostrarRegistroPassword ? "text" : "password"}
                       value={registerConfirmPassword}
                       onChange={(e) =>
                         setRegisterConfirmPassword(e.target.value)
@@ -407,7 +396,10 @@ export default function Login() {
                       placeholder="Confirmar contraseña"
                       className="login-input"
                       required
+                      minLength={8}
+                      autoComplete="new-password"
                     />
+                    <button type="button" className="password-toggle register-password-toggle" onClick={() => setMostrarRegistroPassword((value) => !value)}>{mostrarRegistroPassword ? "Ocultar contraseñas" : "Mostrar contraseñas"}</button>
                   </div>
                   {(error || success) && (
                     <div className={error ? "login-error" : "login-success"}>
@@ -482,21 +474,26 @@ export default function Login() {
                         required
                       />
                       <input
-                        type="password"
+                        type={mostrarNuevaPassword ? "text" : "password"}
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="Nueva contraseña"
                         className="login-input"
                         required
+                        minLength={8}
+                        autoComplete="new-password"
                       />
                       <input
-                        type="password"
+                        type={mostrarNuevaPassword ? "text" : "password"}
                         value={newPasswordConfirm}
                         onChange={(e) => setNewPasswordConfirm(e.target.value)}
                         placeholder="Confirmar nueva contraseña"
                         className="login-input"
                         required
+                        minLength={8}
+                        autoComplete="new-password"
                       />
+                      <button type="button" className="password-toggle register-password-toggle" onClick={() => setMostrarNuevaPassword((value) => !value)}>{mostrarNuevaPassword ? "Ocultar contraseñas" : "Mostrar contraseñas"}</button>
                       {(error || success) && (
                         <div
                           className={error ? "login-error" : "login-success"}

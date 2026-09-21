@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from "react";
+import { calcularPromedioInteractivo } from "../../../utils/promedios";
+import { nombrePersona } from "../../../utils/personas";
 
 const toNumber = (value) => {
   const n = Number.parseFloat(value);
@@ -21,35 +23,6 @@ const getTipoBadge = (tipo) => {
   return { label: "A", title: "Actividad" };
 };
 
-const getWeightConfig = (grouped) => {
-  const hasActividad = (grouped.actividades || []).length > 0;
-  const hasProyecto = (grouped.proyectos || []).length > 0;
-  const hasExamen = (grouped.examenes || []).length > 0;
-
-  if (hasActividad && hasProyecto && hasExamen) {
-    return { actividades: 70, proyecto: 10, examen: 20 };
-  }
-  if (hasActividad && hasProyecto && !hasExamen) {
-    return { actividades: 70, proyecto: 30, examen: 0 };
-  }
-  if (hasActividad && !hasProyecto && hasExamen) {
-    return { actividades: 70, proyecto: 0, examen: 30 };
-  }
-  if (hasActividad && !hasProyecto && !hasExamen) {
-    return { actividades: 100, proyecto: 0, examen: 0 };
-  }
-  if (!hasActividad && hasProyecto && hasExamen) {
-    return { actividades: 0, proyecto: 50, examen: 50 };
-  }
-  if (!hasActividad && hasProyecto && !hasExamen) {
-    return { actividades: 0, proyecto: 100, examen: 0 };
-  }
-  if (!hasActividad && !hasProyecto && hasExamen) {
-    return { actividades: 0, proyecto: 0, examen: 100 };
-  }
-  return { actividades: 0, proyecto: 0, examen: 0 };
-};
-
 const getNotaKey = (registro) => {
   const insumoId = registro?.insumo?.id_insumo ?? registro?.id_insumo;
   const estudianteId = registro?.id_estudiante ?? registro?.estudiante?.id_estudiante;
@@ -63,6 +36,8 @@ export const TabPromedios = ({
   insumosMateria = [],
   notasPorEstudiante = {},
 }) => {
+  // Resume el rendimiento del curso con los componentes que ya están cargados;
+  // no sustituye al reporte oficial.
   const [filaExpandida, setFilaExpandida] = useState(null);
 
   const periodosOrdenados = useMemo(
@@ -105,35 +80,10 @@ export const TabPromedios = ({
       .map((estudiante) => {
       const porPeriodo = periodosOrdenados.map((periodo) => {
         const insumos = insumosPorPeriodo.get(String(periodo.id_periodo)) || [];
-        const grouped = { actividades: [], proyectos: [], examenes: [] };
-
-        insumos.forEach((insumo) => {
-          const nota = notaPorInsumo.get(`${estudiante.id_estudiante}:${insumo.id_insumo}`);
-          const item = {
-            id_insumo: insumo.id_insumo,
-            nombre: insumo.nombre,
-            tipo_insumo: insumo.tipo_insumo,
-            nota: nota === undefined ? 0 : nota,
-          };
-
-          const tipo = getTipoBase(insumo.tipo_insumo);
-          if (tipo.includes("actividad")) grouped.actividades.push(item);
-          else if (tipo.includes("proyecto")) grouped.proyectos.push(item);
-          else if (tipo.includes("examen")) grouped.examenes.push(item);
-          else grouped.actividades.push(item);
-        });
-
-        const weights = getWeightConfig(grouped);
-        const avgGroup = (arr) =>
-          arr.length ? arr.reduce((acc, item) => acc + scoreOrZero(item.nota), 0) / arr.length : null;
-        const promedioActividades = avgGroup(grouped.actividades);
-        const promedioProyecto = avgGroup(grouped.proyectos);
-        const promedioExamen = avgGroup(grouped.examenes);
-
-        const periodoPromedio =
-          (promedioActividades ?? 0) * (weights.actividades / 100) +
-          (promedioProyecto ?? 0) * (weights.proyecto / 100) +
-          (promedioExamen ?? 0) * (weights.examen / 100);
+        const calculo = calcularPromedioInteractivo(
+          insumos,
+          (insumo) => notaPorInsumo.get(`${estudiante.id_estudiante}:${insumo.id_insumo}`),
+        );
 
         return {
           ...periodo,
@@ -143,11 +93,11 @@ export const TabPromedios = ({
             tipo_insumo: insumo.tipo_insumo,
             nota: notaPorInsumo.get(`${estudiante.id_estudiante}:${insumo.id_insumo}`) ?? 0,
           })),
-          promedioActividades,
-          promedioProyecto,
-          promedioExamen,
-          weights,
-          promedioPeriodo: insumos.length ? periodoPromedio : null,
+           promedioActividades: calculo.promedios.actividades,
+           promedioProyecto: calculo.promedios.proyecto,
+           promedioExamen: calculo.promedios.examen,
+           weights: calculo.pesos,
+           promedioPeriodo: calculo.promedio,
         };
       });
 
@@ -171,7 +121,7 @@ export const TabPromedios = ({
       <div className="panel-header">
         <div>
           <h3>📈 Promedios</h3>
-          <p className="panel-sub">Promedios por trimestre y detalle expandible</p>
+          <p className="panel-sub">Promedios por periodo y detalle expandible</p>
         </div>
       </div>
 
@@ -189,9 +139,9 @@ export const TabPromedios = ({
             <tr>
               <th>Estudiante</th>
               {periodosOrdenados.map((periodo) => (
-                <th key={periodo.id_periodo}>{periodo.nombre_periodo || `Trimestre ${periodo.numero_periodo}`}</th>
+                 <th key={periodo.id_periodo}>{periodo.nombre_periodo || `Periodo ${periodo.numero_periodo}`}</th>
               ))}
-              <th>Suma trimestres</th>
+               <th>Suma de periodos</th>
               <th>Promedio general</th>
             </tr>
           </thead>
@@ -202,7 +152,7 @@ export const TabPromedios = ({
               return (
                 <React.Fragment key={row.estudiante.id_estudiante}>
                   <tr className="promedios-row" onClick={() => setFilaExpandida(expanded ? null : row.estudiante.id_estudiante)}>
-                    <td>{row.estudiante.apellido} {row.estudiante.nombre}</td>
+                    <td>{nombrePersona(row.estudiante)}</td>
                     {row.porPeriodo.map((periodo) => (
                       <td key={periodo.id_periodo}>{format(periodo.promedioPeriodo)}</td>
                     ))}
@@ -216,7 +166,7 @@ export const TabPromedios = ({
                           {row.porPeriodo.map((periodo) => (
                             <div key={periodo.id_periodo} className="promedios-detail-periodo">
                               <div className="promedios-detail-head">
-                                <h4>{periodo.nombre_periodo || `Trimestre ${periodo.numero_periodo}`}</h4>
+                                 <h4>{periodo.nombre_periodo || `Periodo ${periodo.numero_periodo}`}</h4>
                                 <span>{format(periodo.promedioPeriodo)}</span>
                               </div>
                               <div className="promedios-detail-list">

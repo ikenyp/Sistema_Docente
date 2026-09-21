@@ -9,7 +9,7 @@ from app.crud import anios_lectivos as crud_anios_lectivos
 from app.core.pagination import normalizar_paginacion
 from app.schemas.estudiantes import EstudianteCreate, EstudianteUpdate, EstadoEstudiante
 from sqlalchemy.exc import IntegrityError
-from fastapi import HTTPException, status
+from app.services.validaciones_academicas import manejar_error_integridad
 import logging
 
 
@@ -89,10 +89,8 @@ async def crear_estudiante(db: AsyncSession, data: EstudianteCreate, id_contexto
 
     try:
         return await crud.crear(db, estudiante)
-    except IntegrityError as ie:
-        logging.error("IntegrityError creando estudiante: %s", ie)
-        detail = str(ie.orig) if hasattr(ie, 'orig') else str(ie)
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error de integridad de datos: {detail}")
+    except IntegrityError:
+        await manejar_error_integridad(db, "La cédula ya está registrada")
     except Exception as e:
         logging.error("Error inesperado creando estudiante: %s", e)
         logging.error(e, exc_info=True)

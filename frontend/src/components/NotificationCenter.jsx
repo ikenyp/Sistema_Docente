@@ -39,7 +39,14 @@ export default function NotificationCenter() {
 
       {confirm && (
         <div className="confirm-backdrop" onClick={() => {}}>
-          <div className="confirm-modal confirm-modal-wide" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="confirm-modal confirm-modal-wide"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="notification-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="notification-modal-title" className="sr-only">Confirmación</h2>
             <button
               type="button"
               className="confirm-close-btn"

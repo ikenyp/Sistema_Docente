@@ -19,6 +19,7 @@ from app.services.authorization import (
     validar_usuario_puede_ver_cmd,
     validar_usuario_puede_ver_curso,
 )
+from app.services.authorization_mode import validar_gestion_por_modo
 
 router = APIRouter(
     tags=["Cursos - Materias - Docentes"]
@@ -26,17 +27,7 @@ router = APIRouter(
 
 
 def _validar_gestion_cmd(current_user: Usuario, request: Request):
-    if is_personal_mode(request):
-        if current_user.rol != RolUsuarioEnum.docente:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="En modo personal solo docentes pueden gestionar asignaciones"
-            )
-    elif current_user.rol != RolUsuarioEnum.administrativo:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo administrativos pueden gestionar asignaciones"
-        )
+    validar_gestion_por_modo(current_user, request, "asignaciones")
 
 
 @router.post("/", response_model=CMDResponseDetailed)

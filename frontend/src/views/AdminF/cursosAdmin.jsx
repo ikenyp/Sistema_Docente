@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { FolderOpen, Plus, Save, Trash2, X } from "lucide-react";
+import { FolderOpen, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import CustomSelect from "../../components/admin/CustomSelect";
 import {
@@ -12,6 +12,7 @@ import {
   estructurasAcademicasAPI,
 } from "../../services/api";
 import { notify, requestConfirm } from "../../components/notify";
+import { nombrePersona } from "../../utils/personas";
 import { normalizarAnioLectivo } from "../../utils/anioLectivo";
 
 function CursosAdmin() {
@@ -24,6 +25,7 @@ function CursosAdmin() {
   const [conteoEstudiantes, setConteoEstudiantes] = useState({});
   const [filtroAnio, setFiltroAnio] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [cursoEditando, setCursoEditando] = useState(null);
   const [aniosLectivos, setAniosLectivos] = useState([]);
   const [nuevoCurso, setNuevoCurso] = useState({
     nombre: "",
@@ -123,7 +125,7 @@ function CursosAdmin() {
   const nombreTutor = (id_tutor) => {
     if (!id_tutor) return "—";
     const u = usuarios.find((x) => x.id_usuario === id_tutor);
-    return u ? `${u.nombre} ${u.apellido}` : `#${id_tutor}`;
+    return u ? nombrePersona(u) : `#${id_tutor}`;
   };
 
   const nombreEstructura = (id_estructura_academica) => {
@@ -146,20 +148,30 @@ function CursosAdmin() {
     }
 
     try {
-      await cursosAPI.crear({
+      const datosCurso = {
         nombre: nuevoCurso.nombre,
         anio_lectivo: anioLectivoCurso,
         id_estructura_academica: Number(nuevoCurso.id_estructura_academica),
         id_tutor: nuevoCurso.id_tutor ? parseInt(nuevoCurso.id_tutor, 10) : null,
-      });
+      };
+      if (cursoEditando) {
+        await cursosAPI.actualizar(cursoEditando.id_curso, {
+          nombre: datosCurso.nombre,
+          id_estructura_academica: datosCurso.id_estructura_academica,
+          id_tutor: datosCurso.id_tutor,
+        });
+      } else {
+        await cursosAPI.crear(datosCurso);
+      }
       setModalOpen(false);
+      setCursoEditando(null);
       setNuevoCurso({
         nombre: "",
         id_estructura_academica: "",
         id_tutor: "",
       });
       cargar();
-      notify("success", "Curso creado");
+      notify("success", cursoEditando ? "Curso actualizado" : "Curso creado");
     } catch (e) {
       const msg = e?.message || "";
       if (msg.includes("Ya existe un curso con ese nombre")) {
@@ -168,6 +180,16 @@ function CursosAdmin() {
       }
       notify("error", msg || "No se pudo crear el curso");
     }
+  };
+
+  const abrirEditarCurso = (curso) => {
+    setCursoEditando(curso);
+    setNuevoCurso({
+      nombre: curso.nombre || "",
+      id_estructura_academica: curso.id_estructura_academica ? String(curso.id_estructura_academica) : "",
+      id_tutor: curso.id_tutor ? String(curso.id_tutor) : "",
+    });
+    setModalOpen(true);
   };
 
   const eliminarCurso = async (curso) => {
@@ -212,7 +234,11 @@ function CursosAdmin() {
           <button
             type="button"
             className="btn-add-docente btn-inline-icon btn-add-course-wrap"
-            onClick={() => setModalOpen(true)}
+            onClick={() => {
+              setCursoEditando(null);
+              setNuevoCurso({ nombre: "", id_estructura_academica: "", id_tutor: "" });
+              setModalOpen(true);
+            }}
           >
             <Plus size={16} />
             <span>Añadir<br />curso</span>
@@ -239,11 +265,19 @@ function CursosAdmin() {
                 <td>
                   <button
                       type="button"
-                      className="btn-view btn-inline-icon cursos-open-btn"
+                       className="btn-success btn-inline-icon cursos-open-btn"
                       onClick={() => navigate(`/admin/cursos/${c.id_curso}`)}
                     >
                       <FolderOpen size={14} />
                       Abrir curso
+                    </button>
+                    <button
+                      type="button"
+                       className="btn-view btn-inline-icon cursos-edit-btn"
+                      onClick={() => abrirEditarCurso(c)}
+                    >
+                       <Pencil size={14} />
+                       Editar
                     </button>
                     <button
                       type="button"
@@ -252,7 +286,8 @@ function CursosAdmin() {
                       aria-label={`Eliminar curso ${c.nombre}`}
                       title={`Eliminar curso ${c.nombre}`}
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
+                      Eliminar
                     </button>
                 </td>
               </tr>
@@ -274,7 +309,7 @@ function CursosAdmin() {
             <button type="button" className="admin-modal-close-btn" onClick={() => setModalOpen(false)} aria-label="Cerrar modal">
               <X size={14} />
             </button>
-            <h3>Añadir curso</h3>
+            <h3>{cursoEditando ? "Editar curso" : "Añadir curso"}</h3>
             <input
               type="text"
               placeholder="Nombre del curso"
@@ -312,7 +347,7 @@ function CursosAdmin() {
                   .filter((u) => (u.rol || "").toLowerCase() === "docente")
                   .map((u) => ({
                     value: String(u.id_usuario),
-                    label: `${u.nombre} ${u.apellido}`,
+                    label: nombrePersona(u),
                   })),
               ]}
               placeholder="Tutor a cargo (opcional)"
@@ -332,7 +367,7 @@ function CursosAdmin() {
               </button>
               <button type="button" className="btn-success btn-inline-icon" onClick={agregarCurso}>
                 <Save size={14} />
-                Guardar
+                {cursoEditando ? "Guardar cambios" : "Guardar"}
               </button>
             </div>
           </div>

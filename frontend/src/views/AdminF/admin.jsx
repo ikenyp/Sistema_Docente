@@ -4,6 +4,7 @@ import { ArrowLeft, CalendarClock, Check, CheckCircle2, CircleSlash, Clipboard, 
 import AdminLayout from "../../components/admin/AdminLayout";
 import CustomSelect from "../../components/admin/CustomSelect";
 import { notify } from "../../components/notify";
+import { nombrePersona } from "../../utils/personas";
 import PeriodizacionPage from "../Periodizacion/PeriodizacionPage";
 import {
   formatearAnioLectivoInput,
@@ -20,6 +21,8 @@ import {
 } from "../../services/api";
 
 function Admin() {
+  // Dashboard administrativo: carga datos independientes y muestra un resumen
+  // de la operación sin impedir que una sección funcione si otra falla.
   const navigate = useNavigate();
   const [usuarios, setUsuarios] = useState([]);
   const [cursos, setCursos] = useState([]);
@@ -77,6 +80,23 @@ function Admin() {
         estructurasAcademicasAPI.listar({ size: 100 }),
         aniosLectivosAPI.listar(),
       ]);
+      // Las cargas son independientes: un fallo de usuarios no debe ocultar
+      // los cursos o años que sí pudieron responder.
+      const fallidos = [
+        ["usuarios", u],
+        ["cursos", c],
+        ["estudiantes", e],
+        ["asignaciones", a],
+        ["estructura académica", es],
+        ["años lectivos", al],
+      ].filter(([, resultado]) => resultado.status === "rejected");
+      if (fallidos.length > 0) {
+        const mensaje = `No se pudieron cargar: ${fallidos.map(([nombre]) => nombre).join(", ")}`;
+        setErrorCarga(mensaje);
+        notify("error", mensaje);
+      } else {
+        setErrorCarga(null);
+      }
       const usuariosData = u.status === "fulfilled" ? u.value : [];
       const cursosData = c.status === "fulfilled" ? c.value : [];
       const estudiantesData = e.status === "fulfilled" ? e.value : [];
@@ -232,7 +252,11 @@ function Admin() {
   const estudiantesAnio = useMemo(() => {
     if (!anioActivo) return estudiantes;
     const idsCursos = new Set(cursosAnio.map((c) => c.id_curso));
-    return estudiantes.filter((e) => idsCursos.has(e.id_curso_actual));
+    return estudiantes.filter(
+      (e) =>
+        normalizarAnioLectivo(e.anio_lectivo) === anioActivo ||
+        idsCursos.has(e.id_curso_actual),
+    );
   }, [estudiantes, cursosAnio, anioActivo]);
 
   const resumen = useMemo(() => {
@@ -253,7 +277,11 @@ function Admin() {
   }, [usuarios, estructuras, cursosAnio, estudiantesAnio]);
 
   const pendientes = useMemo(() => {
-    const sinCurso = estudiantes.filter((e) => !e.id_curso_actual).length;
+    const sinCurso = estudiantes.filter(
+      (e) =>
+        normalizarAnioLectivo(e.anio_lectivo) === anioActivo &&
+        !e.id_curso_actual,
+    ).length;
     const sinTutor = cursosAnio.filter((c) => !c.id_tutor).length;
     const sinEstructura = cursosAnio.filter((c) => !c.id_estructura_academica).length;
     const idsConAsignacion = new Set(asignaciones.map((a) => a.id_curso));
@@ -261,7 +289,7 @@ function Admin() {
       (c) => !idsConAsignacion.has(c.id_curso),
     ).length;
     return { sinCurso, sinTutor, sinMaterias, sinEstructura };
-  }, [estudiantes, cursosAnio, asignaciones]);
+  }, [estudiantes, cursosAnio, asignaciones, anioActivo]);
 
   const totalPendientes = useMemo(
     () =>
@@ -298,7 +326,7 @@ function Admin() {
   const nombreTutor = (id_tutor) => {
     if (!id_tutor) return "—";
     const u = usuarios.find((x) => x.id_usuario === id_tutor);
-    return u ? `${u.nombre} ${u.apellido}` : `#${id_tutor}`;
+    return u ? nombrePersona(u) : `#${id_tutor}`;
   };
 
   return (

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import date
 from app.models.enums import TipoInsumoEnum

@@ -1,6 +1,5 @@
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
-from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.cursos_materias_docentes import CursoMateriaDocente

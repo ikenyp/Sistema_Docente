@@ -6,6 +6,7 @@ import CustomSelect from "../../components/admin/CustomSelect";
 import ImportarEstudiantesModal from "../../components/estudiantes/ImportarEstudiantesModal";
 import { estudiantesAPI, cursosAPI } from "../../services/api";
 import { notify } from "../../components/notify";
+import { nombrePersona } from "../../utils/personas";
 import { normalizarAnioLectivo } from "../../utils/anioLectivo";
 
 function EstudiantesAdmin() {
@@ -74,7 +75,9 @@ function EstudiantesAdmin() {
           nombre: filtrosAplicados.busqueda || undefined,
           apellido: filtrosAplicados.busqueda || undefined,
           estado: filtrosAplicados.estado || undefined,
-          id_curso: filtrosAplicados.id_curso || undefined,
+          id_curso: filtrosAplicados.id_curso && filtrosAplicados.id_curso !== "sin_curso"
+            ? filtrosAplicados.id_curso
+            : undefined,
           page,
           size: 100,
         });
@@ -93,8 +96,20 @@ function EstudiantesAdmin() {
         cursosAnioActivo.map((curso) => String(curso.id_curso)),
       );
       const filtrados = Array.from(mapa.values()).filter((estudiante) => {
-        if (!anioActivo || filtrosAplicados.id_curso) return true;
-        return idsCursosAnioActivo.has(String(estudiante.id_curso_actual));
+        const perteneceAlAnio = !anioActivo || (
+          normalizarAnioLectivo(estudiante.anio_lectivo) === anioActivo ||
+          idsCursosAnioActivo.has(String(estudiante.id_curso_actual))
+        );
+        if (!perteneceAlAnio) return false;
+        if (filtrosAplicados.id_curso === "sin_curso") {
+          return estudiante.id_curso_actual === null || estudiante.id_curso_actual === undefined;
+        }
+        return true;
+      });
+      filtrados.sort((a, b) => {
+        const apellido = (a?.apellido || "").localeCompare(b?.apellido || "", "es", { sensitivity: "base" });
+        if (apellido !== 0) return apellido;
+        return (a?.nombre || "").localeCompare(b?.nombre || "", "es", { sensitivity: "base" });
       });
       const inicio = (filtrosAplicados.page - 1) * filtrosAplicados.size;
       setTotalFiltrados(filtrados.length);
@@ -121,7 +136,7 @@ function EstudiantesAdmin() {
           .join(", ");
       if (typeof v === "object") {
         if (v.nombre || v.apellido)
-          return `${v.nombre || ""} ${v.apellido || ""}`.trim();
+          return nombrePersona(v);
         return JSON.stringify(v);
       }
       return String(v);
@@ -236,7 +251,8 @@ function EstudiantesAdmin() {
         await estudiantesAPI.crear(payload);
       }
       setModalOpen(false);
-      cargarConFiltros(filtros);
+      await cargarConFiltros(filtros);
+      notify("success", editando ? "Estudiante actualizado" : "Estudiante creado");
     } catch (e) {
       notify("error", e.message || "Error al guardar");
     }
@@ -284,6 +300,26 @@ function EstudiantesAdmin() {
           }
         />
         <CustomSelect
+          value={filtros.id_curso}
+          onChange={(value) =>
+            setFiltros((prev) => ({
+              ...prev,
+              id_curso: value,
+              page: 1,
+            }))
+          }
+          options={[
+            { value: "", label: "Todos los cursos" },
+            { value: "sin_curso", label: "Sin curso" },
+            ...cursosAnioActivo.map((c) => ({
+              value: String(c.id_curso),
+              label: c.nombre,
+            })),
+          ]}
+          placeholder="Todos los cursos"
+          className="custom-select-white"
+        />
+        <CustomSelect
           value={filtros.estado}
           onChange={(value) =>
             setFiltros((prev) => ({
@@ -299,25 +335,6 @@ function EstudiantesAdmin() {
             { value: "graduado", label: "Graduado" },
           ]}
           placeholder="Todos los estados"
-          className="custom-select-white"
-        />
-        <CustomSelect
-          value={filtros.id_curso}
-          onChange={(value) =>
-            setFiltros((prev) => ({
-              ...prev,
-              id_curso: value,
-              page: 1,
-            }))
-          }
-          options={[
-            { value: "", label: "Todos los cursos" },
-            ...cursosAnioActivo.map((c) => ({
-              value: String(c.id_curso),
-              label: c.nombre,
-            })),
-          ]}
-          placeholder="Todos los cursos"
           className="custom-select-white"
         />
         <button
@@ -339,21 +356,25 @@ function EstudiantesAdmin() {
           <table className="materias-base-table estudiantes-table">
             <thead>
               <tr>
-                <th>Nombre</th>
-                <th>Apellido</th>
+                <th>Apellidos</th>
+                <th>Nombres</th>
                 <th>Cédula</th>
                 <th>Estado</th>
-                <th>Curso Actual</th>
+                <th>Curso actual</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {data.map((est) => (
                 <tr key={est.id_estudiante}>
-                  <td>{formatValue(est.nombre)}</td>
                   <td>{formatValue(est.apellido)}</td>
+                  <td>{formatValue(est.nombre)}</td>
                   <td>{formatValue(est.cedula)}</td>
-                  <td>{formatValue(est.estado)}</td>
+                  <td>
+                    <span className={`admin-status-pill admin-status-student-${normalizeEstado(est.estado)}`}>
+                      {normalizeEstado(est.estado).charAt(0).toUpperCase() + normalizeEstado(est.estado).slice(1)}
+                    </span>
+                  </td>
                   <td>
                     {formatValue(
                       cursos.find((c) => c.id_curso === est.id_curso_actual)

@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.core.app_mode import is_personal_mode
 from app.core.context_manager import resolve_contexto_id
 from app.schemas.materias import (
     MateriaCreate,
@@ -14,6 +13,7 @@ from app.services import materias as service
 from app.auth.dependencies import get_current_user
 from app.schemas.usuarios import RolUsuarioEnum
 from app.models.usuarios import Usuario
+from app.services.authorization_mode import validar_gestion_por_modo
 
 router = APIRouter(
     tags=["Materias"]
@@ -21,17 +21,7 @@ router = APIRouter(
 
 
 def _validar_gestion_materias(current_user: Usuario, request: Request):
-    if is_personal_mode(request):
-        if current_user.rol != RolUsuarioEnum.docente:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="En modo personal solo docentes pueden gestionar materias"
-            )
-    elif current_user.rol != RolUsuarioEnum.administrativo:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo administrativos pueden gestionar materias"
-        )
+    validar_gestion_por_modo(current_user, request, "materias")
 
 
 @router.post("/", response_model=MateriaResponse)

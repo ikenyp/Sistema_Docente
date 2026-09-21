@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, func, text
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -16,6 +16,12 @@ class AnioLectivo(Base):
 
     __table_args__ = (
         UniqueConstraint("id_contexto", "anio_lectivo", name="uq_anio_lectivo_contexto_anio"),
+        Index(
+            "uq_anio_activo_por_contexto",
+            "id_contexto",
+            unique=True,
+            postgresql_where=text("activo = true"),
+        ),
     )
 
     contexto = relationship("Contexto")

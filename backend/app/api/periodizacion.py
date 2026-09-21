@@ -111,9 +111,27 @@ async def _serializar_config(config: ConfiguracionPeriodizacion) -> Configuracio
 async def obtener_periodizacion_contexto(
     id_contexto: int,
     anio_lectivo: str,
+    request: Request,
     db: AsyncSession = Depends(get_session),
     current_user: Usuario = Depends(get_current_user),
 ):
+    # El id de contexto viene de la URL, por eso no basta con validar el token:
+    # también comprobamos que corresponda al modo y usuario actuales.
+    contexto_result = await db.execute(
+        select(Contexto).where(Contexto.id_contexto == id_contexto)
+    )
+    contexto = contexto_result.scalar_one_or_none()
+    if not contexto:
+        raise HTTPException(status_code=404, detail="Contexto no encontrado")
+
+    if is_personal_mode(request):
+        if current_user.rol != RolUsuarioEnum.docente:
+            raise HTTPException(status_code=403, detail="Solo docentes en modo personal")
+        if contexto.tipo_modo != "personal" or contexto.id_owner_docente != current_user.id_usuario:
+            raise HTTPException(status_code=403, detail="No puedes consultar otro contexto")
+    elif contexto.tipo_modo != "institucional":
+        raise HTTPException(status_code=403, detail="No puedes consultar otro contexto")
+
     result = await db.execute(
         select(ConfiguracionPeriodizacion)
         .where(
@@ -186,6 +204,18 @@ async def crear_o_reemplazar_periodizacion(
         config.tipo_periodizacion = data.tipo_periodizacion
         config.cantidad_periodos = data.cantidad_periodos
         config.nombre_periodo_singular = data.nombre_periodo_singular or singular
+
+        insumos_result = await db.execute(
+            select(func.count(Insumo.id_insumo))
+            .join(PeriodoAcademico, PeriodoAcademico.id_periodo == Insumo.id_periodo)
+            .where(PeriodoAcademico.id_config_periodizacion == config.id_config_periodizacion)
+        )
+        if (insumos_result.scalar_one() or 0) > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se puede reemplazar la periodizacion porque tiene insumos asociados",
+            )
+
         await db.execute(
             PeriodoAcademico.__table__.delete().where(
                 PeriodoAcademico.id_config_periodizacion == config.id_config_periodizacion

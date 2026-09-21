@@ -4,6 +4,7 @@ import AdminLayout from "../../components/admin/AdminLayout";
 import CustomSelect from "../../components/admin/CustomSelect";
 import { usuariosAPI } from "../../services/api";
 import { notify, requestConfirm } from "../../components/notify";
+import { nombrePersona } from "../../utils/personas";
 
 function UsuariosAdmin() {
   const [usuarios, setUsuarios] = useState([]);
@@ -25,19 +26,26 @@ function UsuariosAdmin() {
 
   const usuariosFiltrados = useMemo(() => {
     const texto = busquedaUsuarios.trim().toLowerCase();
-    if (!texto) return usuarios;
-    return usuarios.filter((usuario) => {
-      const nombreCompleto =
-        `${usuario?.nombre || ""} ${usuario?.apellido || ""}`
-          .trim()
-          .toLowerCase();
-      const correo = (usuario?.correo || "").toLowerCase();
-      const rol = (usuario?.rol || "").toLowerCase();
-      return (
-        nombreCompleto.includes(texto) ||
-        correo.includes(texto) ||
-        rol.includes(texto)
-      );
+    const filtrados = texto
+      ? usuarios.filter((usuario) => {
+          const nombreCompleto = nombrePersona(usuario).trim().toLowerCase();
+          const correo = (usuario?.correo || "").toLowerCase();
+          const rol = (usuario?.rol || "").toLowerCase();
+          return (
+            nombreCompleto.includes(texto) ||
+            correo.includes(texto) ||
+            rol.includes(texto)
+          );
+        })
+      : usuarios;
+
+    return [...filtrados].sort((a, b) => {
+      const rolA = (a?.rol || "").toLowerCase() === "administrativo" ? 0 : 1;
+      const rolB = (b?.rol || "").toLowerCase() === "administrativo" ? 0 : 1;
+      if (rolA !== rolB) return rolA - rolB;
+      const apellido = (a?.apellido || "").localeCompare(b?.apellido || "", "es", { sensitivity: "base" });
+      if (apellido !== 0) return apellido;
+      return (a?.nombre || "").localeCompare(b?.nombre || "", "es", { sensitivity: "base" });
     });
   }, [busquedaUsuarios, usuarios]);
 
@@ -201,8 +209,8 @@ function UsuariosAdmin() {
             <table className="usuarios-table">
               <thead>
                 <tr>
-                  <th>Nombres</th>
                   <th>Apellidos</th>
+                  <th>Nombres</th>
                   <th>Correo</th>
                   <th>Rol</th>
                   <th>Acciones</th>
@@ -211,10 +219,14 @@ function UsuariosAdmin() {
             <tbody>
               {usuariosFiltrados.map((u) => (
                 <tr key={u.id_usuario}>
-                  <td>{u.nombre}</td>
                   <td>{u.apellido}</td>
+                  <td>{u.nombre}</td>
                   <td>{u.correo}</td>
-                  <td>{rolLabel(u.rol)}</td>
+                  <td>
+                    <span className={`admin-status-pill admin-status-role-${String(u.rol || "").toLowerCase()}`}>
+                      {rolLabel(u.rol)}
+                    </span>
+                  </td>
                   <td className="plantillas-academicas-actions">
                     <div className="plantillas-academicas-actions-row materias-base-actions">
                       <button

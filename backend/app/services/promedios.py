@@ -3,6 +3,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from decimal import Decimal
 
 from app.models.notas import Nota
@@ -13,12 +14,24 @@ from app.models.periodos_academicos import PeriodoAcademico
 from app.models.estudiantes import Estudiante
 from app.models.cursos_materias_docentes import CursoMateriaDocente
 from app.models.cursos import Curso
+from app.services.validaciones_academicas import validar_estudiante_en_curso
 
 
-# Ponderaciones constantes
-PONDERACION_ACTIVIDADES = Decimal("0.10")  # 10%
-PONDERACION_PROYECTO = Decimal("0.20")  # 20%
-PONDERACION_EXAMEN = Decimal("0.70")  # 70%
+# Ponderaciones del esquema académico visible en el sistema.
+PONDERACION_ACTIVIDADES = Decimal("0.70")  # 70%
+PONDERACION_PROYECTO = Decimal("0.10")  # 10%
+PONDERACION_EXAMEN = Decimal("0.20")  # 20%
+
+
+def calcular_promedio_acumulado(
+    suma_promedios: Decimal,
+    cantidad_periodos: int,
+    periodos_con_datos: int,
+) -> float | None:
+    """Distribuye el acumulado entre todos los periodos del año lectivo."""
+    if periodos_con_datos <= 0 or cantidad_periodos <= 0:
+        return None
+    return float(round(suma_promedios / cantidad_periodos, 2))
 
 
 async def _obtener_configuracion_periodizacion(
@@ -48,16 +61,23 @@ async def calcular_promedio_periodo(
     id_estudiante: int,
     id_curso: int,
     numero_periodo: int,
-    anio_lectivo: str
+    anio_lectivo: str,
+    estudiante_obj=None,
+    curso_obj=None,
+    config=None,
+    periodo_obj=None,
 ) -> dict:
     """
     Calcula el promedio de un estudiante en un periodo especifico para un curso.
+
+    En el acumulado reutilizamos objetos ya cargados para evitar repetir consultas.
+    Las llamadas normales pueden omitirlos sin cambiar el resultado.
     
     Estructura:
     - Promedio actividades = promedio de todas las notas de actividades
     - Promedio proyecto = nota del proyecto del periodo (hay solo uno)
     - Promedio examen = nota del examen del periodo (hay solo uno)
-    - Promedio del periodo = (actividades * 0.10) + (proyecto * 0.20) + (examen * 0.70)
+    - Promedio del periodo = (actividades * 0.70) + (proyecto * 0.10) + (examen * 0.20)
     
     Args:
         db: Sesión de base de datos
@@ -70,33 +90,43 @@ async def calcular_promedio_periodo(
         dict con detalles del cálculo o None si no hay datos
     """
     # Validar que el estudiante exista
-    estudiante = await db.execute(
-        select(Estudiante).where(Estudiante.id_estudiante == id_estudiante)
-    )
-    if not estudiante.scalar_one_or_none():
+    if estudiante_obj is None:
+        estudiante = await db.execute(
+            select(Estudiante).where(
+                Estudiante.id_estudiante == id_estudiante,
+                Estudiante.id_contexto == id_contexto,
+                Estudiante.eliminado.is_(False),
+            )
+        )
+        estudiante_obj = estudiante.scalar_one_or_none()
+    if not estudiante_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Estudiante no encontrado"
         )
 
-    curso_result = await db.execute(
-        select(Curso).where(Curso.id_curso == id_curso, Curso.id_contexto == id_contexto)
-    )
-    curso_obj = curso_result.scalar_one_or_none()
+    if curso_obj is None:
+        curso_result = await db.execute(
+            select(Curso).where(Curso.id_curso == id_curso, Curso.id_contexto == id_contexto)
+        )
+        curso_obj = curso_result.scalar_one_or_none()
     if not curso_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Curso no encontrado en el contexto actual"
         )
+    validar_estudiante_en_curso(estudiante_obj, id_curso)
 
-    config = await _obtener_configuracion_periodizacion(db, id_contexto, anio_lectivo)
+    if config is None:
+        config = await _obtener_configuracion_periodizacion(db, id_contexto, anio_lectivo)
 
-    periodo_result = await db.execute(
-        select(PeriodoAcademico)
-        .where(PeriodoAcademico.id_config_periodizacion == config.id_config_periodizacion)
-        .where(PeriodoAcademico.numero_periodo == numero_periodo)
-    )
-    periodo_obj = periodo_result.scalar_one_or_none()
+    if periodo_obj is None:
+        periodo_result = await db.execute(
+            select(PeriodoAcademico)
+            .where(PeriodoAcademico.id_config_periodizacion == config.id_config_periodizacion)
+            .where(PeriodoAcademico.numero_periodo == numero_periodo)
+        )
+        periodo_obj = periodo_result.scalar_one_or_none()
     if not periodo_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -142,7 +172,7 @@ async def calcular_promedio_periodo(
     # Calcular promedio de actividades
     if insumos_actividades:
         notas_actividades = await db.execute(
-            select(Nota).where(
+            select(Nota).options(selectinload(Nota.insumo)).where(
                 Nota.id_estudiante == id_estudiante,
                 Nota.id_insumo.in_([i.id_insumo for i in insumos_actividades])
             )
@@ -165,7 +195,7 @@ async def calcular_promedio_periodo(
     # Obtener nota del proyecto del periodo
     if insumos_proyecto:
         nota_proyecto = await db.execute(
-            select(Nota).where(
+            select(Nota).options(selectinload(Nota.insumo)).where(
                 Nota.id_estudiante == id_estudiante,
                 Nota.id_insumo == insumos_proyecto[0].id_insumo
             )
@@ -182,7 +212,7 @@ async def calcular_promedio_periodo(
     # Obtener nota del examen del periodo
     if insumos_examen:
         nota_examen = await db.execute(
-            select(Nota).where(
+            select(Nota).options(selectinload(Nota.insumo)).where(
                 Nota.id_estudiante == id_estudiante,
                 Nota.id_insumo == insumos_examen[0].id_insumo
             )
@@ -242,9 +272,14 @@ async def calcular_promedio_final(
     """
     # Validar que el estudiante exista
     estudiante = await db.execute(
-        select(Estudiante).where(Estudiante.id_estudiante == id_estudiante)
+        select(Estudiante).where(
+            Estudiante.id_estudiante == id_estudiante,
+            Estudiante.id_contexto == id_contexto,
+            Estudiante.eliminado.is_(False),
+        )
     )
-    if not estudiante.scalar_one_or_none():
+    estudiante_obj = estudiante.scalar_one_or_none()
+    if not estudiante_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Estudiante no encontrado"
@@ -265,6 +300,17 @@ async def calcular_promedio_final(
             detail="No hay periodos configurados para el contexto y ano lectivo indicados"
         )
 
+    curso_result = await db.execute(
+        select(Curso).where(Curso.id_curso == id_curso, Curso.id_contexto == id_contexto)
+    )
+    curso_obj = curso_result.scalar_one_or_none()
+    if not curso_obj:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Curso no encontrado en el contexto actual",
+        )
+    validar_estudiante_en_curso(estudiante_obj, id_curso)
+
     # Calcular promedios por periodo
     promedios_por_periodo = []
     promedio_acumulado = None
@@ -278,7 +324,11 @@ async def calcular_promedio_final(
             id_estudiante,
             id_curso,
             periodo.numero_periodo,
-            anio_lectivo
+            anio_lectivo,
+            estudiante_obj=estudiante_obj,
+            curso_obj=curso_obj,
+            config=config,
+            periodo_obj=periodo,
         )
         promedios_por_periodo.append(promedio_periodo)
         
@@ -286,8 +336,11 @@ async def calcular_promedio_final(
             suma_promedios += Decimal(str(promedio_periodo["promedio_periodo"]))
             periodos_con_datos += 1
 
-    if periodos_con_datos > 0:
-        promedio_acumulado = float(round(suma_promedios / periodos_con_datos, 2))
+    promedio_acumulado = calcular_promedio_acumulado(
+        suma_promedios,
+        len(periodos),
+        periodos_con_datos,
+    )
 
     return {
         "id_estudiante": id_estudiante,
@@ -326,14 +379,20 @@ async def obtener_promedios_curso(
     curso = await db.execute(
         select(Curso).where(Curso.id_curso == id_curso, Curso.id_contexto == id_contexto)
     )
-    if not curso.scalar_one_or_none():
+    curso_obj = curso.scalar_one_or_none()
+    if not curso_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Curso no encontrado en el contexto actual"
         )
 
     estudiantes = await db.execute(
-        select(Estudiante).where(Estudiante.id_curso_actual == id_curso)
+        select(Estudiante).where(
+            Estudiante.id_curso_actual == id_curso,
+            Estudiante.id_contexto == id_contexto,
+            Estudiante.anio_lectivo == curso_obj.anio_lectivo,
+            Estudiante.eliminado.is_(False),
+        )
     )
     estudiantes_list = estudiantes.scalars().all()
 

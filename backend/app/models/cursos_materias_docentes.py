@@ -11,7 +11,19 @@ class CursoMateriaDocente(Base):
     id_materia = Column(Integer, ForeignKey("materias.id_materia"), nullable=False)
     id_docente = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=False)
 
-    __table_args__ = (UniqueConstraint("id_curso", "id_materia", "id_docente", name="uq_curso_materia_docente"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "id_curso",
+            "id_materia",
+            "id_docente",
+            name="uq_curso_materia_docente",
+        ),
+        UniqueConstraint(
+            "id_curso",
+            "id_materia",
+            name="uq_curso_materia_unico_docente",
+        ),
+    )
 
     curso = relationship("Curso", back_populates="materias_docentes")
     materia = relationship("Materia", back_populates="cursos_materias")

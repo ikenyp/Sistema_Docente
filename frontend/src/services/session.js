@@ -1,3 +1,4 @@
+import { requestHttp } from "./http";
 import { API_ROOT_URL } from "./apiConfig";
 
 const WARNING_MINUTES = 5;
@@ -47,6 +48,7 @@ export function clearSessionStorage() {
   localStorage.removeItem("role");
   localStorage.removeItem("app_mode");
   localStorage.removeItem("usuario");
+  localStorage.removeItem("anio_lectivo_activo");
 }
 
 export function endSession(reason = "expired") {
@@ -110,19 +112,10 @@ export async function refreshSession() {
   const token = localStorage.getItem("token");
   if (!token) return null;
 
-  const response = await fetch(`${API_ROOT_URL}/auth/refresh`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
+  const data = await requestHttp(`${API_ROOT_URL}/auth/refresh`, "POST", null, {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
   });
-
-  if (!response.ok) {
-    throw new Error("No se pudo renovar la sesión");
-  }
-
-  const data = await response.json();
   if (!data?.access_token) {
     throw new Error("La sesión renovada no devolvió token");
   }

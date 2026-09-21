@@ -25,6 +25,7 @@ from app.auth.dependencies import get_current_user
 from app.models.usuarios import Usuario
 from app.schemas.usuarios import RolUsuarioEnum
 from app.services.authorization import validar_docente_puede_editar_curso, validar_usuario_puede_ver_curso
+from app.services.authorization_mode import validar_gestion_por_modo
 
 router = APIRouter(
     tags=["Estudiantes"]
@@ -240,17 +241,7 @@ async def _preparar_fila_importacion(
 
 
 def _validar_gestion_estudiantes(current_user: Usuario, request: Request):
-    if is_personal_mode(request):
-        if current_user.rol != RolUsuarioEnum.docente:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="En modo personal solo docentes pueden gestionar estudiantes"
-            )
-    elif current_user.rol != RolUsuarioEnum.administrativo:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo administrativos pueden gestionar estudiantes"
-        )
+    validar_gestion_por_modo(current_user, request, "estudiantes")
 
 
 async def _obtener_anio_lectivo_activo(db: AsyncSession, id_contexto: int) -> str:
@@ -358,6 +349,8 @@ async def previsualizar_importacion_estudiantes(
     if df.empty:
         return {"estudiantes": [], "resumen": {"total": 0, "validos": 0, "con_error": 0}}
 
+    # Esta ruta solo revisa el archivo. El guardado ocurre después, al confirmar
+    # la importación, para que el usuario pueda corregir las filas con errores.
     df = df.rename(columns={col: _normalizar_encabezado(col) for col in df.columns})
     if "cedula" in df.columns and (
         "nombres_completos" in df.columns or "nombre" in df.columns or "apellido" in df.columns
@@ -421,6 +414,8 @@ async def previsualizar_importacion_estudiantes(
 
         filas = filas_preparadas
 
+    # El frontend usa este resumen para distinguir filas listas para importar
+    # de aquellas que todavía necesitan corrección.
     return {
         "estudiantes": filas,
         "resumen": {
@@ -450,6 +445,8 @@ async def importar_estudiantes_desde_excel(
     creados: list[dict] = []
     errores: list[dict] = []
 
+    # La importación es parcial por decisión funcional: las filas válidas se
+    # guardan y cada fila fallida queda incluida en el reporte de errores.
     for idx, fila in enumerate(filas, start=1):
         if not isinstance(fila, dict):
             errores.append({"fila": idx, "errores": ["Fila inválida"]})

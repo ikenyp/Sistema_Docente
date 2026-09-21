@@ -33,6 +33,8 @@ const buildQuery = (params = {}) => {
 
 // Función para hacer peticiones autenticadas
 const apiCall = async (endpoint, method = "GET", body = null) => {
+  // Todas las pantallas pasan por aquí para que token, contexto y errores
+  // se manejen igual, sin repetir esa lógica en cada vista.
   const token = getToken();
   const headers = {
     "X-App-Mode": getAppMode(),
@@ -112,7 +114,10 @@ const apiCall = async (endpoint, method = "GET", body = null) => {
         // Si no hay JSON, usar el status
       }
 
-      throw new Error(errorMessage);
+      // Conservamos el status para distinguir permisos (403) de sesión vencida (401).
+      const apiError = new Error(errorMessage);
+      apiError.status = response.status;
+      throw apiError;
     }
 
     // Manejar respuestas sin contenido
@@ -122,6 +127,10 @@ const apiCall = async (endpoint, method = "GET", body = null) => {
 
     return await response.json();
   } catch (error) {
+    if (error?.status === 401) {
+      const { endSession } = await import("./session");
+      endSession("unauthorized");
+    }
     // Normalizar re-lanzamiento para garantizar un Error con mensaje legible
     console.error("API Error:", error);
     if (error instanceof TypeError && /failed to fetch/i.test(error.message || "")) {
@@ -346,4 +355,11 @@ export const asignacionesAPI = {
     apiCall(`/cursos-materias-docentes/${id_cmd}`, "PUT", data),
   eliminar: (id_cmd) =>
     apiCall(`/cursos-materias-docentes/${id_cmd}`, "DELETE"),
+};
+
+// ==================== ANALISIS ACADEMICO ====================
+export const analisisAPI = {
+  analizarCurso: (id_curso) => apiCall(`/analisis/curso/${id_curso}`),
+  analizarEstudiante: (id_curso, id_estudiante) =>
+    apiCall(`/analisis/curso/${id_curso}/estudiante/${id_estudiante}`),
 };
