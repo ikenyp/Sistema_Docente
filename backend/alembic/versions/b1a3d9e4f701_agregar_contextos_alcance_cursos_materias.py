@@ -65,12 +65,16 @@ def upgrade() -> None:
     op.create_foreign_key('fk_cursos_contexto', 'cursos', 'contextos', ['id_contexto'], ['id_contexto'])
     op.create_foreign_key('fk_materias_contexto', 'materias', 'contextos', ['id_contexto'], ['id_contexto'])
 
-    op.drop_constraint('uq_curso_nombre_anio', 'cursos', type_='unique')
+    conn.execute(text(
+        "ALTER TABLE cursos DROP CONSTRAINT IF EXISTS uq_curso_nombre_anio"
+    ))
     op.create_unique_constraint('uq_curso_contexto_nombre_anio', 'cursos', ['id_contexto', 'nombre', 'anio_lectivo'])
 
 
 def downgrade() -> None:
-    op.drop_constraint('uq_curso_contexto_nombre_anio', 'cursos', type_='unique')
+    conn.execute(text(
+        "ALTER TABLE cursos DROP CONSTRAINT IF EXISTS uq_curso_contexto_nombre_anio"
+    ))
     op.create_unique_constraint('uq_curso_nombre_anio', 'cursos', ['nombre', 'anio_lectivo'])
 
     op.drop_constraint('fk_materias_contexto', 'materias', type_='foreignkey')
