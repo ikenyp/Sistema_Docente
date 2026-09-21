@@ -264,16 +264,16 @@ async def ensure_estructura_anio_lectivo_column():
 
         await session.commit()
 
+cors_origins = [
+    origin.strip()
+    for origin in settings.CORS_ORIGINS.split(",")
+    if origin.strip()
+]
+
 # Configurar CORS para permitir peticiones del frontend
 app.add_middleware(
     CORSMiddleware,
-    # Permitir los orígenes locales más comunes (localhost y 127.0.0.1)
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=cors_origins,
     # Como respaldo, habilitar cualquier puerto local (útil si el frontend cambia de puerto)
     allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
     allow_credentials=True,

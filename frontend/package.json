@@ -11,42 +11,27 @@
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-router-dom": "^7.10.1",
-    "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4",
     "xlsx": "^0.18.5",
     "xlsx-js-style": "^1.2.0"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
+    "start": "vite",
+    "build": "vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "frontend": "npm start",
     "backend": "cd ../backend && venv\\Scripts\\python -m uvicorn app.main:app --reload",
     "dev": "concurrently --kill-others=false \"npm run backend\" \"npm run frontend\""
   },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
   "devDependencies": {
+    "@vitejs/plugin-react": "^4.4.1",
     "autoprefixer": "^10.4.22",
     "concurrently": "^9.2.1",
+    "jsdom": "^26.1.0",
     "postcss": "^8.5.6",
-    "tailwindcss": "3.4"
+    "tailwindcss": "3.4",
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
   }
 }

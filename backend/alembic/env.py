@@ -30,7 +30,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
+# Agregar aqui el objeto MetaData de los modelos
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
@@ -43,7 +43,7 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
+    """Ejecutar migraciones en modo sin conexion.
 
     This configures the context with just a URL
     and not an Engine, though an Engine is acceptable
@@ -66,13 +66,13 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
+    """Ejecutar migraciones en modo conectado.
 
     In this scenario we need to create an Engine
     and associate a connection with the context.
 
     """
-    # Prefer explicit sync URL; fall back to stripping async driver
+    # Preferir la URL sincronica explicita; usar la URL sin driver asincrono como respaldo
     sync_url = getattr(settings, "SYNC_DATABASE_URL", None) or settings.DATABASE_URL.replace("+asyncpg", "")
     config.set_main_option("sqlalchemy.url", sync_url)
 
