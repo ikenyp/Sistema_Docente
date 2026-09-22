@@ -22,6 +22,7 @@ from app.schemas.usuarios import RolUsuarioEnum, UsuarioResponse
 from app.crud import usuarios as crud
 from app.models.contextos import Contexto
 from app.models.usuarios_contextos import UsuarioContexto
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -124,6 +125,18 @@ async def listar_contextos_autorizados(
         }
         for contexto, rol in institucionales.all()
     )
+    operadores = {
+        correo.strip().lower()
+        for correo in settings.PLATFORM_OPERATOR_EMAILS.split(",")
+        if correo.strip()
+    }
+    if usuario.correo.lower() in operadores and contextos:
+        contextos.insert(0, {
+            "id_contexto": contextos[0]["id_contexto"],
+            "modo": "plataforma",
+            "nombre": "Operación de plataforma",
+            "rol": "operador",
+        })
     return contextos
 
 

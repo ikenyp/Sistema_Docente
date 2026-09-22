@@ -50,6 +50,9 @@ export function clearSessionStorage() {
   localStorage.removeItem("contexto_activo");
   localStorage.removeItem("usuario");
   localStorage.removeItem("anio_lectivo_activo");
+  Object.keys(localStorage)
+    .filter((key) => key.startsWith("anio_lectivo_activo:"))
+    .forEach((key) => localStorage.removeItem(key));
 }
 
 export function endSession(reason = "expired") {

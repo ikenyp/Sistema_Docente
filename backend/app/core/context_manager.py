@@ -6,7 +6,6 @@ from app.core.app_mode import resolve_app_mode
 from app.models.contextos import Contexto
 from app.models.usuarios_contextos import UsuarioContexto
 from app.models.usuarios import Usuario
-from app.schemas.usuarios import RolUsuarioEnum
 
 
 async def resolve_contexto_id(
@@ -17,12 +16,6 @@ async def resolve_contexto_id(
     # El header selecciona el contexto, pero no puede saltarse las reglas del rol
     # ni permitir que un usuario acceda al espacio personal de otra persona.
     modo = resolve_app_mode(request)
-
-    if modo == "personal" and current_user.rol == RolUsuarioEnum.administrativo:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="El modo personal solo está disponible para docentes",
-        )
 
     if modo == "personal":
         result = await db.execute(

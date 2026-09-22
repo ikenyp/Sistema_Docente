@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { plataformaAPI } from "../../services/api";
 import { notify } from "../../components/notify";
+import { clearSessionStorage } from "../../services/session";
+import "../../styles/platform.css";
+import "../../styles/admin.css";
 
 const initialForm = {
   nombre: "",
@@ -44,28 +47,65 @@ export default function InstitucionesPlataforma() {
   };
 
   return (
-    <main className="platform-page">
-      <h1>Instituciones</h1>
-      <form className="platform-form" onSubmit={crear}>
-        {Object.entries(form).map(([field, value]) => (
-          <input
-            key={field}
-            type={field === "contrasena_temporal" ? "password" : field === "correo_administrador" ? "email" : "text"}
-            placeholder={field.replaceAll("_", " ")}
-            value={value}
-            required
-            onChange={(event) => setForm((prev) => ({ ...prev, [field]: event.target.value }))}
-          />
-        ))}
+    <main className="admin-page platform-page">
+      <header className="platform-header">
+        <div>
+          <p className="platform-eyebrow">Administración de plataforma</p>
+          <h1>Instituciones</h1>
+          <p>Gestiona los espacios institucionales y sus administradores iniciales.</p>
+        </div>
+        <span className="platform-count">{instituciones.length} registradas</span>
+        <button className="platform-logout" type="button" onClick={() => { clearSessionStorage(); window.location.replace("/"); }}>
+          Cerrar sesión
+        </button>
+      </header>
+      <section className="platform-create-card">
+        <h2>Crear institución</h2>
+        <p>La cuenta indicada quedará vinculada automáticamente como administrador institucional inicial.</p>
+        <form className="platform-form" onSubmit={crear}>
+          <div className="platform-form-section platform-form-section-wide">
+            <h3>Datos de la institución</h3>
+            <label>
+              Nombre de la institución
+              <input value={form.nombre} required onChange={(event) => setForm((prev) => ({ ...prev, nombre: event.target.value }))} />
+            </label>
+          </div>
+          <div className="platform-form-section platform-form-section-wide">
+            <h3>Administrador inicial</h3>
+            <p>Esta persona podrá entrar y gestionar únicamente esta institución.</p>
+          </div>
+          <label>
+            Nombres
+            <input value={form.nombre_administrador} required onChange={(event) => setForm((prev) => ({ ...prev, nombre_administrador: event.target.value }))} />
+          </label>
+          <label>
+            Apellidos
+            <input value={form.apellido_administrador} required onChange={(event) => setForm((prev) => ({ ...prev, apellido_administrador: event.target.value }))} />
+          </label>
+          <label>
+            Correo del administrador
+            <input type="email" value={form.correo_administrador} required onChange={(event) => setForm((prev) => ({ ...prev, correo_administrador: event.target.value }))} />
+          </label>
+          <label>
+            Contraseña temporal
+            <input type="password" value={form.contrasena_temporal} required onChange={(event) => setForm((prev) => ({ ...prev, contrasena_temporal: event.target.value }))} />
+          </label>
+          <div className="platform-role-note">Rol asignado: <strong>Administrador institucional</strong></div>
         <button type="submit" disabled={guardando}>{guardando ? "Creando..." : "Crear institución"}</button>
-      </form>
+        </form>
+      </section>
       {cargando ? <p>Cargando instituciones...</p> : (
         <div className="platform-list">
           {instituciones.map((institucion) => (
             <article key={institucion.id_institucion} className="platform-card">
-              <strong>{institucion.nombre}</strong>
+              <div className="platform-card-title">
+                <strong>{institucion.nombre}</strong>
+                <small className={institucion.activo ? "status-active" : "status-inactive"}>
+                  {institucion.activo ? "Activa" : "Inactiva"}
+                </small>
+              </div>
               <span>{institucion.correo_administrador || "Administrador vinculado"}</span>
-              <small>{institucion.activo ? "Activa" : "Inactiva"}</small>
+              <code>{institucion.slug}</code>
               <button type="button" onClick={async () => {
                 await plataformaAPI.cambiarEstadoInstitucion(institucion.id_institucion, !institucion.activo);
                 await cargar();

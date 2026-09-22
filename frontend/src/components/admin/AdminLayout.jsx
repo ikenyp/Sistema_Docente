@@ -21,7 +21,7 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
     defaultUserLabel || (appMode === "personal" ? "Docente" : "Administrador");
 
   const anioLectivoActivo = normalizarAnioLectivo(
-    localStorage.getItem("anio_lectivo_activo") || "",
+    localStorage.getItem(`anio_lectivo_activo:institucional:${localStorage.getItem("contexto_activo") || "sin-contexto"}`) || "",
   );
   const contextoActivo = localStorage.getItem("contexto_activo") || "";
 

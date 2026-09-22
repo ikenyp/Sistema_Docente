@@ -180,42 +180,6 @@ async def ensure_estructura_anio_lectivo_column():
             )
         )
 
-        contexto_por_defecto = await session.execute(
-            text(
-                """
-                select id_contexto
-                from contextos
-                where activo = true
-                order by case when tipo_modo = 'institucional' then 0 else 1 end, id_contexto
-                limit 1
-                """
-            )
-        )
-        contexto_default = contexto_por_defecto.scalar_one_or_none()
-        if contexto_default is not None:
-            await session.execute(
-                text("update estudiantes set id_contexto = :id_contexto where id_contexto is null"),
-                {"id_contexto": contexto_default},
-            )
-
-        anio_activo_result = await session.execute(
-            text(
-                """
-                select anio_lectivo
-                from anios_lectivos
-                where activo = true
-                order by creado_en desc
-                limit 1
-                """
-            )
-        )
-        anio_activo = anio_activo_result.scalar_one_or_none()
-        if anio_activo is not None:
-            await session.execute(
-                text("update estudiantes set anio_lectivo = :anio where anio_lectivo is null"),
-                {"anio": anio_activo},
-            )
-
         estudiantes_null_contexto = await session.execute(
             text(
                 """

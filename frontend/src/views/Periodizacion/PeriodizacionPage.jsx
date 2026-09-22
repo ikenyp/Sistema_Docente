@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Save, Trash2, X } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
-import { aniosLectivosAPI, cursosAPI, periodizacionAPI } from "../../services/api";
+import { aniosLectivosAPI, cursosAPI, getAnioLectivoStorageKey, periodizacionAPI } from "../../services/api";
 import { notify } from "../../components/notify";
 import { normalizarAnioLectivo, validarAnioLectivo } from "../../utils/anioLectivo";
 
@@ -83,7 +83,7 @@ function PeriodizacionPage({ embedded = false, anioInicial = "", onConfiguracion
   }, []);
 
   const aniosDisponibles = anios.length > 0 ? anios : aniosSugeridos;
-  const anioActivoGuardado = localStorage.getItem("anio_lectivo_activo") || "";
+  const anioActivoGuardado = localStorage.getItem(getAnioLectivoStorageKey()) || "";
 
   useEffect(() => {
     if (anioInicial) setAnioSel(anioInicial);

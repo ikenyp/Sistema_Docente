@@ -5,7 +5,9 @@ export async function requestHttp(url, method = "GET", body = null, extraHeaders
     "X-App-Mode": (localStorage.getItem("app_mode") || "institucional").toLowerCase(),
     ...extraHeaders,
   };
-  const anio = localStorage.getItem("anio_lectivo_activo");
+  const modo = (localStorage.getItem("app_mode") || "institucional").toLowerCase();
+  const contexto = localStorage.getItem("contexto_activo") || "sin-contexto";
+  const anio = localStorage.getItem(`anio_lectivo_activo:${modo}:${contexto}`) || localStorage.getItem("anio_lectivo_activo");
   const contextoActivo = localStorage.getItem("contexto_activo");
   const token = localStorage.getItem("token");
   if (anio) headers["X-Anio-Lectivo"] = anio;

@@ -29,6 +29,7 @@ import {
   insumosAPI,
   notasAPI,
   periodizacionAPI,
+  getAnioLectivoStorageKey,
 } from "../../services/api";
 import { clearSessionStorage } from "../../services/session";
 import { notify } from "../../components/notify";
@@ -51,7 +52,7 @@ function Docente() {
   const [aniosLectivosPersonales, setAniosLectivosPersonales] = useState([]);
   const [aniosLectivosPersonalesDetalles, setAniosLectivosPersonalesDetalles] = useState([]);
   const [anioLectivoActivoPersonal, setAnioLectivoActivoPersonal] = useState(
-    localStorage.getItem("anio_lectivo_activo") || "",
+    localStorage.getItem(getAnioLectivoStorageKey()) || "",
   );
   const [mostrarAnioModal, setMostrarAnioModal] = useState(false);
   const [mostrarConfigAnioModal, setMostrarConfigAnioModal] = useState(false);
@@ -438,14 +439,14 @@ function Docente() {
 
         setAniosLectivosPersonales(lista);
 
-        const almacenado = localStorage.getItem("anio_lectivo_activo") || "";
+        const almacenado = localStorage.getItem(getAnioLectivoStorageKey()) || "";
         const elegido =
           almacenado && lista.includes(almacenado)
             ? almacenado
             : lista[0] || "";
 
         if (elegido && elegido !== almacenado) {
-          localStorage.setItem("anio_lectivo_activo", elegido);
+          localStorage.setItem(getAnioLectivoStorageKey(), elegido);
         }
 
         setAnioLectivoActivoPersonal(elegido);
@@ -460,7 +461,7 @@ function Docente() {
   useEffect(() => {
     if (appMode !== "personal") return;
     if (!anioLectivoActivoPersonal) return;
-    localStorage.setItem("anio_lectivo_activo", anioLectivoActivoPersonal);
+    localStorage.setItem(getAnioLectivoStorageKey(), anioLectivoActivoPersonal);
   }, [appMode, anioLectivoActivoPersonal]);
 
   const cargarMateriasPersonales = useCallback(async () => {
@@ -1019,7 +1020,7 @@ function Docente() {
 
   const cambiarAnioPersonal = (anio) => {
     setAnioLectivoActivoPersonal(anio);
-    localStorage.setItem("anio_lectivo_activo", anio);
+    localStorage.setItem(getAnioLectivoStorageKey(), anio);
   };
 
   const crearAnioPersonal = async () => {
@@ -1100,8 +1101,8 @@ function Docente() {
       setAniosLectivosPersonales(listaActualizada);
       const siguiente = listaActualizada[0] || "";
       setAnioLectivoActivoPersonal(siguiente);
-      if (siguiente) localStorage.setItem("anio_lectivo_activo", siguiente);
-      else localStorage.removeItem("anio_lectivo_activo");
+      if (siguiente) localStorage.setItem(getAnioLectivoStorageKey(), siguiente);
+      else localStorage.removeItem(getAnioLectivoStorageKey());
       await cargarCursos();
       notify("success", "Año lectivo eliminado");
     } catch (err) {
@@ -1299,7 +1300,7 @@ function Docente() {
                   type="button"
                   className="toolbar-blue-btn btn-inline-icon"
                   onClick={() => {
-                    const anioGuardado = localStorage.getItem("anio_lectivo_activo") || "";
+                    const anioGuardado = localStorage.getItem(getAnioLectivoStorageKey()) || "";
                     if (anioGuardado) setAnioLectivoActivoPersonal(anioGuardado);
                     setMostrarPeriodizacionModal(true);
                   }}

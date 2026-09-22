@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app.models.cursos_materias_docentes import CursoMateriaDocente
@@ -10,6 +10,7 @@ from app.models.insumos import Insumo
 from app.models.materias import Materia
 from app.models.usuarios import Usuario
 from app.models.usuarios_contextos import UsuarioContexto
+from app.models.contextos import Contexto
 from app.models.enums import RolUsuarioEnum
 from app.crud import cursos_materias_docentes as crud
 from app.schemas.cursos_materias_docentes import CMDCreate, CMDUpdate
@@ -19,13 +20,16 @@ from app.services.validaciones_academicas import manejar_error_integridad
 
 async def _docente_activo_en_contexto(db: AsyncSession, id_usuario: int, id_contexto: int):
     result = await db.execute(
-        select(Usuario).join(
+        select(Usuario).outerjoin(
             UsuarioContexto, UsuarioContexto.id_usuario == Usuario.id_usuario,
-        ).where(
+        ).outerjoin(Contexto, Contexto.id_contexto == id_contexto).where(
             Usuario.id_usuario == id_usuario,
-            UsuarioContexto.id_contexto == id_contexto,
-            UsuarioContexto.rol == RolUsuarioEnum.docente.value,
-            UsuarioContexto.activo == True,
+            or_(
+                UsuarioContexto.id_contexto == id_contexto,
+                and_(Contexto.tipo_modo == "personal", Contexto.id_owner_docente == id_usuario),
+            ),
+            or_(UsuarioContexto.rol == RolUsuarioEnum.docente.value, Contexto.tipo_modo == "personal"),
+            or_(UsuarioContexto.activo == True, Contexto.tipo_modo == "personal"),
             Usuario.activo == True,
         )
     )

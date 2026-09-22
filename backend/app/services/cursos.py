@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 
 from app.models.cursos import Curso
 from app.models.contextos import Contexto
@@ -14,17 +14,22 @@ from app.models.notas import Nota
 from app.models.insumos import Insumo
 from app.models.cursos_materias_docentes import CursoMateriaDocente
 from app.models.usuarios_contextos import UsuarioContexto
+from app.models.contextos import Contexto
 
 
 async def _obtener_docente_del_contexto(db: AsyncSession, id_usuario: int, id_contexto: int):
     result = await db.execute(
         select(Usuario)
-        .join(UsuarioContexto, UsuarioContexto.id_usuario == Usuario.id_usuario)
+        .outerjoin(UsuarioContexto, UsuarioContexto.id_usuario == Usuario.id_usuario)
+        .outerjoin(Contexto, Contexto.id_contexto == id_contexto)
         .where(
             Usuario.id_usuario == id_usuario,
-            UsuarioContexto.id_contexto == id_contexto,
-            UsuarioContexto.rol == RolUsuarioEnum.docente.value,
-            UsuarioContexto.activo == True,
+            or_(
+                UsuarioContexto.id_contexto == id_contexto,
+                and_(Contexto.tipo_modo == "personal", Contexto.id_owner_docente == id_usuario),
+            ),
+            or_(UsuarioContexto.rol == RolUsuarioEnum.docente.value, Contexto.tipo_modo == "personal"),
+            or_(UsuarioContexto.activo == True, Contexto.tipo_modo == "personal"),
             Usuario.activo == True,
         )
     )

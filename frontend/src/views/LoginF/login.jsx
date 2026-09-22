@@ -121,7 +121,9 @@ export default function Login() {
     setContextosPendientes([]);
     setTokenPendiente("");
 
-    if (contexto.modo === "institucional" && contexto.rol === "administrativo") {
+    if (contexto.modo === "plataforma") {
+      navigate("/plataforma/instituciones");
+    } else if (contexto.modo === "institucional" && contexto.rol === "administrativo") {
       navigate("/admin");
     } else {
       navigate("/docente");
@@ -148,6 +150,11 @@ export default function Login() {
         Authorization: `Bearer ${data.access_token}`,
         "X-App-Mode": appMode,
       });
+      const plataforma = (contextos || []).find((contexto) => contexto.modo === "plataforma");
+      if (plataforma) {
+        await activarContexto(plataforma, data.access_token);
+        return;
+      }
       const disponibles = (contextos || []).filter((contexto) => contexto.modo === appMode);
       if (!disponibles.length) {
         throw new Error("No tienes un espacio activo para el modo seleccionado");

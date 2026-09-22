@@ -119,7 +119,7 @@ function CursosAdmin() {
   }, [cursos, filtroAnio, filtroAlerta, asignaciones]);
 
   const anioLectivoCurso = useMemo(
-    () => filtroAnio || localStorage.getItem("anio_lectivo_activo") || aniosDisponibles[0] || "",
+    () => filtroAnio || localStorage.getItem("anio_lectivo_activo:institucional:" + (localStorage.getItem("contexto_activo") || "sin-contexto")) || aniosDisponibles[0] || "",
     [aniosDisponibles, filtroAnio],
   );
 

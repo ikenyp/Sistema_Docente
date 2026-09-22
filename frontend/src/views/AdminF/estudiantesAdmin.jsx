@@ -12,7 +12,7 @@ import { normalizarAnioLectivo } from "../../utils/anioLectivo";
 function EstudiantesAdmin() {
   const [searchParams] = useSearchParams();
   const [anioActivo, setAnioActivo] = useState(() =>
-    normalizarAnioLectivo(localStorage.getItem("anio_lectivo_activo") || ""),
+    normalizarAnioLectivo(localStorage.getItem(`anio_lectivo_activo:institucional:${localStorage.getItem("contexto_activo") || "sin-contexto"}`) || ""),
   );
   const [filtros, setFiltros] = useState({
     busqueda: "",
@@ -169,7 +169,7 @@ function EstudiantesAdmin() {
   useEffect(() => {
     const syncAnio = () => {
       setAnioActivo(
-        normalizarAnioLectivo(localStorage.getItem("anio_lectivo_activo") || ""),
+        normalizarAnioLectivo(localStorage.getItem(`anio_lectivo_activo:institucional:${localStorage.getItem("contexto_activo") || "sin-contexto"}`) || ""),
       );
     };
     syncAnio();

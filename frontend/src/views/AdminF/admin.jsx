@@ -19,6 +19,7 @@ import {
   asignacionesAPI,
   estructurasAcademicasAPI,
   listarTodasLasPaginas,
+  getAnioLectivoStorageKey,
 } from "../../services/api";
 
 function Admin() {
@@ -162,7 +163,7 @@ function Admin() {
 
   useEffect(() => {
     if (anioActivo) {
-      localStorage.setItem("anio_lectivo_activo", anioActivo);
+      localStorage.setItem(getAnioLectivoStorageKey(), anioActivo);
     }
   }, [anioActivo]);
 
@@ -185,7 +186,7 @@ function Admin() {
       setAnioNuevo("");
       await cargar();
       setAnioActivo(normalizarAnioLectivo(nuevo?.anio_lectivo || formato));
-      localStorage.setItem("anio_lectivo_activo", normalizarAnioLectivo(nuevo?.anio_lectivo || formato));
+      localStorage.setItem(getAnioLectivoStorageKey(), normalizarAnioLectivo(nuevo?.anio_lectivo || formato));
       notify("success", `Año lectivo ${formato} creado`);
     } catch (e) {
       notify("error", e.message || "No se pudo crear el año lectivo");

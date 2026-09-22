@@ -239,7 +239,7 @@ function AppShell({ sessionState, handleStay, handleLogout, clearSessionState })
         <Route
           path="/plataforma/instituciones"
           element={
-            <ProtectedRoute allowRoles={["administrativo"]} allowModes={["institucional"]}>
+            <ProtectedRoute allowRoles={["administrativo", "operador"]} allowModes={["plataforma"]}>
               <InstitucionesPlataforma />
             </ProtectedRoute>
           }

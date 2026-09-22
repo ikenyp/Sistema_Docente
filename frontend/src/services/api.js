@@ -9,8 +9,19 @@ const getAppMode = () => {
   return (localStorage.getItem("app_mode") || "institucional").toLowerCase();
 };
 
+export const getAnioLectivoStorageKey = () => {
+  const modo = (localStorage.getItem("app_mode") || "institucional").toLowerCase();
+  const contexto = localStorage.getItem("contexto_activo") || "sin-contexto";
+  return `anio_lectivo_activo:${modo}:${contexto}`;
+};
+
 const getAnioLectivoActivo = () => {
-  return localStorage.getItem("anio_lectivo_activo") || "";
+  const key = getAnioLectivoStorageKey();
+  const actual = localStorage.getItem(key);
+  if (actual) return actual;
+  const legado = localStorage.getItem("anio_lectivo_activo");
+  if (legado) localStorage.setItem(key, legado);
+  return legado || "";
 };
 
 const getContextoActivo = () => localStorage.getItem("contexto_activo") || "";
