@@ -53,7 +53,11 @@ export default function Login() {
     if (viewParam === "recover" && tokenParam) {
       setAuthView("recover");
       setResetToken(tokenParam);
-      setSelectedMode("institucional");
+      setSelectedMode(
+        localStorage.getItem("app_mode") === "institucional"
+          ? "institucional"
+          : "personal",
+      );
     }
   }, [searchParams]);
 
@@ -338,12 +342,16 @@ export default function Login() {
                   <h2 className="login-title login-title-register">
                     Crear cuenta
                   </h2>
+                  <p className="login-context-note">Crea tu cuenta personal de docente</p>
                 </>
               ) : authView === "recover" ? (
                 <>
                   <h2 className="login-title">
                     {resetToken ? "Cambiar contraseña" : "Recuperar contraseña"}
                   </h2>
+                  <p className="login-context-note">
+                    Cuenta {selectedMode === "institucional" ? "institucional" : "personal"}
+                  </p>
                 </>
               ) : (
                 <>
@@ -463,29 +471,36 @@ export default function Login() {
                       className="login-input register-full"
                       required
                     />
-                    <input
-                      type={mostrarRegistroPassword ? "text" : "password"}
-                      value={registerPassword}
-                      onChange={(e) => setRegisterPassword(e.target.value)}
-                      placeholder="Contraseña"
-                      className="login-input"
-                      required
-                      minLength={8}
-                      autoComplete="new-password"
-                    />
-                    <input
-                      type={mostrarRegistroPassword ? "text" : "password"}
-                      value={registerConfirmPassword}
-                      onChange={(e) =>
-                        setRegisterConfirmPassword(e.target.value)
-                      }
-                      placeholder="Confirmar contraseña"
-                      className="login-input"
-                      required
-                      minLength={8}
-                      autoComplete="new-password"
-                    />
-                    <button type="button" className="password-toggle register-password-toggle" onClick={() => setMostrarRegistroPassword((value) => !value)}>{mostrarRegistroPassword ? "Ocultar contraseñas" : "Mostrar contraseñas"}</button>
+                    <div className="password-field register-password-field">
+                      <input
+                        type={mostrarRegistroPassword ? "text" : "password"}
+                        value={registerPassword}
+                        onChange={(e) => setRegisterPassword(e.target.value)}
+                        placeholder="Contraseña"
+                        className="login-input"
+                        required
+                        minLength={8}
+                        autoComplete="new-password"
+                      />
+                      <button type="button" className="password-toggle" onClick={() => setMostrarRegistroPassword((value) => !value)}>
+                        {mostrarRegistroPassword ? "Ocultar" : "Mostrar"}
+                      </button>
+                    </div>
+                    <div className="password-field register-password-field">
+                      <input
+                        type={mostrarRegistroPassword ? "text" : "password"}
+                        value={registerConfirmPassword}
+                        onChange={(e) => setRegisterConfirmPassword(e.target.value)}
+                        placeholder="Confirmar contraseña"
+                        className="login-input"
+                        required
+                        minLength={8}
+                        autoComplete="new-password"
+                      />
+                      <button type="button" className="password-toggle" onClick={() => setMostrarRegistroPassword((value) => !value)}>
+                        {mostrarRegistroPassword ? "Ocultar" : "Mostrar"}
+                      </button>
+                    </div>
                   </div>
                   <div className="auth-actions">
                     <button

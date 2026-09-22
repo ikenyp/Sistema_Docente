@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = ""
     FRONTEND_URL: str = "http://localhost:3000"
+    PLATFORM_OPERATOR_EMAILS: str = ""
 
     # Ignorar variables extra en .env
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

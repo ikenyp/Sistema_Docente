@@ -213,6 +213,13 @@ export const cmdAPI = {
   eliminar: (id_cmd) => apiCall(`/cursos-materias-docentes/${id_cmd}`, "DELETE"),
 };
 
+export const plataformaAPI = {
+  listarInstituciones: () => apiCall("/plataforma/instituciones"),
+  crearInstitucion: (data) => apiCall("/plataforma/instituciones", "POST", data),
+  cambiarEstadoInstitucion: (id, activo) =>
+    apiCall(`/plataforma/instituciones/${id}/estado?activo=${activo}`, "PATCH"),
+};
+
 // ==================== INSUMOS ====================
 export const insumosAPI = {
   // Obtener insumos de una materia/curso

@@ -9,6 +9,7 @@ from app.schemas.usuarios import RolUsuarioEnum
 from app.core.context_manager import resolve_contexto_id
 from app.models.contextos import Contexto
 from app.models.usuarios_contextos import UsuarioContexto
+from app.core.config import settings
 from sqlalchemy import select
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -116,3 +117,17 @@ def require_context_role(*roles: RolUsuarioEnum):
         return usuario
 
     return checker
+
+
+async def require_platform_operator(usuario=Depends(get_current_user)):
+    operadores = {
+        correo.strip().lower()
+        for correo in settings.PLATFORM_OPERATOR_EMAILS.split(",")
+        if correo.strip()
+    }
+    if usuario.correo.lower() not in operadores:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos de operador de plataforma",
+        )
+    return usuario

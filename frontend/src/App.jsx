@@ -11,6 +11,7 @@ import {
 import Login from "./views/LoginF/login";
 import Admin from "./views/AdminF/admin";
 import Docente from "./views/DocenteF/docente";
+import InstitucionesPlataforma from "./views/Plataforma/InstitucionesPlataforma";
 import CursoPrincipal from "./views/DocenteF/cursoPrincipal";
 
 import NotificationCenter from "./components/NotificationCenter";
@@ -232,6 +233,14 @@ function AppShell({ sessionState, handleStay, handleLogout, clearSessionState })
               allowModes={["institucional", "personal"]}
             >
               <Docente />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/plataforma/instituciones"
+          element={
+            <ProtectedRoute allowRoles={["administrativo"]} allowModes={["institucional"]}>
+              <InstitucionesPlataforma />
             </ProtectedRoute>
           }
         />
