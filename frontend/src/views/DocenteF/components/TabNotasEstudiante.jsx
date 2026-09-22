@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowLeftRight } from "lucide-react";
+import { ArrowLeftRight, BookOpen } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
 import { Save } from "lucide-react";
 import { calcularPromedioInteractivo } from "../../../utils/promedios";
@@ -14,6 +14,7 @@ export const TabNotasEstudiante = ({
   activeTab,
   estudiantesCurso,
   periodos,
+  insumosMateria = [],
   estudianteSeleccionado,
   setEstudianteSeleccionado,
   soloLecturaTutor,
@@ -46,9 +47,12 @@ export const TabNotasEstudiante = ({
       const notasPeriodo = notasIndividuales.filter(
         (registro) => String(registro.insumo?.id_periodo) === String(periodo.id_periodo),
       );
+      const insumosPeriodo = insumosMateria.filter(
+        (insumo) => String(insumo.id_periodo) === String(periodo.id_periodo),
+      );
 
       const calculo = calcularPromedioInteractivo(
-        notasPeriodo.map((registro) => registro.insumo).filter(Boolean),
+        insumosPeriodo,
         (insumo) => {
           const registro = notasPeriodo.find(
             (item) => String(item.insumo?.id_insumo) === String(insumo.id_insumo),
@@ -63,7 +67,7 @@ export const TabNotasEstudiante = ({
         promedio: calculo.promedio,
       };
     });
-  }, [notasIndividuales, periodosOrdenados]);
+  }, [insumosMateria, notasIndividuales, periodosOrdenados]);
 
   const estudiantesOrdenados = useMemo(
     () =>
@@ -95,7 +99,9 @@ export const TabNotasEstudiante = ({
     if (!periodo) return null;
 
     return calcularPromedioInteractivo(
-      periodo.notasPeriodo.map((registro) => registro.insumo).filter(Boolean),
+      insumosMateria.filter(
+        (insumo) => String(insumo.id_periodo) === String(periodo.id_periodo),
+      ),
       (insumo) => {
         const registro = periodo.notasPeriodo.find(
           (item) => String(item.insumo?.id_insumo) === String(insumo.id_insumo),
@@ -103,7 +109,7 @@ export const TabNotasEstudiante = ({
         return registro?.valor ?? registro?.calificacion;
       },
     ).promedio;
-  }, [periodoFiltrado, periodosConNotas]);
+  }, [insumosMateria, periodoFiltrado, periodosConNotas]);
 
   const mostrarPromedioGeneral = Boolean(estudianteSeleccionado);
 
@@ -139,7 +145,7 @@ export const TabNotasEstudiante = ({
     <div className="panel-card tab-pane active">
       <div className="panel-header">
         <div>
-          <h3>📑 Notas por estudiante</h3>
+          <h3><BookOpen size={18} /> Notas por estudiante</h3>
           <p className="panel-sub">Revisa las actividades, notas y promedios por periodo</p>
         </div>
         {mostrarPromedioGeneral && (

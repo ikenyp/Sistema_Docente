@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { Save, Trash2 } from "lucide-react";
 import { nombrePersona } from "../../../utils/personas";
 
@@ -13,6 +14,8 @@ export const TabModalNotasInsumo = ({
 }) => {
   const [estudiantes, setEstudiantes] = useState([]);
   const [notas, setNotas] = useState({});
+  const notasGuardadas = useRef({});
+  const guardandoNotas = useRef(new Set());
 
   const estudiantesOrdenados = useMemo(
     () =>
@@ -31,9 +34,10 @@ export const TabModalNotasInsumo = ({
       if (!insumo) return;
 
       try {
-        const estudiantesData =
-          estudiantesCurso.length > 0 ? estudiantesCurso : await cargarEstudiantesPorCurso();
-        const notasData = await cargarNotasPorInsumo(insumo.id_insumo);
+        const [estudiantesData, notasData] = await Promise.all([
+          estudiantesCurso.length > 0 ? estudiantesCurso : cargarEstudiantesPorCurso(),
+          cargarNotasPorInsumo(insumo.id_insumo),
+        ]);
 
         const notasMap = {};
         (notasData || []).forEach((nota) => {
@@ -43,6 +47,12 @@ export const TabModalNotasInsumo = ({
         if (!mounted) return;
         setEstudiantes(estudiantesData || []);
         setNotas(notasMap);
+        notasGuardadas.current = Object.fromEntries(
+          Object.entries(notasMap).map(([idEstudiante, nota]) => [
+            idEstudiante,
+            String(nota?.calificacion ?? ""),
+          ]),
+        );
       } catch {
         if (!mounted) return;
         setEstudiantes([]);
@@ -59,13 +69,41 @@ export const TabModalNotasInsumo = ({
 
   if (!insumo) return null;
 
+  const guardarNotaDesdeInput = async (idEstudiante) => {
+    if (soloLecturaTutor || guardandoNotas.current.has(idEstudiante)) return;
+
+    const input = document.getElementById(`nota-${idEstudiante}`);
+    const valor = input?.value ?? "";
+    if (valor === "" || notasGuardadas.current[idEstudiante] === valor) return;
+
+    guardandoNotas.current.add(idEstudiante);
+    try {
+      const notaGuardada = await guardarNota(
+        idEstudiante,
+        valor,
+        notas[idEstudiante]?.id_nota || null,
+      );
+      notasGuardadas.current[idEstudiante] = valor;
+      setNotas((prev) => ({
+        ...prev,
+        [idEstudiante]: {
+          ...prev[idEstudiante],
+          ...(notaGuardada || {}),
+          calificacion: Number(valor),
+        },
+      }));
+    } finally {
+      guardandoNotas.current.delete(idEstudiante);
+    }
+  };
+
   return (
     <div className="modal-overlay">
-      <div className="modal-notas">
-        <div className="modal-header">
+      <div className="modal-notas course-notes-modal">
+        <div className="modal-header course-notes-modal-header">
           <h3>Agregar Notas - {insumo.nombre}</h3>
-          <button className="btn-cerrar" onClick={onClose}>
-            ✕
+          <button className="btn-cerrar" onClick={onClose} aria-label="Cerrar modal">
+            <X size={18} />
           </button>
         </div>
 
@@ -94,7 +132,7 @@ export const TabModalNotasInsumo = ({
                     <input
                       type="number"
                       min="0"
-                      max="10"
+                      max={insumo.ponderacion}
                       step="0.1"
                       defaultValue={notas[estudiante.id_estudiante]?.calificacion || ""}
                       key={`nota-${estudiante.id_estudiante}-${notas[estudiante.id_estudiante]?.id_nota || "new"}-${notas[estudiante.id_estudiante]?.calificacion || ""}`}
@@ -102,6 +140,19 @@ export const TabModalNotasInsumo = ({
                       className="input-nota"
                       id={`nota-${estudiante.id_estudiante}`}
                       disabled={soloLecturaTutor}
+                      onBlur={() => guardarNotaDesdeInput(estudiante.id_estudiante)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          guardarNotaDesdeInput(estudiante.id_estudiante);
+                        }
+                      }}
+                      onInput={(event) => {
+                        const maximo = Number(insumo.ponderacion);
+                        if (Number(event.currentTarget.value) > maximo) {
+                          event.currentTarget.value = String(maximo);
+                        }
+                      }}
                     />
                   </td>
                   <td>
@@ -109,10 +160,7 @@ export const TabModalNotasInsumo = ({
                       <button
                         className="btn-save btn-save-inline"
                         disabled={soloLecturaTutor}
-                        onClick={() => {
-                          const input = document.getElementById(`nota-${estudiante.id_estudiante}`);
-                          guardarNota(estudiante.id_estudiante, input.value);
-                        }}
+                        onClick={() => guardarNotaDesdeInput(estudiante.id_estudiante)}
                       >
                         <Save size={16} />
                         <span>{soloLecturaTutor ? "Solo lectura" : "Guardar"}</span>
@@ -125,6 +173,11 @@ export const TabModalNotasInsumo = ({
                             const nota = notas[estudiante.id_estudiante];
                             if (!nota) return;
                             await guardarNota(estudiante.id_estudiante, null, nota.id_nota);
+                            setNotas((prev) => {
+                              const siguiente = { ...prev };
+                              delete siguiente[estudiante.id_estudiante];
+                              return siguiente;
+                            });
                           }}
                           aria-label="Eliminar nota"
                         >

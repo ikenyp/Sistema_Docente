@@ -13,7 +13,7 @@ from app.models.cursos import Curso
 from app.core.pagination import normalizar_paginacion
 from app.crud import notas as crud
 from app.schemas.notas import NotaCreate, NotaUpdate
-from app.services.validaciones_academicas import validar_calificacion, validar_estudiante_en_curso
+from app.services.validaciones_academicas import validar_calificacion, validar_calificacion_segun_ponderacion, validar_estudiante_en_curso
 from app.services.validaciones_academicas import manejar_error_integridad
 
 
@@ -37,6 +37,8 @@ async def crear_nota(db: AsyncSession, data: NotaCreate, id_contexto: int):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El insumo no existe"
         )
+
+    validar_calificacion_segun_ponderacion(data.calificacion, float(insumo_obj.ponderacion))
 
     # Validar que el estudiante exista
     estudiante = await db.execute(
@@ -189,11 +191,23 @@ async def actualizar_nota(
         est_obj = est_actual.scalar_one_or_none()
         
         if est_obj and insumo_obj:
+            if "calificacion" in values:
+                validar_calificacion_segun_ponderacion(values["calificacion"], float(insumo_obj.ponderacion))
             validar_estudiante_en_curso(
                 est_obj,
                 insumo_obj.cmd.id_curso,
                 "El estudiante no está matriculado en el curso del insumo",
             )
+        elif "calificacion" in values and insumo_obj:
+            validar_calificacion_segun_ponderacion(values["calificacion"], float(insumo_obj.ponderacion))
+
+    elif "calificacion" in values:
+        insumo_actual = await db.execute(
+            select(Insumo).where(Insumo.id_insumo == nota.id_insumo),
+        )
+        insumo_obj = insumo_actual.scalar_one_or_none()
+        if insumo_obj:
+            validar_calificacion_segun_ponderacion(values["calificacion"], float(insumo_obj.ponderacion))
 
     # Validar unicidad si cambia estudiante o insumo
     if (

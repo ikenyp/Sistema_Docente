@@ -23,9 +23,11 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
   const anioLectivoActivo = normalizarAnioLectivo(
     localStorage.getItem("anio_lectivo_activo") || "",
   );
+  const contextoActivo = localStorage.getItem("contexto_activo") || "";
 
   const cursosRecientes = (() => {
     if (appMode !== "institucional") return [];
+    if (localStorage.getItem("admin_recent_courses_context") !== contextoActivo) return [];
     try {
       const raw = JSON.parse(localStorage.getItem("admin_recent_courses") || "[]");
       return (Array.isArray(raw) ? raw : [])
@@ -50,7 +52,7 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
   const cerrarSesion = () => {
     const appMode = localStorage.getItem("app_mode") || "institucional";
     clearSessionStorage();
-    navigate(`/?mode=${appMode}`);
+    window.location.replace(`/?mode=${appMode}`);
   };
 
   return (

@@ -16,6 +16,7 @@ import {
   asistenciaAPI,
   comportamientoAPI,
   materiasAPI,
+  listarTodasLasPaginas,
 } from "../../services/api";
 import { notify, requestConfirm } from "../../components/notify";
 import { normalizarAnioLectivo } from "../../utils/anioLectivo";
@@ -99,7 +100,7 @@ function CursoHubAdmin() {
 
   const cargarEstudiantesDisponibles = useCallback(async () => {
     try {
-      const lista = await estudiantesAPI.buscar({ estado: "matriculado", size: 100 });
+      const lista = await listarTodasLasPaginas(estudiantesAPI.buscar, { estado: "matriculado" });
       setEstudiantesDisponibles(
         (lista || []).filter((est) => !est.id_curso_actual),
       );
@@ -283,7 +284,7 @@ function CursoHubAdmin() {
         id_curso_actual: idCurso,
       });
       const [estCurso] = await Promise.all([
-        estudiantesAPI.buscar({ id_curso: idCurso, size: 100 }),
+        listarTodasLasPaginas(estudiantesAPI.buscar, { id_curso: idCurso }),
         cargarEstudiantesDisponibles(),
       ]);
       setEstudiantes(estCurso || []);
@@ -320,7 +321,7 @@ function CursoHubAdmin() {
       });
       setModalCrearEstOpen(false);
       const [estCurso] = await Promise.all([
-        estudiantesAPI.buscar({ id_curso: idCurso, size: 100 }),
+        listarTodasLasPaginas(estudiantesAPI.buscar, { id_curso: idCurso }),
         cargarEstudiantesDisponibles(),
       ]);
       setEstudiantes(estCurso || []);
@@ -340,7 +341,7 @@ function CursoHubAdmin() {
         id_curso_actual: null,
       });
       const [estCurso] = await Promise.all([
-        estudiantesAPI.buscar({ id_curso: idCurso, size: 100 }),
+        listarTodasLasPaginas(estudiantesAPI.buscar, { id_curso: idCurso }),
         cargarEstudiantesDisponibles(),
       ]);
       setEstudiantes(estCurso || []);
@@ -1650,7 +1651,7 @@ function CursoHubAdmin() {
         onClose={() => setModalImportOpen(false)}
         onSaved={async () => {
           const [estCurso] = await Promise.all([
-            estudiantesAPI.buscar({ id_curso: idCurso, size: 100 }),
+            listarTodasLasPaginas(estudiantesAPI.buscar, { id_curso: idCurso }),
             cargarEstudiantesDisponibles(),
           ]);
           setEstudiantes(estCurso || []);

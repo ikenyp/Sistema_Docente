@@ -288,7 +288,7 @@ async def eliminar_insumo(db: AsyncSession, id_insumo: int, current_user = None,
     
     # VALIDACIÓN CRÍTICA: No permitir eliminar si tiene notas asignadas
     notas_existentes = await db.execute(
-        select(Nota).where(Nota.id_insumo == id_insumo)
+        select(Nota.id_nota).where(Nota.id_insumo == id_insumo).limit(1)
     )
     if notas_existentes.scalar_one_or_none():
         raise HTTPException(

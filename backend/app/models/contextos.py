@@ -10,10 +10,13 @@ class Contexto(Base):
     id_contexto = Column(Integer, primary_key=True)
     tipo_modo = Column(String(20), nullable=False)  # institucional | personal
     nombre = Column(String(120), nullable=False)
+    id_institucion = Column(Integer, ForeignKey("instituciones.id_institucion"), nullable=True)
     id_owner_docente = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     activo = Column(Boolean, default=True, nullable=False)
 
     owner_docente = relationship("Usuario", foreign_keys=[id_owner_docente])
+    institucion = relationship("Institucion", back_populates="contextos")
+    membresias = relationship("UsuarioContexto", back_populates="contexto", cascade="all, delete-orphan")
     cursos = relationship("Curso", back_populates="contexto")
     materias = relationship("Materia", back_populates="contexto")
     estudiantes = relationship("Estudiante", back_populates="contexto")

@@ -10,6 +10,7 @@ import {
   usuariosAPI,
   estudiantesAPI,
   estructurasAcademicasAPI,
+  listarTodasLasPaginas,
 } from "../../services/api";
 import { notify, requestConfirm } from "../../components/notify";
 import { nombrePersona } from "../../utils/personas";
@@ -37,15 +38,15 @@ function CursosAdmin() {
   const cargar = useCallback(async () => {
     try {
       const [lc, lu, le] = await Promise.all([
-        cursosAPI.listar({ size: 100 }),
-        usuariosAPI.listar({ size: 100 }),
-        estructurasAcademicasAPI.listar({ size: 100 }),
+        listarTodasLasPaginas(cursosAPI.listar),
+        listarTodasLasPaginas(usuariosAPI.listar),
+        listarTodasLasPaginas(estructurasAcademicasAPI.listar),
       ]);
       setCursos(lc || []);
       setUsuarios(lu || []);
       setEstructuras(le || []);
       try {
-        const la = await asignacionesAPI.listar({ size: 100 });
+        const la = await listarTodasLasPaginas(asignacionesAPI.listar);
         setAsignaciones(la || []);
       } catch {
         setAsignaciones([]);
@@ -58,7 +59,7 @@ function CursosAdmin() {
         setAniosLectivos([]);
       }
 
-      const est = await estudiantesAPI.buscar({ size: 100 });
+      const est = await listarTodasLasPaginas(estudiantesAPI.buscar);
       const counts = {};
       (est || []).forEach((e) => {
         const id = e.id_curso_actual;

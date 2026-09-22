@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
   asistenciaAPI,
@@ -11,7 +11,7 @@ import {
   cmdAPI,
   materiasAPI,
 } from "../../services/api";
-import { Save, UserPlus, BookOpen, Settings2, Trash2, Brush, X, Upload, Pencil } from "lucide-react";
+import { Save, UserPlus, BookOpen, Settings2, Trash2, Brush, X, Upload, Pencil, Users } from "lucide-react";
 import CustomSelect from "../../components/admin/CustomSelect";
 import ImportarEstudiantesModal from "../../components/estudiantes/ImportarEstudiantesModal";
 import { AnalisisAcademico } from "../../components/AnalisisAcademico";
@@ -416,13 +416,11 @@ function CursoPrincipal() {
     }
     try {
       setGuardandoMateriaCurso(true);
-      for (const idMateria of materiasAgregarSeleccionadas) {
-        await asignacionesAPI.crear({
+      await Promise.all(materiasAgregarSeleccionadas.map((idMateria) => asignacionesAPI.crear({
           id_curso: Number(id_curso),
           id_materia: Number(idMateria),
           id_docente: Number(datosUsuario.id_usuario),
-        });
-      }
+        })));
       setModalMateriaOpen(false);
       setMateriasAgregarSeleccionadas([]);
       await cargarDatos();
@@ -461,7 +459,7 @@ function CursoPrincipal() {
     setMostrarCrearEstudiante(true);
   };
 
-  const abrirModalEditarEstudiante = (estudiante) => {
+  const abrirModalEditarEstudiante = async (estudiante) => {
     setEstudianteEditando(estudiante);
     setEstudianteEditForm({
       nombre: estudiante.nombre || "",
@@ -472,6 +470,16 @@ function CursoPrincipal() {
       id_curso_actual: estudiante.id_curso_actual ? String(estudiante.id_curso_actual) : "",
     });
     setMostrarEditarEstudiante(true);
+
+    try {
+      const cursos = esModoPersonal
+        ? await cursosAPI.obtenerCursosPorDocente(datosUsuario?.id_usuario)
+        : await cursosAPI.listar({ size: 100 });
+      setCursosEdicion(cursos || []);
+    } catch (err) {
+      console.error("Error al cargar cursos para edición:", err);
+      setCursosEdicion([]);
+    }
   };
 
   const guardarEdicionEstudiante = async () => {
@@ -525,18 +533,13 @@ function CursoPrincipal() {
       notify("error", "Nombre, apellido y cédula son obligatorios");
       return;
     }
-    if (!estudianteCreando.fecha_nacimiento) {
-      notify("error", "La fecha de nacimiento es obligatoria");
-      return;
-    }
-
     try {
       setGuardandoEstudianteCurso(true);
       await estudiantesAPI.crear({
         nombre: estudianteCreando.nombre.trim(),
         apellido: estudianteCreando.apellido.trim(),
         cedula: estudianteCreando.cedula.trim(),
-        fecha_nacimiento: estudianteCreando.fecha_nacimiento,
+        fecha_nacimiento: estudianteCreando.fecha_nacimiento || undefined,
         estado: "matriculado",
         id_curso_actual: Number(id_curso),
       });
@@ -568,7 +571,6 @@ function CursoPrincipal() {
       setDatosUsuario(usuario);
       const dashboard = await cursosAPI.obtenerDashboard(id_curso);
       const cursoActual = dashboard?.curso || curso;
-      setCursoDetalle(cursoActual);
 
       // El tutor puede revisar todo el curso; los demás docentes solo ven
       // las materias que tienen asignadas dentro de ese mismo curso.
@@ -583,23 +585,8 @@ function CursoPrincipal() {
             (item) => item.id_docente === usuario.id_usuario,
           );
 
-      // Estas consultas no dependen entre sí. Ejecutarlas juntas evita que la
-      // pantalla espere una respuesta antes de iniciar la siguiente petición.
-      const [asignacionesDocenteCurso, cursosDisponibles] = await Promise.all([
-        asignacionesAPI
-          .listar({ id_curso: Number(id_curso), size: 100 })
-          .catch(() => []),
-        (esModoPersonal
-          ? cursosAPI.obtenerCursosPorDocente(usuario.id_usuario)
-          : cursosAPI.listar({ size: 100 })
-        ).catch((err) => {
-          console.error("Error al cargar cursos para edición:", err);
-          return [];
-        }),
-      ]);
-
       setMateriasGestionablesDocente(
-        (asignacionesDocenteCurso || [])
+        (cmd || [])
           .map((item) => item.id_cmd || item.cmd?.id_cmd || item.id_materia || item.materia?.id_materia)
           .filter(Boolean),
       );
@@ -607,7 +594,7 @@ function CursoPrincipal() {
       // Guardamos IDs normalizados como texto porque algunas respuestas de la
       // API llegan como números y otras como strings.
       const gestionablesIds = new Set(
-        (asignacionesDocenteCurso || [])
+        (cmd || [])
           .map((item) => item.id_cmd || item.cmd?.id_cmd || item.id_materia || item.materia?.id_materia)
           .filter(Boolean)
           .map((value) => String(value)),
@@ -620,9 +607,10 @@ function CursoPrincipal() {
       }
 
       const estudiantes = dashboard?.estudiantes || [];
+      setCursoDetalle(cursoActual);
       setEstudiantesCurso(estudiantes || []);
 
-      setCursosEdicion(cursosDisponibles || []);
+      setCursosEdicion([]);
 
       // La configuración viene incluida en el dashboard. Si no hay periodos,
       // mostramos una indicación útil en lugar de dejar un selector vacío.
@@ -753,13 +741,18 @@ function CursoPrincipal() {
     }
   };
 
-  const eliminarInsumo = async (id_insumo) => {
-    const ok = await requestConfirm("¿Está seguro de eliminar este insumo?");
-    if (!ok) return;
+  const eliminarInsumo = (insumo) => {
+    setInsumoPendienteEliminar(insumo);
+  };
+
+  const confirmarEliminarInsumo = async () => {
+    const insumo = insumoPendienteEliminar;
+    if (!insumo) return;
 
     try {
-      await insumosAPI.eliminar(id_insumo);
+      await insumosAPI.eliminar(insumo.id_insumo);
       await cargarInsumos(materiaSeleccionada.id_cmd);
+      setInsumoPendienteEliminar(null);
       notify("success", "Insumo eliminado correctamente");
     } catch (err) {
       notify("error", "Error al eliminar insumo: " + err.message);
@@ -767,6 +760,8 @@ function CursoPrincipal() {
   };
 
   const [insumoNotasAbierto, setInsumoNotasAbierto] = useState(null);
+  const [insumoPendienteEliminar, setInsumoPendienteEliminar] = useState(null);
+  const notasPorInsumoCache = useRef(new Map());
 
   const abrirInsumosNotas = async (insumo) => {
     setInsumoNotasAbierto(insumo);
@@ -813,7 +808,12 @@ function CursoPrincipal() {
   };
 
   const cargarNotasPorInsumo = async (id_insumo) => {
-    return notasAPI.listarPorInsumo(id_insumo);
+    if (notasPorInsumoCache.current.has(id_insumo)) {
+      return notasPorInsumoCache.current.get(id_insumo);
+    }
+    const notas = await notasAPI.listarPorInsumo(id_insumo);
+    notasPorInsumoCache.current.set(id_insumo, notas || []);
+    return notas || [];
   };
 
   const cerrarModalInsumo = () => setInsumoNotasAbierto(null);
@@ -1130,13 +1130,13 @@ function CursoPrincipal() {
     const appMode = localStorage.getItem("app_mode") || "institucional";
     clearSessionStorage();
     // Volver al login con el modo que estaba usando
-    navigate(`/?mode=${appMode}`);
+    window.location.replace(`/?mode=${appMode}`);
   };
 
   return (
     <div className="curso-principal-page">
       <div className="navbar-curso">
-        <button className="btn-volver" onClick={() => navigate(-1)}>
+        <button className="btn-volver" onClick={() => navigate("/docente", { replace: true })}>
           ← Volver
         </button>
 
@@ -1222,7 +1222,7 @@ function CursoPrincipal() {
                   <p className="summary-label">Curso</p>
                   <h3 className="course-summary-title">{cursoDetalle?.nombre || "Curso"}</h3>
                   {soloLecturaTutor && (
-                    <p className="summary-sub" style={{ color: "#1f91de", fontWeight: 700 }}>
+                    <p className="summary-sub" style={{ color: "#111", fontWeight: 700 }}>
                       Tutor del curso · Vista global en solo lectura
                     </p>
                   )}
@@ -1332,7 +1332,7 @@ function CursoPrincipal() {
               <div className="panel-card tab-pane active estudiantes-tab-panel">
                 <div className="panel-header estudiantes-tab-header">
                   <div>
-                    <h3>Estudiantes</h3>
+                    <h3><Users size={18} /> Estudiantes</h3>
                     <p className="panel-sub">Gestiona los estudiantes del curso. Puedes buscar, filtrar y retirar.</p>
                   </div>
                   <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -1501,6 +1501,7 @@ function CursoPrincipal() {
                 activeTab={activeTab}
                 estudiantesCurso={estudiantesCurso}
                 periodos={periodos}
+                insumosMateria={insumosMateria}
                 estudianteSeleccionado={estudianteSeleccionado}
                 setEstudianteSeleccionado={setEstudianteSeleccionado}
                 soloLecturaTutor={soloLecturaTutor}
@@ -1533,6 +1534,7 @@ function CursoPrincipal() {
                 activeTab={activeTab}
                 errorPeriodos={errorPeriodos}
                 periodos={periodos}
+                esModoPersonal={esModoPersonal}
             />
 
             {insumoNotasAbierto && (
@@ -1542,29 +1544,46 @@ function CursoPrincipal() {
                 soloLecturaTutor={soloLecturaTutor}
                 cargarEstudiantesPorCurso={cargarEstudiantesPorCurso}
                 cargarNotasPorInsumo={cargarNotasPorInsumo}
-                guardarNota={async (id_estudiante, valor) => {
+                guardarNota={async (id_estudiante, valor, idNota = null) => {
                   if (!insumoNotasAbierto) return;
-                  const existente = await notasAPI.listarPorInsumo(insumoNotasAbierto.id_insumo);
-                  const notaExistente = (existente || []).find(
-                    (n) => String(n.id_estudiante) === String(id_estudiante),
-                  );
+                  const notasCacheadas = notasPorInsumoCache.current.get(insumoNotasAbierto.id_insumo) || [];
+                  const notaExistente = idNota
+                    ? { id_nota: idNota }
+                    : notasCacheadas.find(
+                        (n) => String(n.id_estudiante) === String(id_estudiante),
+                      );
+                  let notaGuardada = notaExistente;
                   if (notaExistente) {
                     if (valor === null) {
                       await notasAPI.eliminar(notaExistente.id_nota);
                     } else {
-                      await notasAPI.actualizar(notaExistente.id_nota, {
+                      notaGuardada = await notasAPI.actualizar(notaExistente.id_nota, {
                         calificacion: parseFloat(valor),
                       });
                     }
                   } else if (valor !== null) {
-                    await notasAPI.crear({
+                    notaGuardada = await notasAPI.crear({
                       id_estudiante: parseInt(id_estudiante, 10),
                       id_insumo: insumoNotasAbierto.id_insumo,
                       calificacion: parseFloat(valor),
                     });
                   }
-                  await abrirInsumosNotas(insumoNotasAbierto);
-                  await cargarNotasCurso();
+                  const notasActualizadas = notasCacheadas.filter(
+                    (nota) => String(nota.id_estudiante) !== String(id_estudiante),
+                  );
+                  if (valor !== null) {
+                    notasActualizadas.push({
+                      ...(notaExistente || {}),
+                      ...(notaGuardada || {}),
+                      id_estudiante,
+                      id_insumo: insumoNotasAbierto.id_insumo,
+                      calificacion: parseFloat(valor),
+                    });
+                  }
+                  notasPorInsumoCache.current.set(
+                    insumoNotasAbierto.id_insumo,
+                    notasActualizadas,
+                  );
                   notify(
                     "success",
                     valor === null
@@ -1573,6 +1592,7 @@ function CursoPrincipal() {
                         ? "Nota actualizada correctamente"
                         : "Nota guardada correctamente",
                   );
+                  return notaGuardada;
                 }}
                 onClose={cerrarModalInsumo}
               />
@@ -1580,11 +1600,11 @@ function CursoPrincipal() {
 
             {insumoEditando && (
               <div className="modal-overlay">
-                <div className="modal-notas modal-insumo-edit">
-                  <div className="modal-header">
-                    <h3>Editar Insumo</h3>
-                    <button className="btn-cerrar" onClick={cerrarModalEdicionInsumo} disabled={editandoInsumo}>
-                      ✕
+                <div className="modal-notas modal-insumo-edit course-mini-modal course-edit-modal">
+                  <div className="modal-header course-mini-modal-header">
+                    <h3 className="course-mini-modal-title">Editar Insumo</h3>
+                    <button className="btn-cerrar" onClick={cerrarModalEdicionInsumo} disabled={editandoInsumo} aria-label="Cerrar modal">
+                      <X size={14} />
                     </button>
                   </div>
                   <div className="modal-body modal-insumo-edit-body">
@@ -1644,7 +1664,8 @@ function CursoPrincipal() {
                     </div>
                   </div>
                   <div className="modal-footer modal-insumo-edit-footer">
-                    <button className="btn-cancel" type="button" onClick={cerrarModalEdicionInsumo} disabled={editandoInsumo}>
+                    <button className="btn-cancel btn-inline-icon" type="button" onClick={cerrarModalEdicionInsumo} disabled={editandoInsumo}>
+                      <X size={14} />
                       Cancelar
                     </button>
                     <button className="btn-save btn-save-inline" type="button" onClick={guardarEdicionInsumo} disabled={editandoInsumo}>
@@ -1771,7 +1792,7 @@ function CursoPrincipal() {
 
         {materiaPendienteQuitar && (
           <div className="modal-overlay course-mini-modal-overlay course-confirm-overlay">
-            <div className="modal-notas modal-insumo-edit course-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-notas modal-insumo-edit course-mini-modal course-confirm-modal" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header course-mini-modal-header">
                 <h3 className="course-mini-modal-title">Quitar materia</h3>
                 <button className="btn-cerrar" type="button" onClick={() => setMateriaPendienteQuitar(null)}>
@@ -1805,35 +1826,76 @@ function CursoPrincipal() {
           </div>
         )}
 
+        {insumoPendienteEliminar && (
+          <div className="modal-overlay course-mini-modal-overlay course-confirm-overlay">
+            <div className="modal-notas modal-insumo-edit course-confirm-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header course-mini-modal-header">
+                <h3 className="course-mini-modal-title">Eliminar insumo</h3>
+                <button
+                  className="btn-cerrar"
+                  type="button"
+                  onClick={() => setInsumoPendienteEliminar(null)}
+                  aria-label="Cerrar modal"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="modal-insumo-edit-body course-mini-modal-body">
+                <p className="panel-sub" style={{ marginTop: 0 }}>
+                  ¿Estás seguro de eliminar el siguiente insumo?
+                </p>
+                <span className="insumo-delete-type-pill">
+                  {{
+                    actividad: "Actividad",
+                    proyecto_periodo: "Proyecto del periodo",
+                    examen_periodo: "Examen del periodo",
+                  }[insumoPendienteEliminar.tipo_insumo] || "Insumo"}: {insumoPendienteEliminar.nombre}
+                </span>
+              </div>
+              <div className="modal-insumo-edit-footer">
+                <button className="btn-cancel btn-inline-icon" type="button" onClick={() => setInsumoPendienteEliminar(null)}>
+                  <X size={14} />
+                  Cancelar
+                </button>
+                <button className="btn-delete btn-delete-inline" type="button" onClick={confirmarEliminarInsumo}>
+                  <Trash2 size={14} />
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {mostrarCrearEstudiante && (
           <div className="modal-overlay course-student-create-overlay">
-            <div className="modal-notas course-student-create-modal" onClick={(e) => e.stopPropagation()}>
-              <button type="button" className="course-student-create-close" onClick={() => setMostrarCrearEstudiante(false)} aria-label="Cerrar modal">
-                <X size={14} />
-              </button>
-              <h3>Añadir Estudiante</h3>
+            <div className="modal-notas course-student-create-modal course-mini-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header course-mini-modal-header">
+                <h3 className="course-mini-modal-title course-dialog-title">Añadir Estudiante</h3>
+                <button className="btn-cerrar" type="button" onClick={() => setMostrarCrearEstudiante(false)} aria-label="Cerrar modal">
+                  <X size={14} />
+                </button>
+              </div>
               <p className="panel-sub course-student-create-sub">
                 Crea el estudiante y quedará asignado al curso actual.
               </p>
               <input
-                placeholder="Nombre"
+                placeholder="Nombres"
+                maxLength={50}
                 value={estudianteCreando.nombre}
-                onChange={(e) => setEstudianteCreando((prev) => ({ ...prev, nombre: e.target.value }))}
+                onChange={(e) => setEstudianteCreando((prev) => ({ ...prev, nombre: e.target.value.slice(0, 50) }))}
               />
               <input
-                placeholder="Apellido"
+                placeholder="Apellidos"
+                maxLength={50}
                 value={estudianteCreando.apellido}
-                onChange={(e) => setEstudianteCreando((prev) => ({ ...prev, apellido: e.target.value }))}
+                onChange={(e) => setEstudianteCreando((prev) => ({ ...prev, apellido: e.target.value.slice(0, 50) }))}
               />
               <input
                 placeholder="Cédula"
+                inputMode="numeric"
+                maxLength={10}
                 value={estudianteCreando.cedula}
-                onChange={(e) => setEstudianteCreando((prev) => ({ ...prev, cedula: e.target.value }))}
-              />
-              <input
-                type="date"
-                value={estudianteCreando.fecha_nacimiento}
-                onChange={(e) => setEstudianteCreando((prev) => ({ ...prev, fecha_nacimiento: e.target.value }))}
+                onChange={(e) => setEstudianteCreando((prev) => ({ ...prev, cedula: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
               />
               <input type="hidden" value="matriculado" />
               <div className="modal-buttons course-student-create-buttons">
@@ -1862,35 +1924,34 @@ function CursoPrincipal() {
 
         {mostrarEditarEstudiante && (
           <div className="modal-overlay course-student-create-overlay">
-            <div className="modal-notas course-student-create-modal course-student-edit-modal" onClick={(e) => e.stopPropagation()}>
-              <button type="button" className="course-student-create-close" onClick={() => setMostrarEditarEstudiante(false)} aria-label="Cerrar modal">
-                <X size={14} />
-              </button>
-              <div className="course-student-edit-title">
-                <h3 style={{ marginBottom: 0 }}>Editar Estudiante</h3>
+            <div className="modal-notas course-student-create-modal course-student-edit-modal course-mini-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header course-mini-modal-header">
+                <h3 className="course-mini-modal-title course-dialog-title">Editar Estudiante</h3>
+                <button className="btn-cerrar" type="button" onClick={() => setMostrarEditarEstudiante(false)} aria-label="Cerrar modal">
+                  <X size={14} />
+                </button>
               </div>
               <p className="panel-sub course-student-create-sub">
                 Actualiza los datos del estudiante.
               </p>
               <input
-                placeholder="Apellido"
+                placeholder="Apellidos"
+                maxLength={50}
                 value={estudianteEditForm.apellido}
-                onChange={(e) => setEstudianteEditForm((prev) => ({ ...prev, apellido: e.target.value }))}
+                onChange={(e) => setEstudianteEditForm((prev) => ({ ...prev, apellido: e.target.value.slice(0, 50) }))}
               />
               <input
-                placeholder="Nombre"
+                placeholder="Nombres"
+                maxLength={50}
                 value={estudianteEditForm.nombre}
-                onChange={(e) => setEstudianteEditForm((prev) => ({ ...prev, nombre: e.target.value }))}
+                onChange={(e) => setEstudianteEditForm((prev) => ({ ...prev, nombre: e.target.value.slice(0, 50) }))}
               />
               <input
                 placeholder="Cédula"
+                inputMode="numeric"
+                maxLength={10}
                 value={estudianteEditForm.cedula}
-                onChange={(e) => setEstudianteEditForm((prev) => ({ ...prev, cedula: e.target.value }))}
-              />
-              <input
-                type="date"
-                value={estudianteEditForm.fecha_nacimiento}
-                onChange={(e) => setEstudianteEditForm((prev) => ({ ...prev, fecha_nacimiento: e.target.value }))}
+                onChange={(e) => setEstudianteEditForm((prev) => ({ ...prev, cedula: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
               />
               <CustomSelect
                 value={estudianteEditForm.estado}

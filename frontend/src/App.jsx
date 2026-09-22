@@ -266,7 +266,11 @@ function App() {
   const [sessionState, setSessionState] = useState(null);
 
   const getLoginRedirect = () => {
-    const appMode = (localStorage.getItem("app_mode") || "").toLowerCase();
+    const appMode = (
+      new URLSearchParams(window.location.search).get("mode") ||
+      localStorage.getItem("app_mode") ||
+      ""
+    ).toLowerCase();
     if (appMode === "personal" || appMode === "institucional") {
       return `/?mode=${encodeURIComponent(appMode)}`;
     }

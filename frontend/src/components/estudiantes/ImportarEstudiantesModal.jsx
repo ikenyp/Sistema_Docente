@@ -208,7 +208,7 @@ function ImportarEstudiantesModal({
       onClick={onClose}
     >
       <div
-        className="modal-notas"
+          className="modal-notas import-students-modal"
         style={{
           width: "min(96vw, 1080px)",
           maxHeight: "92vh",
@@ -222,35 +222,15 @@ function ImportarEstudiantesModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.75rem",
-            marginBottom: "0.75rem",
-            paddingBottom: "0.6rem",
-            borderBottom: "1px solid #dce5f4",
-          }}
-        >
-          <h3 style={{ flex: 1, margin: 0, textAlign: "center", color: "#223553" }}>
+        <div className="shared-modal-title-row">
+          <h3 className="course-dialog-title">
             {titulo}
           </h3>
           <button
             type="button"
+            className="shared-modal-close"
             onClick={onClose}
             aria-label="Cerrar"
-            style={{
-              border: "none",
-              width: 34,
-              height: 34,
-              borderRadius: 10,
-              background: "#eef3fb",
-              color: "#223553",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
           >
             <X size={14} />
           </button>

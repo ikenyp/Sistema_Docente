@@ -13,6 +13,22 @@ from app.crud import cursos as crud
 from app.models.notas import Nota
 from app.models.insumos import Insumo
 from app.models.cursos_materias_docentes import CursoMateriaDocente
+from app.models.usuarios_contextos import UsuarioContexto
+
+
+async def _obtener_docente_del_contexto(db: AsyncSession, id_usuario: int, id_contexto: int):
+    result = await db.execute(
+        select(Usuario)
+        .join(UsuarioContexto, UsuarioContexto.id_usuario == Usuario.id_usuario)
+        .where(
+            Usuario.id_usuario == id_usuario,
+            UsuarioContexto.id_contexto == id_contexto,
+            UsuarioContexto.rol == RolUsuarioEnum.docente.value,
+            UsuarioContexto.activo == True,
+            Usuario.activo == True,
+        )
+    )
+    return result.scalar_one_or_none()
 
 # Compatibilidad con pruebas y validación puntual en memoria.
 def validar_tutor_unico_por_contexto(curso_actual_id, id_tutor, cursos_existentes):
@@ -66,17 +82,14 @@ async def crear_curso(db: AsyncSession, data: CursoCreate, id_contexto: int):
 
     # Validar que el tutor exista y sea DOCENTE (solo si se proporciona)
     if data.id_tutor is not None:
-        tutor = await db.execute(
-            select(Usuario).where(Usuario.id_usuario == data.id_tutor)
-        )
-        tutor_obj = tutor.scalar_one_or_none()
+        tutor_obj = await _obtener_docente_del_contexto(db, data.id_tutor, id_contexto)
         if not tutor_obj:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="El tutor no existe"
             )
         
-        if tutor_obj.rol != RolUsuarioEnum.docente:
+        if tutor_obj is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El tutor debe tener rol de docente"
@@ -173,17 +186,14 @@ async def actualizar_curso(db: AsyncSession, id_curso: int, data: CursoUpdate, i
 
     # Validar que el nuevo tutor exista y sea DOCENTE si se modifica (solo si no es None)
     if "id_tutor" in values and values["id_tutor"] is not None:
-        tutor = await db.execute(
-            select(Usuario).where(Usuario.id_usuario == values["id_tutor"])
-        )
-        tutor_obj = tutor.scalar_one_or_none()
+        tutor_obj = await _obtener_docente_del_contexto(db, values["id_tutor"], id_contexto)
         if not tutor_obj:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="El tutor no existe"
             )
         
-        if tutor_obj.rol != RolUsuarioEnum.docente:
+        if tutor_obj is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El tutor debe tener rol de docente"

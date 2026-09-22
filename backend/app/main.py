@@ -16,6 +16,7 @@ from app.api import (
     insumos,
     asistencia,
     comportamiento,
+    contextos,
     periodizacion,
     promedios,
     analisis,
@@ -293,6 +294,7 @@ def app_config():
 # Registrar todos los routers
 app.include_router(auth_routes, prefix="/auth", tags=["Authentication"])
 app.include_router(usuarios.router, prefix="/api/usuarios", tags=["Usuarios"])
+app.include_router(contextos.router, prefix="/api", tags=["Contextos"])
 app.include_router(estructuras_academicas.router, prefix="/api", tags=["Estructura académica"])
 app.include_router(estudiantes.router, prefix="/api/estudiantes", tags=["Estudiantes"])
 app.include_router(cursos.router, prefix="/api/cursos", tags=["Cursos"])

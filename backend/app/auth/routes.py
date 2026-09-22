@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.auth.dependencies import get_current_user, require_role
@@ -19,6 +20,8 @@ from app.schemas.auth import (
 )
 from app.schemas.usuarios import RolUsuarioEnum, UsuarioResponse
 from app.crud import usuarios as crud
+from app.models.contextos import Contexto
+from app.models.usuarios_contextos import UsuarioContexto
 
 router = APIRouter()
 
@@ -54,9 +57,10 @@ async def register_personal(
 @router.post("/password-reset/request")
 async def password_reset_request(
     data: SolicitudRecuperacionContrasena,
+    request: Request,
     db: AsyncSession = Depends(get_session)
 ):
-    return await solicitar_recuperacion_contrasena(db, data)
+    return await solicitar_recuperacion_contrasena(db, data, request.client.host if request.client else "unknown")
 
 
 @router.post("/password-reset/confirm", response_model=UsuarioResponse)
@@ -72,6 +76,55 @@ async def leer_usuario_actual(
     usuario = Depends(get_current_user)
 ):
     return usuario
+
+
+@router.get("/contextos")
+async def listar_contextos_autorizados(
+    usuario=Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+):
+    personales = await db.execute(
+        select(Contexto).where(
+            Contexto.tipo_modo == "personal",
+            Contexto.id_owner_docente == usuario.id_usuario,
+            Contexto.activo == True,
+        ),
+    )
+    institucionales = await db.execute(
+        select(Contexto, UsuarioContexto.rol).join(
+            UsuarioContexto,
+            UsuarioContexto.id_contexto == Contexto.id_contexto,
+        ).where(
+            UsuarioContexto.id_usuario == usuario.id_usuario,
+            UsuarioContexto.activo == True,
+            Contexto.tipo_modo == "institucional",
+            Contexto.activo == True,
+        ).order_by(Contexto.nombre),
+    )
+
+    # Las versiones anteriores podían crear contextos personales duplicados.
+    # Usamos el primero, igual que el resolvedor de contexto, sin alterar datos.
+    contexto_personal = personales.scalars().first()
+    contextos = []
+    if contexto_personal is not None:
+        contextos.append(
+            {
+                "id_contexto": contexto_personal.id_contexto,
+                "modo": "personal",
+                "nombre": contexto_personal.nombre,
+                "rol": "docente",
+            },
+        )
+    contextos.extend(
+        {
+            "id_contexto": contexto.id_contexto,
+            "modo": "institucional",
+            "nombre": contexto.nombre,
+            "rol": rol,
+        }
+        for contexto, rol in institucionales.all()
+    )
+    return contextos
 
 
 @router.post("/refresh")

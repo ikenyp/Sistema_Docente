@@ -3,6 +3,7 @@ import { FileSpreadsheet } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
 import { asistenciaAPI, insumosAPI, notasAPI } from "../../../services/api";
 import { notify } from "../../../components/notify";
+import { calcularPromedioInteractivo } from "../../../utils/promedios";
 
 let XLSX;
 
@@ -42,25 +43,28 @@ const scoreOrZero = (value) => {
   return n === null ? 0 : n;
 };
 
+const resumenAnual = (periodScores) => {
+  const valid = periodScores.filter((score) => score !== null);
+  const sum = valid.reduce((total, score) => total + score, 0);
+  return {
+    sum,
+    // Los periodos sin notas aportan 0 al promedio anual. El divisor siempre
+    // corresponde a la periodización configurada, no solo a notas existentes.
+    avg: valid.length && periodScores.length ? sum / periodScores.length : null,
+    hasScores: valid.length > 0,
+  };
+};
+
 const promedioFijoTrimestre = (insumos, notasPorInsumo, periodoId) => {
   const delPeriodo = (insumos || []).filter(
     (insumo) => String(insumo.id_periodo) === String(periodoId),
   );
   if (!delPeriodo.length) return null;
 
-  const grupos = {
-    actividades: delPeriodo.filter((insumo) => getTipoBase(insumo.tipo_insumo).includes("actividad")),
-    proyecto: delPeriodo.filter((insumo) => getTipoBase(insumo.tipo_insumo).includes("proyecto")),
-    examen: delPeriodo.filter((insumo) => getTipoBase(insumo.tipo_insumo).includes("examen")),
-  };
-  const promedioGrupo = (grupo) =>
-    grupo.length
-      ? grupo.reduce((total, insumo) => total + scoreOrZero(notasPorInsumo.get(String(insumo.id_insumo))), 0) / grupo.length
-      : 0;
-
-  return promedioGrupo(grupos.actividades) * 0.7
-    + promedioGrupo(grupos.proyecto) * 0.1
-    + promedioGrupo(grupos.examen) * 0.2;
+  return calcularPromedioInteractivo(
+    delPeriodo,
+    (insumo) => notasPorInsumo.get(String(insumo.id_insumo)),
+  ).promedio;
 };
 
 const qualitative = (value) => {
@@ -110,14 +114,6 @@ const buildNotaMap = (notasPorEstudiante) => {
   return map;
 };
 
-const getGroupMaxScore = (groupKey) => {
-  // El reporte oficial conserva la escala completa, aunque aún falte un grupo.
-  if (groupKey === "activities") return 7;
-  if (groupKey === "projects") return 1;
-  if (groupKey === "exams") return 2;
-  return 0;
-};
-
 const groupNeedsAverage = (groupKey) => groupKey === "activities";
 
 const computePeriodResults = ({ estudiantes, insumos, notaMap }) => {
@@ -129,6 +125,15 @@ const computePeriodResults = ({ estudiantes, insumos, notaMap }) => {
       const grouped = { activities: [], projects: [], exams: [] };
       const cellValues = [];
       const contributions = [];
+      const calculoPeriodo = calcularPromedioInteractivo(
+        insumos,
+        (insumo) => notaMap.get(`${estudiante.id_estudiante}:${insumo.id_insumo}`),
+      );
+      const pesosPorGrupo = {
+        activities: calculoPeriodo.pesos.actividades,
+        projects: calculoPeriodo.pesos.proyecto,
+        exams: calculoPeriodo.pesos.examen,
+      };
 
       groups.forEach((group) => {
         group.items.forEach((insumo) => {
@@ -146,7 +151,7 @@ const computePeriodResults = ({ estudiantes, insumos, notaMap }) => {
           ? group.items.reduce((acc, insumo) => acc + scoreOrZero(notaMap.get(`${estudiante.id_estudiante}:${insumo.id_insumo}`)), 0) / group.items.length
           : null;
 
-        const maxGroupScore = getGroupMaxScore(group.key);
+        const maxGroupScore = (pesosPorGrupo[group.key] || 0) / 10;
         const weightedContribution = avg === null ? null : (avg / 10) * maxGroupScore;
         if (groupNeedsAverage(group.key)) {
           cellValues.push(avg);
@@ -156,7 +161,7 @@ const computePeriodResults = ({ estudiantes, insumos, notaMap }) => {
       });
 
       const finalScore = contributions.some((value) => value !== null)
-        ? contributions.reduce((acc, value) => acc + (value ?? 0), 0)
+        ? calculoPeriodo.promedio
         : null;
 
       return {
@@ -447,15 +452,15 @@ const buildFinalSheet = ({ estudiantes, periodResults, cursoDetalle, materiaSele
   rows[1][1] = `${materiaSeleccionada?.materia?.nombre || materiaSeleccionada?.nombre || "MATERIA"} `;
   rows[2][0] = "No.";
   rows[2][1] = "NÓMINA";
-  rows[2][2] = "TRIMESTRES";
-  rows[3][2] = "CALIFICACIONES TRIMESTRALES";
+  rows[2][2] = "PERIODOS";
+  rows[3][2] = "CALIFICACIONES POR PERIODO";
   periodNames.forEach((name, index) => {
     rows[4][2 + index] = `${index + 1}T`;
   });
   const sumaCol = 2 + periodResults.length;
   const promCol = 3 + periodResults.length;
   const cualCol = 4 + periodResults.length;
-  rows[2][sumaCol] = "SUMA 3 TRIMESTRES";
+  rows[2][sumaCol] = `SUMA ${periodResults.length} PERIODOS`;
   rows[2][promCol] = "PROM TRI 100%";
   rows[2][cualCol] = "CUALITATIVA";
 
@@ -475,12 +480,12 @@ const buildFinalSheet = ({ estudiantes, periodResults, cursoDetalle, materiaSele
   setCell(sheet, 1, 1, rows[1][1], finalStyles.meta);
   setCell(sheet, 2, 0, "No.", finalStyles.group);
   setCell(sheet, 2, 1, "NÓMINA", finalStyles.group);
-  setCell(sheet, 2, 2, "TRIMESTRES", finalStyles.group);
-  setCell(sheet, 3, 2, "CALIFICACIONES TRIMESTRALES", finalStyles.subgroup);
+  setCell(sheet, 2, 2, "PERIODOS", finalStyles.group);
+  setCell(sheet, 3, 2, "CALIFICACIONES POR PERIODO", finalStyles.subgroup);
   periodNames.forEach((name, index) => {
     setCell(sheet, 4, 2 + index, name, finalStyles.leaf);
   });
-  setCell(sheet, 2, sumaCol, "SUMA 3 TRIMESTRES", finalStyles.final);
+  setCell(sheet, 2, sumaCol, `SUMA ${periodResults.length} PERIODOS`, finalStyles.final);
   setCell(sheet, 2, promCol, "PROM TRI 100%", finalStyles.final);
   setCell(sheet, 2, cualCol, "CUALITATIVA", finalStyles.final);
 
@@ -497,10 +502,8 @@ const buildFinalSheet = ({ estudiantes, periodResults, cursoDetalle, materiaSele
     });
 
     periodScores.forEach((score, i) => setCell(sheet, row, 2 + i, score === null ? "-" : score, finalStyles.center));
-    const valid = periodScores.filter((v) => v !== null);
-    const sum = valid.reduce((acc, val) => acc + val, 0);
-    const avg = valid.length ? sum / valid.length : null;
-    setCell(sheet, row, sumaCol, sum === 0 && valid.length === 0 ? "-" : sum, finalStyles.center);
+    const { sum, avg, hasScores } = resumenAnual(periodScores);
+    setCell(sheet, row, sumaCol, hasScores ? sum : "-", finalStyles.center);
     setCell(sheet, row, promCol, avg === null ? "-" : avg, finalStyles.center);
     setCell(sheet, row, cualCol, qualitative(avg), finalStyles.center);
   });
@@ -609,8 +612,8 @@ const buildGeneralPreviewModel = ({ estudiantes, periodosOrdenados, insumosMater
     [
       { label: "No.", rowSpan: 3, className: "preview-head" },
       { label: "NÓMINA", rowSpan: 3, className: "preview-head" },
-      { label: "TRIMESTRES", colSpan: periodResults.length, className: "preview-head" },
-      { label: "SUMA 3 TRIMESTRES", rowSpan: 3, className: "preview-final-head" },
+      { label: "PERIODOS", colSpan: periodResults.length, className: "preview-head" },
+      { label: `SUMA ${periodResults.length} PERIODOS`, rowSpan: 3, className: "preview-final-head" },
       { label: "PROM TRI 100%", rowSpan: 3, className: "preview-final-head" },
       { label: "CUALITATIVA", rowSpan: 3, className: "preview-final-head" },
     ],
@@ -624,14 +627,12 @@ const buildGeneralPreviewModel = ({ estudiantes, periodosOrdenados, insumosMater
       const result = periodResult.results.find((r) => String(r.estudiante.id_estudiante) === String(est.id_estudiante));
       return result?.finalScore ?? null;
     });
-    const valid = periodScores.filter((v) => v !== null);
-    const sum = valid.reduce((acc, val) => acc + val, 0);
-    const avg = valid.length ? sum / valid.length : null;
+    const { sum, avg, hasScores } = resumenAnual(periodScores);
     return [
       String(idx + 1),
       studentLabel(est),
       ...periodScores.map((v) => formatPreviewValue(v)),
-      formatPreviewValue(sum),
+      hasScores ? formatPreviewValue(sum) : "-",
       formatPreviewValue(avg),
       qualitative(avg),
     ];
@@ -827,7 +828,7 @@ export const TabReportes = ({
         return [
           asignacion.materia?.nombre || asignacion.nombre_materia || "Materia",
           ...promedios.map((valor) => valor === null ? "" : Number(valor.toFixed(2))),
-          Number((promedios.reduce((total, valor) => total + (valor ?? 0), 0) / 3).toFixed(2)),
+          Number((promedios.reduce((total, valor) => total + (valor ?? 0), 0) / Math.max(periodosOrdenados.length, 1)).toFixed(2)),
         ];
       });
       const totalAsistencia = (asistencias || []).length;
@@ -900,7 +901,7 @@ export const TabReportes = ({
     <div className="panel-card tab-pane active">
       <div className="panel-header">
         <div>
-          <h3>🧾 Reportes</h3>
+          <h3><FileSpreadsheet size={18} /> Reportes</h3>
           <p className="panel-sub">Exporta reportes en Excel con el formato académico del curso</p>
         </div>
       </div>

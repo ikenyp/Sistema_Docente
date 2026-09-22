@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpen, PencilLine, Plus, Trash2 } from "lucide-react";
+import { BookOpen, ClipboardList, PencilLine, Plus, Trash2 } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
 
 export const TabInsumos = ({
@@ -30,7 +30,7 @@ export const TabInsumos = ({
   // desde CursoPrincipal para conservar una sola fuente de estado.
   return activeTab === "insumos" && materiaSeleccionada ? (
     <div className="insumos-section">
-      <h3>📋 Insumos</h3>
+      <h3><ClipboardList size={18} /> Insumos</h3>
 
       <div className="agregar-insumo">
         <input
@@ -88,11 +88,15 @@ export const TabInsumos = ({
           className="btn-add-insumo"
         >
           <Plus size={16} />
-          {soloLecturaTutor
-            ? "Solo lectura"
-            : cargandoInsumo
-              ? "Agregando..."
-              : "Agregar Insumo"}
+          <span className="btn-add-insumo-label">
+            {soloLecturaTutor ? (
+              "Solo lectura"
+            ) : cargandoInsumo ? (
+              "Agregando..."
+            ) : (
+              "Agregar Insumo"
+            )}
+          </span>
         </button>
       </div>
 
@@ -240,7 +244,7 @@ export const TabInsumos = ({
                         {!soloLecturaTutor && (
                           <button
                             className="btn-icon btn-delete"
-                            onClick={() => eliminarInsumo(insumo.id_insumo)}
+                            onClick={() => eliminarInsumo(insumo)}
                             aria-label="Eliminar insumo"
                           >
                             <Trash2 size={16} />

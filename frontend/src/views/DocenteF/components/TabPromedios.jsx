@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { TrendingUp } from "lucide-react";
 import { calcularPromedioInteractivo } from "../../../utils/promedios";
 import { nombrePersona } from "../../../utils/personas";
 
@@ -120,7 +121,7 @@ export const TabPromedios = ({
     <div className={`panel-card tab-pane ${activeTab === "promedios" ? "active" : ""}`}>
       <div className="panel-header">
         <div>
-          <h3>📈 Promedios</h3>
+          <h3><TrendingUp size={18} /> Promedios</h3>
           <p className="panel-sub">Promedios por periodo y detalle expandible</p>
         </div>
       </div>

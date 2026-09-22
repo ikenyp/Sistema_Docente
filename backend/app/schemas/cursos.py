@@ -71,6 +71,11 @@ class CursoResponseDetailed(CursoResponse):
     }
 
 
+class CursoResumenResponse(CursoResponseDetailed):
+    total_estudiantes: int = 0
+    total_materias: int = 0
+
+
 class CursoDashboardResponse(BaseModel):
     curso: CursoResponseDetailed
     estudiantes: list[EstudianteResponse]

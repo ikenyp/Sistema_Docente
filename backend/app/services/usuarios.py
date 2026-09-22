@@ -1,11 +1,13 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from email_validator import validate_email, EmailNotValidError
 
 from app.core.security import hash_contrasena
 from app.core.pagination import normalizar_paginacion
 
 from app.models.usuarios import Usuario
+from app.models.usuarios_contextos import UsuarioContexto
 from app.crud import usuarios as crud
 from app.schemas.usuarios import RolUsuarioEnum, UsuarioCreate, UsuarioUpdate
 
@@ -38,7 +40,7 @@ def normalizar_rol(rol) -> str:
 
 
 #  Crear usuario
-async def crear_usuario(db: AsyncSession, data: UsuarioCreate):
+async def crear_usuario(db: AsyncSession, data: UsuarioCreate, id_contexto: int | None = None):
     validar_email(data.correo)
 
     if await crud.obtener_por_correo(db, data.correo):
@@ -58,7 +60,16 @@ async def crear_usuario(db: AsyncSession, data: UsuarioCreate):
         rol=rol_norm,
         activo=True
     )
-    return await crud.crear(db, usuario)
+    usuario = await crud.crear(db, usuario)
+    if id_contexto is not None:
+        db.add(UsuarioContexto(
+            id_usuario=usuario.id_usuario,
+            id_contexto=id_contexto,
+            rol=rol_norm,
+            activo=True,
+        ))
+        await db.commit()
+    return usuario
 
 #  Listar usuarios
 async def listar_usuarios(
@@ -67,8 +78,32 @@ async def listar_usuarios(
     nombre: str | None = None,
     page: int = 1,
     size: int = 10
+    , id_contexto: int | None = None
 ):
     page, size = normalizar_paginacion(page, size)
+
+    if id_contexto is not None:
+        query = (
+            select(Usuario)
+            .join(UsuarioContexto, UsuarioContexto.id_usuario == Usuario.id_usuario)
+            .where(
+                UsuarioContexto.id_contexto == id_contexto,
+                UsuarioContexto.activo == True,
+            )
+        )
+        if rol is not None:
+            query = query.where(UsuarioContexto.rol == rol.value)
+        if nombre:
+            query = query.where(
+                (Usuario.nombre.ilike(f"%{nombre}%")) |
+                (Usuario.apellido.ilike(f"%{nombre}%"))
+            )
+        result = await db.execute(
+            query.order_by(Usuario.apellido, Usuario.nombre)
+            .offset((page - 1) * size)
+            .limit(size)
+        )
+        return result.scalars().all()
 
     return await crud.listar_usuarios(
         db=db,
@@ -86,6 +121,23 @@ async def obtener_usuario(db: AsyncSession, id_usuario: int):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Usuario no encontrado"
         )
+    return usuario
+
+
+async def obtener_usuario_en_contexto(db: AsyncSession, id_usuario: int, id_contexto: int):
+    result = await db.execute(
+        select(Usuario)
+        .join(UsuarioContexto, UsuarioContexto.id_usuario == Usuario.id_usuario)
+        .where(
+            Usuario.id_usuario == id_usuario,
+            UsuarioContexto.id_contexto == id_contexto,
+            UsuarioContexto.activo == True,
+            Usuario.activo == True,
+        )
+    )
+    usuario = result.scalar_one_or_none()
+    if not usuario:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado en este contexto")
     return usuario
 
 #  Actualizar usuario

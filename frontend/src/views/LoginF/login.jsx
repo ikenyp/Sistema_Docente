@@ -5,6 +5,7 @@ import { clearSessionStorage, scheduleSessionWatch } from "../../services/sessio
 import { API_ROOT_URL } from "../../services/apiConfig";
 import { requestHttp } from "../../services/http";
 import { validarContrasena } from "../../utils/password";
+import { notify } from "../../components/notify";
 
 export default function Login() {
   // Esta pantalla contiene tres flujos relacionados: iniciar sesión, registrar
@@ -14,8 +15,11 @@ export default function Login() {
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [selectedMode, setSelectedMode] = useState("");
   const [searchParams] = useSearchParams();
+  const modeFromUrl = searchParams.get("mode");
+  const [selectedMode, setSelectedMode] = useState(
+    modeFromUrl === "personal" || modeFromUrl === "institucional" ? modeFromUrl : "",
+  );
   const [authView, setAuthView] = useState("login");
   const [registerName, setRegisterName] = useState("");
   const [registerLastName, setRegisterLastName] = useState("");
@@ -28,23 +32,25 @@ export default function Login() {
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
   const [mostrarNuevaPassword, setMostrarNuevaPassword] = useState(false);
+  const [mostrarConfirmacionPassword, setMostrarConfirmacionPassword] = useState(false);
   const [success, setSuccess] = useState("");
+  const [contextosPendientes, setContextosPendientes] = useState([]);
+  const [tokenPendiente, setTokenPendiente] = useState("");
   const navigate = useNavigate();
 
   // Detectar modo desde parámetro de query al cargar el componente
   useEffect(() => {
     const modeParam = searchParams.get("mode");
-    if (
-      modeParam &&
-      (modeParam === "personal" || modeParam === "institucional")
-    ) {
-      setSelectedMode(modeParam);
-    }
+    setSelectedMode(
+      modeParam === "personal" || modeParam === "institucional" ? modeParam : "",
+    );
   }, [searchParams]);
 
   useEffect(() => {
-    const tokenParam = searchParams.get("token");
-    if (searchParams.get("view") === "recover" && tokenParam) {
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const tokenParam = searchParams.get("token") || hashParams.get("token");
+    const viewParam = searchParams.get("view") || hashParams.get("view");
+    if (viewParam === "recover" && tokenParam) {
       setAuthView("recover");
       setResetToken(tokenParam);
       setSelectedMode("institucional");
@@ -54,6 +60,21 @@ export default function Login() {
   const resetFlowMessages = () => {
     setError("");
     setSuccess("");
+  };
+
+  const showError = (message) => {
+    setError(message);
+    notify("error", message, { position: "bottom-right" });
+  };
+
+  const showSuccess = (message) => {
+    setSuccess(message);
+    notify("success", message, { position: "bottom-right" });
+  };
+
+  const seleccionarModo = (modo) => {
+    setSelectedMode(modo);
+    navigate(`/?mode=${modo}`, { replace: true });
   };
 
   const clearLoginFields = () => {
@@ -74,6 +95,33 @@ export default function Login() {
     setResetToken("");
     setNewPassword("");
     setNewPasswordConfirm("");
+    setMostrarNuevaPassword(false);
+    setMostrarConfirmacionPassword(false);
+  };
+
+  const activarContexto = async (contexto, token) => {
+    localStorage.removeItem("admin_recent_courses");
+    localStorage.setItem("admin_recent_courses_context", String(contexto.id_contexto));
+    localStorage.setItem("token", token);
+    localStorage.setItem("contexto_activo", String(contexto.id_contexto));
+    localStorage.setItem("app_mode", contexto.modo);
+    localStorage.setItem("role", String(contexto.rol || "").toLowerCase());
+    scheduleSessionWatch(token);
+
+    const usuario = await requestHttp(`${API_ROOT_URL}/auth/me`, "GET", null, {
+      Authorization: `Bearer ${token}`,
+      "X-App-Mode": contexto.modo,
+      "X-Contexto-Id": String(contexto.id_contexto),
+    });
+    localStorage.setItem("usuario", JSON.stringify(usuario));
+    setContextosPendientes([]);
+    setTokenPendiente("");
+
+    if (contexto.modo === "institucional" && contexto.rol === "administrativo") {
+      navigate("/admin");
+    } else {
+      navigate("/docente");
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -91,30 +139,24 @@ export default function Login() {
         "Content-Type": "application/x-www-form-urlencoded",
         "X-App-Mode": appMode,
       });
-      const role = (data.role ?? data.rol ?? "").toLowerCase();
-      if (!role) throw new Error("No se pudo iniciar sesión, intenta de nuevo");
-
       localStorage.setItem("token", data.access_token);
-      localStorage.setItem("role", role);
-      localStorage.setItem("app_mode", appMode);
-      scheduleSessionWatch(data.access_token);
-
-      // Obtener datos completos del usuario
-      const usuario = await requestHttp(`${API_ROOT_URL}/auth/me`, "GET", null, {
+      const contextos = await requestHttp(`${API_ROOT_URL}/auth/contextos`, "GET", null, {
         Authorization: `Bearer ${data.access_token}`,
         "X-App-Mode": appMode,
       });
-      localStorage.setItem("usuario", JSON.stringify(usuario));
-
-      if (appMode === "personal") {
-        if (role === "docente") navigate("/docente");
-        else throw new Error("En modo personal solo se permite acceso docente");
-      } else if (role === "administrativo") navigate("/admin");
-      else if (role === "docente") navigate("/docente");
-      else throw new Error(`Rol desconocido: ${role}`);
+      const disponibles = (contextos || []).filter((contexto) => contexto.modo === appMode);
+      if (!disponibles.length) {
+        throw new Error("No tienes un espacio activo para el modo seleccionado");
+      }
+      if (disponibles.length === 1) {
+        await activarContexto(disponibles[0], data.access_token);
+      } else {
+        setContextosPendientes(disponibles);
+        setTokenPendiente(data.access_token);
+      }
     } catch (err) {
       clearSessionStorage();
-      setError(err.message || "Error al iniciar sesión");
+      showError(err.message || "Error al iniciar sesión");
     } finally {
       setLoading(false);
     }
@@ -125,12 +167,12 @@ export default function Login() {
     resetFlowMessages();
 
     if (registerPassword !== registerConfirmPassword) {
-      setError("Las contraseñas no coinciden");
+      showError("Las contraseñas no coinciden");
       return;
     }
     const errorContrasena = validarContrasena(registerPassword);
     if (errorContrasena) {
-      setError(errorContrasena);
+      showError(errorContrasena);
       return;
     }
 
@@ -143,11 +185,11 @@ export default function Login() {
           contrasena: registerPassword,
         }, { "Content-Type": "application/json", "X-App-Mode": "personal" });
 
-      setSuccess("Cuenta creada. Ya puedes iniciar sesión.");
+      showSuccess("Cuenta creada. Ya puedes iniciar sesión.");
       clearRegisterFields();
       setAuthView("login");
     } catch (err) {
-      setError(err.message || "Error al registrar la cuenta");
+      showError(err.message || "Error al registrar la cuenta");
     } finally {
       setLoading(false);
     }
@@ -160,11 +202,11 @@ export default function Login() {
     try {
       const data = await requestHttp(`${API_ROOT_URL}/auth/password-reset/request`, "POST", { correo: resetEmail }, { "Content-Type": "application/json" });
 
-      setSuccess(
+      showSuccess(
         data.mensaje || "Si la cuenta existe, recibirás instrucciones de recuperación.",
       );
     } catch (err) {
-      setError(err.message || "Error al solicitar recuperación");
+      showError(err.message || "Error al solicitar recuperación");
     } finally {
       setLoading(false);
     }
@@ -175,12 +217,12 @@ export default function Login() {
     resetFlowMessages();
 
     if (newPassword !== newPasswordConfirm) {
-      setError("Las contraseñas no coinciden");
+      showError("Las contraseñas no coinciden");
       return;
     }
     const errorContrasena = validarContrasena(newPassword);
     if (errorContrasena) {
-      setError(errorContrasena);
+      showError(errorContrasena);
       return;
     }
 
@@ -191,11 +233,13 @@ export default function Login() {
           nueva_contrasena: newPassword,
         }, { "Content-Type": "application/json" });
 
-      setSuccess("Contraseña actualizada. Ya puedes iniciar sesión.");
+      showSuccess("Contraseña actualizada. Ya puedes iniciar sesión.");
+      window.history.replaceState({}, document.title, "/");
       clearRecoveryFields();
+      setSelectedMode("");
       setAuthView("login");
     } catch (err) {
-      setError(err.message || "Error al confirmar la recuperación");
+      showError(err.message || "Error al confirmar la recuperación");
     } finally {
       setLoading(false);
     }
@@ -218,7 +262,49 @@ export default function Login() {
               : "login-card"
           }
         >
-          {!selectedMode ? (
+          {contextosPendientes.length > 0 ? (
+            <>
+              <h2 className="login-title">Selecciona tu espacio</h2>
+              <p className="login-subtitle">Elige dónde deseas trabajar en esta sesión</p>
+              <div className="mode-selector">
+                {contextosPendientes.map((contexto) => (
+                  <button
+                    key={contexto.id_contexto}
+                    className="login-button"
+                    type="button"
+                    disabled={loading}
+                    onClick={async () => {
+                      setLoading(true);
+                      try {
+                        await activarContexto(contexto, tokenPendiente);
+                      } catch (err) {
+                        clearSessionStorage();
+                        showError(err.message || "No se pudo abrir el contexto seleccionado");
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                  >
+                    <span className="mode-icon">{contexto.modo === "personal" ? "👤" : "🏫"}</span>
+                    <span>{contexto.nombre}</span>
+                    <small>{contexto.modo === "personal" ? "Espacio personal" : `Rol: ${contexto.rol}`}</small>
+                  </button>
+                ))}
+              </div>
+              <button
+                className="login-button secondary"
+                type="button"
+                onClick={() => {
+                  clearSessionStorage();
+                  setContextosPendientes([]);
+                  setTokenPendiente("");
+                  setSelectedMode("");
+                }}
+              >
+                Volver
+              </button>
+            </>
+          ) : !selectedMode ? (
             <>
               <h2 className="login-title">Bienvenido</h2>
               <p className="login-subtitle">
@@ -228,7 +314,7 @@ export default function Login() {
                 <button
                   className="login-button"
                   type="button"
-                  onClick={() => setSelectedMode("institucional")}
+                  onClick={() => seleccionarModo("institucional")}
                 >
                   <span className="mode-icon">🏫</span>
                   <span>Institucional</span>
@@ -237,7 +323,7 @@ export default function Login() {
                 <button
                   className="login-button"
                   type="button"
-                  onClick={() => setSelectedMode("personal")}
+                  onClick={() => seleccionarModo("personal")}
                 >
                   <span className="mode-icon">👤</span>
                   <span>Personal</span>
@@ -251,6 +337,12 @@ export default function Login() {
                 <>
                   <h2 className="login-title login-title-register">
                     Crear cuenta
+                  </h2>
+                </>
+              ) : authView === "recover" ? (
+                <>
+                  <h2 className="login-title">
+                    {resetToken ? "Cambiar contraseña" : "Recuperar contraseña"}
                   </h2>
                 </>
               ) : (
@@ -284,12 +376,6 @@ export default function Login() {
                     />
                     <button type="button" className="password-toggle" onClick={() => setMostrarPassword((value) => !value)}>{mostrarPassword ? "Ocultar" : "Mostrar"}</button>
                   </div>
-                  {(error || success) && (
-                    <div className={error ? "login-error" : "login-success"}>
-                      {error || success}
-                    </div>
-                  )}
-
                   <button
                     className="login-button"
                     type="submit"
@@ -401,11 +487,6 @@ export default function Login() {
                     />
                     <button type="button" className="password-toggle register-password-toggle" onClick={() => setMostrarRegistroPassword((value) => !value)}>{mostrarRegistroPassword ? "Ocultar contraseñas" : "Mostrar contraseñas"}</button>
                   </div>
-                  {(error || success) && (
-                    <div className={error ? "login-error" : "login-success"}>
-                      {error || success}
-                    </div>
-                  )}
                   <div className="auth-actions">
                     <button
                       className="login-button"
@@ -445,14 +526,8 @@ export default function Login() {
                         placeholder="Correo de la cuenta"
                         className="login-input"
                         required
+                        autoComplete="email"
                       />
-                      {(error || success) && (
-                        <div
-                          className={error ? "login-error" : "login-success"}
-                        >
-                          {error || success}
-                        </div>
-                      )}
                       <button
                         className="login-button"
                         type="submit"
@@ -465,42 +540,39 @@ export default function Login() {
                     </>
                   ) : (
                     <>
-                      <input
-                        type="text"
-                        value={resetToken}
-                        onChange={(e) => setResetToken(e.target.value)}
-                        placeholder="Token temporal"
-                        className="login-input"
-                        required
-                      />
-                      <input
-                        type={mostrarNuevaPassword ? "text" : "password"}
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Nueva contraseña"
-                        className="login-input"
-                        required
-                        minLength={8}
-                        autoComplete="new-password"
-                      />
-                      <input
-                        type={mostrarNuevaPassword ? "text" : "password"}
-                        value={newPasswordConfirm}
-                        onChange={(e) => setNewPasswordConfirm(e.target.value)}
-                        placeholder="Confirmar nueva contraseña"
-                        className="login-input"
-                        required
-                        minLength={8}
-                        autoComplete="new-password"
-                      />
-                      <button type="button" className="password-toggle register-password-toggle" onClick={() => setMostrarNuevaPassword((value) => !value)}>{mostrarNuevaPassword ? "Ocultar contraseñas" : "Mostrar contraseñas"}</button>
-                      {(error || success) && (
-                        <div
-                          className={error ? "login-error" : "login-success"}
-                        >
-                          {error || success}
-                        </div>
-                      )}
+                      <p id="recovery-password-help" className="recovery-password-help">
+                        Usa al menos 8 caracteres, una mayúscula, una minúscula y un número.
+                      </p>
+                      <div className="password-field">
+                        <input
+                          type={mostrarNuevaPassword ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Nueva contraseña"
+                          className="login-input"
+                          required
+                          minLength={8}
+                          autoComplete="new-password"
+                        />
+                        <button type="button" className="password-toggle" onClick={() => setMostrarNuevaPassword((value) => !value)}>
+                          {mostrarNuevaPassword ? "Ocultar" : "Mostrar"}
+                        </button>
+                      </div>
+                      <div className="password-field">
+                        <input
+                          type={mostrarConfirmacionPassword ? "text" : "password"}
+                          value={newPasswordConfirm}
+                          onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                          placeholder="Confirmar nueva contraseña"
+                          className="login-input"
+                          required
+                          minLength={8}
+                          autoComplete="new-password"
+                        />
+                        <button type="button" className="password-toggle" onClick={() => setMostrarConfirmacionPassword((value) => !value)}>
+                          {mostrarConfirmacionPassword ? "Ocultar" : "Mostrar"}
+                        </button>
+                      </div>
                       <button
                         className="login-button"
                         type="submit"

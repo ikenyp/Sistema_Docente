@@ -8,6 +8,9 @@ from app.models.usuarios import Usuario
 from app.models.insumos import Insumo
 from app.models.cursos_materias_docentes import CursoMateriaDocente
 from app.models.contextos import Contexto
+from app.models.instituciones import Institucion
+from app.models.usuarios_contextos import UsuarioContexto
+from app.models.password_reset_requests import PasswordResetRequest
 from app.models.estructuras_academicas import EstructuraAcademica, EstructuraMateria
 from app.models.configuracion_periodizacion import ConfiguracionPeriodizacion
 from app.models.periodos_academicos import PeriodoAcademico

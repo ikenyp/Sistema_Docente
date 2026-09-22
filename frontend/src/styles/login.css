@@ -95,6 +95,13 @@
   gap: 0.75rem;
 }
 
+.recovery-password-help {
+  margin: 0 0 0.8rem;
+  color: #60759a;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
 .mode-selector .login-button {
   display: grid;
   grid-template-columns: auto 1fr;

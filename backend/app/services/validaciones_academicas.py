@@ -19,6 +19,14 @@ def validar_calificacion(calificacion) -> None:
         )
 
 
+def validar_calificacion_segun_ponderacion(calificacion, ponderacion) -> None:
+    if calificacion > ponderacion:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"La nota no puede superar la ponderación del insumo ({ponderacion:g})",
+        )
+
+
 def validar_ponderacion(ponderacion) -> None:
     if not 1 <= ponderacion <= 10:
         raise HTTPException(

@@ -1,9 +1,11 @@
 import React from "react";
+import { CalendarDays, Info } from "lucide-react";
 
 export const TabPeriodizacion = ({
   activeTab,
   errorPeriodos,
   periodos,
+  esModoPersonal,
 }) => {
   if (activeTab !== "periodizacion") return null;
 
@@ -11,7 +13,7 @@ export const TabPeriodizacion = ({
     <div className="panel-card tab-pane active">
       <div className="panel-header">
         <div>
-          <h3>Periodizacion</h3>
+          <h3><CalendarDays size={18} /> Periodizacion</h3>
           <p className="panel-sub">
             Consulta los periodos configurados para este ano lectivo
           </p>
@@ -19,17 +21,17 @@ export const TabPeriodizacion = ({
       </div>
 
       {errorPeriodos && (
-        <p style={{ color: "red", marginBottom: "15px" }}>{errorPeriodos}</p>
+        <p className="periodizacion-error">{errorPeriodos}</p>
       )}
 
       {periodos.length > 0 ? (
-        <div className="table-container">
-          <table>
+        <div className="table-container periodizacion-course-table-wrap">
+          <table className="periodizacion-course-table">
             <thead>
               <tr>
                 <th>Periodo</th>
-                <th>Periodo</th>
-                <th>Periodo</th>
+                <th>Fecha de inicio</th>
+                <th>Fecha de fin</th>
               </tr>
             </thead>
             <tbody>
@@ -44,21 +46,21 @@ export const TabPeriodizacion = ({
           </table>
         </div>
       ) : (
-        <div
-          className="empty-state"
-          style={{ padding: "20px", textAlign: "center" }}
-        >
-          <p>No hay periodos configurados aun</p>
+        <div className="empty-state periodizacion-empty-state">
+          <CalendarDays size={28} />
+          <p>No hay periodos configurados aún para este año lectivo.</p>
         </div>
       )}
 
-      <div className="empty-state" style={{ marginTop: 16 }}>
-        <p>
-          La configuracion de la periodizacion se realiza desde la
-          administracion general. Aqui solo puedes consultarla para usar
-          correctamente insumos y promedios del curso.
-        </p>
-      </div>
+      {!esModoPersonal && (
+        <div className="periodizacion-admin-note">
+          <Info size={18} />
+          <p>
+            La periodización la configura la administración general. Aquí puedes
+            consultarla para registrar insumos y calcular promedios correctamente.
+          </p>
+        </div>
+      )}
     </div>
   );
 };

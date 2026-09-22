@@ -100,6 +100,7 @@ function Docente() {
   const [estudiantesPorCurso, setEstudiantesPorCurso] = useState({});
   const [asignacionesPersonales, setAsignacionesPersonales] = useState([]);
   const [insumosSinNotasPorCurso, setInsumosSinNotasPorCurso] = useState({});
+  const [cargandoPendientes, setCargandoPendientes] = useState(true);
   const [mostrarPendientesModal, setMostrarPendientesModal] = useState(false);
 
   // Menú y edición/eliminación de curso
@@ -248,6 +249,22 @@ function Docente() {
     resumenOperacion.aniosSinPeriodizacion,
   ]);
 
+  const pendientesRapidos = useMemo(() => {
+    if (appMode !== "personal") return [];
+
+    const idsConAsignacion = new Set(
+      asignacionesPersonales.map((item) => item.id_curso).filter(Boolean),
+    );
+    const cursosPendientesContexto =
+      anioContextoVisible && anioContextoVisible !== "todos"
+        ? cursos.filter((curso) => curso?.anio_lectivo === anioContextoVisible)
+        : cursos;
+
+    return cursosPendientesContexto.filter(
+      (curso) => !idsConAsignacion.has(curso.id_curso),
+    );
+  }, [appMode, anioContextoVisible, asignacionesPersonales, cursos]);
+
   const cursosVisibles = useMemo(() => {
     let lista = [...cursos];
 
@@ -317,6 +334,13 @@ function Docente() {
       setEstudiantesPorCurso({});
       return undefined;
     }
+    if (
+      cursosVisibles.every((curso) =>
+        Object.prototype.hasOwnProperty.call(estudiantesPorCurso, curso.id_curso),
+      )
+    ) {
+      return undefined;
+    }
     let activo = true;
     Promise.all(
       cursosVisibles.map(async (curso) => {
@@ -333,7 +357,7 @@ function Docente() {
     return () => {
       activo = false;
     };
-  }, [cursosVisibles]);
+  }, [cursosVisibles, estudiantesPorCurso]);
 
   const resumenCurso = (curso) => {
     const cantidadEstudiantes =
@@ -344,12 +368,19 @@ function Docente() {
       estudiantesPersonales.filter(
         (estudiante) => Number(estudiante.id_curso_actual) === Number(curso.id_curso),
       ).length;
-    const cantidadMaterias = asignacionesPersonales.filter(
-      (asignacion) => Number(asignacion.id_curso) === Number(curso.id_curso),
-    ).length;
+    const cantidadMaterias =
+      curso.total_materias ??
+      curso.cantidad_materias ??
+      asignacionesPersonales.filter(
+        (asignacion) => Number(asignacion.id_curso) === Number(curso.id_curso),
+      ).length;
     const partes = [];
-    if (cantidadEstudiantes > 0) partes.push(`${cantidadEstudiantes} estudiante${cantidadEstudiantes === 1 ? "" : "s"}`);
-    if (cantidadMaterias > 0) partes.push(`${cantidadMaterias} materia${cantidadMaterias === 1 ? "" : "s"}`);
+    if (cantidadEstudiantes !== null && cantidadEstudiantes !== undefined) {
+      partes.push(`${cantidadEstudiantes} estudiante${cantidadEstudiantes === 1 ? "" : "s"}`);
+    }
+    if (cantidadMaterias !== null && cantidadMaterias !== undefined) {
+      partes.push(`${cantidadMaterias} materia${cantidadMaterias === 1 ? "" : "s"}`);
+    }
     return partes.length ? partes.join(" · ") : "Sin información adicional";
   };
 
@@ -459,6 +490,7 @@ function Docente() {
     // porque cada endpoint entrega solo una parte del panel docente.
     try {
       setCargando(true);
+      setCargandoPendientes(true);
       setError(null);
 
       const usuarioJSON = localStorage.getItem("usuario");
@@ -475,15 +507,26 @@ function Docente() {
       ).toLowerCase();
       setAppMode(modoActual);
 
-      let asignaciones = [];
-      try {
-        asignaciones = await cmdAPI.listarPorDocente(usuario.id_usuario);
-      } catch {
-        asignaciones = [];
-      }
+      const [asignacionesResult, cursosResult] = await Promise.allSettled([
+        cmdAPI.listarPorDocente(usuario.id_usuario),
+        cursosAPI.resumen({ size: 100 }),
+      ]);
+
+      const asignaciones =
+        asignacionesResult.status === "fulfilled" ? asignacionesResult.value || [] : [];
+      const cursosTutor =
+        cursosResult.status === "fulfilled" ? cursosResult.value || [] : [];
+      // El backend ya fuerza id_docente al usuario autenticado para docentes,
+      // por lo que esta respuesta contiene también todas sus asignaciones.
+      const todasAsignaciones = asignaciones;
 
       const cursosMap = new Map();
       const materiasAsignadasDocente = new Set();
+      const cursosAsignadosDocente = new Set(
+        (asignaciones || [])
+          .map((asig) => asig?.id_curso || asig?.curso?.id_curso)
+          .filter(Boolean),
+      );
 
       const fusionarCurso = (cursoBase, cursoNuevo) => {
         if (!cursoNuevo?.id_curso) return cursoBase;
@@ -497,18 +540,12 @@ function Docente() {
         };
       };
 
-      let cursosTutor = [];
-      try {
-        cursosTutor = await cursosAPI.listar({
-          ...(modoActual === "institucional" ? { id_tutor: usuario.id_usuario } : {}),
-          size: 100,
-        });
-      } catch {
-        cursosTutor = [];
-      }
-
       (cursosTutor || []).forEach((curso) => {
-        if (curso?.id_curso) {
+        const esTutor = Number(curso?.id_tutor) === Number(usuario.id_usuario);
+        if (
+          curso?.id_curso &&
+          (modoActual === "personal" || esTutor || cursosAsignadosDocente.has(curso.id_curso))
+        ) {
           cursosMap.set(curso.id_curso, fusionarCurso(null, curso));
         }
       });
@@ -534,21 +571,17 @@ function Docente() {
         }
       });
 
-      if (modoActual === "personal") {
-        try {
-          const cursosPropios = await cursosAPI.listar({ size: 100 });
-          (cursosPropios || []).forEach((curso) => {
-            if (curso?.id_curso) {
-              const cursoActual = cursosMap.get(curso.id_curso);
-              cursosMap.set(curso.id_curso, fusionarCurso(cursoActual, curso));
-            }
-          });
-        } catch {
-          // ya se intenta más abajo con cursosTutor
-        }
-      }
-
       const cursosUnicos = Array.from(cursosMap.values());
+
+      // Mostrar ambas métricas de cada card juntas. Los indicadores secundarios
+      // de insumos/notas se calculan después para no bloquear la pantalla.
+      setEstudiantesPorCurso(
+        Object.fromEntries(
+          cursosUnicos.map((curso) => [curso.id_curso, curso.total_estudiantes || 0]),
+        ),
+      );
+      setCursos(cursosUnicos);
+      setCargando(false);
 
       if (modoActual === "personal") {
         const cursosTutorActual = cursosUnicos.filter(
@@ -588,16 +621,6 @@ function Docente() {
         }
       }
 
-      let todasAsignaciones = asignaciones || [];
-      if (modoActual === "personal") {
-        try {
-          todasAsignaciones = (await asignacionesAPI.listar({ size: 100 })) || [];
-        } catch (err) {
-          console.info("No hay asignaciones personales para cargar todavía:", err.message);
-          todasAsignaciones = [];
-        }
-      }
-
       if (modoActual === "personal") {
         setAsignacionesPersonales(todasAsignaciones || []);
       } else {
@@ -624,14 +647,14 @@ function Docente() {
         const conteos = await Promise.allSettled(
           Array.from(cmdPorCurso.entries()).map(async ([idCmd, idCurso]) => {
             const insumos = await insumosAPI.listarPorCMD(idCmd);
-            let sinNotas = 0;
-
-            for (const insumo of insumos || []) {
-              const notas = await notasAPI.listar({ id_insumo: insumo.id_insumo, size: 1 });
-              if (!(notas || []).length) {
-                sinNotas += 1;
-              }
-            }
+            const notasPorInsumo = await Promise.all(
+              (insumos || []).map((insumo) =>
+                notasAPI.listar({ id_insumo: insumo.id_insumo, size: 1 }),
+              ),
+            );
+            const sinNotas = notasPorInsumo.filter(
+              (notas) => !(notas || []).length,
+            ).length;
 
             return [idCurso, sinNotas];
           }),
@@ -698,8 +721,8 @@ function Docente() {
         estudiantesSinCurso,
         cursosConInsumosSinNotas,
       });
+      setCargandoPendientes(false);
 
-      setCursos(cursosUnicos);
     } catch (err) {
       console.error("Error al cargar cursos:", err);
 
@@ -786,7 +809,7 @@ function Docente() {
     const appMode = localStorage.getItem("app_mode") || "institucional";
     clearSessionStorage();
     // Volver al login con el modo que estaba usando
-    navigate(`/?mode=${appMode}`);
+    window.location.replace(`/?mode=${appMode}`);
   };
 
   // ====================== EDITAR / ELIMINAR CURSO ======================
@@ -931,8 +954,10 @@ function Docente() {
     try {
       await cursosAPI.eliminar(cursoAEliminar.id_curso);
       setMostrarEliminarModal(false);
+      setCursos((actuales) =>
+        actuales.filter((curso) => curso.id_curso !== cursoAEliminar.id_curso),
+      );
       setCursoAEliminar(null);
-      await cargarCursos();
     } catch (err) {
       notify("error", err.message || "No se pudo eliminar el curso");
     }
@@ -966,7 +991,6 @@ function Docente() {
         id_tutor: nuevoCurso.soyTutor ? datosUsuario.id_usuario : null,
       });
 
-      await cargarCursos();
       if (cursoCreado?.id_curso) {
         const cursoVisible = {
           ...cursoCreado,
@@ -1095,8 +1119,8 @@ function Docente() {
     if (materia) {
       setMateriaEditando(materia);
       setNuevaMateriaPersonal({
-        codigo: materia.codigo || "",
-        nombre: materia.nombre || "",
+        codigo: String(materia.codigo || "").toUpperCase().slice(0, 5),
+        nombre: String(materia.nombre || "").slice(0, 50),
         descripcion: materia.descripcion || "",
       });
     } else {
@@ -1117,7 +1141,7 @@ function Docente() {
 
   const crearMateriaPersonal = async () => {
     const nombre = nuevaMateriaPersonal.nombre.trim();
-    const codigo = nuevaMateriaPersonal.codigo.trim();
+    const codigo = nuevaMateriaPersonal.codigo.trim().toUpperCase().slice(0, 5);
     const descripcion = nuevaMateriaPersonal.descripcion.trim();
 
     if (!nombre) {
@@ -1129,15 +1153,16 @@ function Docente() {
     setErrorMateriaPersonal(null);
 
     try {
+      let materiaGuardada;
       if (materiaEditando?.id_materia) {
-        await materiasAPI.actualizar(materiaEditando.id_materia, {
+        materiaGuardada = await materiasAPI.actualizar(materiaEditando.id_materia, {
           codigo: codigo || null,
           nombre,
           descripcion: descripcion || null,
         });
         notify("success", "Materia actualizada");
       } else {
-        await materiasAPI.crear({
+        materiaGuardada = await materiasAPI.crear({
           codigo: codigo || null,
           nombre,
           descripcion: descripcion || null,
@@ -1146,7 +1171,20 @@ function Docente() {
       }
       setNuevaMateriaPersonal({ codigo: "", nombre: "", descripcion: "" });
       setMateriaEditando(null);
-      await cargarMateriasPersonales();
+      if (materiaGuardada?.id_materia) {
+        setMateriasPersonales((actuales) => {
+          const existe = actuales.some(
+            (materia) => materia.id_materia === materiaGuardada.id_materia,
+          );
+          return existe
+            ? actuales.map((materia) =>
+                materia.id_materia === materiaGuardada.id_materia
+                  ? { ...materia, ...materiaGuardada }
+                  : materia,
+              )
+            : [...actuales, materiaGuardada];
+        });
+      }
       setMostrarMateriaFormModal(false);
     } catch (err) {
       setErrorMateriaPersonal(err.message || "No se pudo guardar la materia");
@@ -1158,7 +1196,9 @@ function Docente() {
   const eliminarMateriaPersonal = async (idMateria) => {
     try {
       await materiasAPI.eliminar(idMateria);
-      await cargarMateriasPersonales();
+      setMateriasPersonales((actuales) =>
+        actuales.filter((materia) => materia.id_materia !== idMateria),
+      );
       notify("success", "Materia eliminada");
     } catch (err) {
       notify("error", err.message || "No se pudo eliminar la materia");
@@ -1187,7 +1227,7 @@ function Docente() {
     const appMode = localStorage.getItem("app_mode") || "institucional";
     clearSessionStorage();
     // Volver al login con el modo que estaba usando
-    navigate(`/?mode=${appMode}`);
+    window.location.replace(`/?mode=${appMode}`);
   };
 
   return (
@@ -1303,6 +1343,9 @@ function Docente() {
                 key={anioLectivoActivoPersonal || "sin-anio"}
                 embedded
                 anioInicial={anioLectivoActivoPersonal}
+                onConfiguracionGuardada={() =>
+                  setResumenOperacion((prev) => ({ ...prev, aniosSinPeriodizacion: 0 }))
+                }
               />
             </div>
           </div>
@@ -1548,23 +1591,26 @@ function Docente() {
                   className="personal-input"
                   type="text"
                   placeholder="Nombre de la materia"
+                  maxLength={50}
                   value={nuevaMateriaPersonal.nombre}
                   onChange={(e) =>
                     setNuevaMateriaPersonal((prev) => ({
                       ...prev,
-                      nombre: e.target.value,
+                      nombre: e.target.value.slice(0, 50),
                     }))
                   }
                 />
                 <input
                   className="personal-input"
                   type="text"
-                  placeholder="Código (opcional)"
+                  placeholder="Código (máximo 5 letras)"
+                  maxLength={5}
+                  autoCapitalize="characters"
                   value={nuevaMateriaPersonal.codigo}
                   onChange={(e) =>
                     setNuevaMateriaPersonal((prev) => ({
                       ...prev,
-                      codigo: e.target.value,
+                      codigo: e.target.value.toUpperCase().slice(0, 5),
                     }))
                   }
                 />
@@ -1662,7 +1708,9 @@ function Docente() {
                 onClick={() => setMostrarPendientesModal(true)}
               >
                 <p className="stat-label">Pendientes</p>
-                <h3 className="stat-value">{pendientesPersonal.length}</h3>
+                 <h3 className="stat-value">
+                   {cargandoPendientes ? pendientesRapidos.length : pendientesPersonal.length}
+                 </h3>
                 <p className="stat-sub">Toca para revisar lo que falta</p>
               </button>
             </>

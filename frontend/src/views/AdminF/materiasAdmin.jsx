@@ -188,7 +188,7 @@ function MateriasAdmin() {
     setEditando(m);
     setForm({
       codigo: m.codigo || "",
-      nombre: m.nombre || "",
+      nombre: String(m.nombre || "").slice(0, 50),
       descripcion: m.descripcion || "",
     });
     setModalOpen(true);
@@ -228,8 +228,7 @@ function MateriasAdmin() {
       if (editando) await materiasAPI.actualizar(editando.id_materia, form);
       else await materiasAPI.crear(form);
       setModalOpen(false);
-      await cargar();
-      await cargarCatalogo();
+      await Promise.all([cargar(), cargarCatalogo()]);
       notify("success", editando ? "Materia actualizada" : "Materia creada");
     } catch (e) {
       notify("error", e.message || "Error al guardar");
@@ -292,9 +291,11 @@ function MateriasAdmin() {
       });
       setModalNuevaMateriaEstructuraOpen(false);
       setNuevaMateriaForm({ codigo: "", nombre: "", descripcion: "" });
-      await cargar();
-      await cargarCatalogo();
-      await agregarMateriaAEstructura(creada.id_materia);
+      await Promise.all([
+        cargar(),
+        cargarCatalogo(),
+        agregarMateriaAEstructura(creada.id_materia),
+      ]);
     } catch (e) {
       notify("error", e.message || "No se pudo crear la materia");
     }
@@ -559,8 +560,9 @@ function MateriasAdmin() {
             />
             <input
               placeholder="Nombre"
+              maxLength={50}
               value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              onChange={(e) => setForm({ ...form, nombre: e.target.value.slice(0, 50) })}
             />
             <textarea
               placeholder="Descripción (opcional)"
@@ -880,8 +882,9 @@ function MateriasAdmin() {
             />
             <input
               placeholder="Nombre de la materia"
+              maxLength={50}
               value={nuevaMateriaForm.nombre}
-              onChange={(e) => setNuevaMateriaForm({ ...nuevaMateriaForm, nombre: e.target.value })}
+              onChange={(e) => setNuevaMateriaForm({ ...nuevaMateriaForm, nombre: e.target.value.slice(0, 50) })}
             />
             <textarea
               placeholder="Descripción (opcional)"

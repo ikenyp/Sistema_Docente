@@ -60,7 +60,7 @@ const inicioDesdeFin = (fin, mesesPeriodo) => sumarDias(restarMeses(fin, mesesPe
 
 const finDesdeInicio = (inicio, mesesPeriodo) => sumarDias(sumarMeses(inicio, mesesPeriodo), -1);
 
-function PeriodizacionPage({ embedded = false, anioInicial = "" } = {}) {
+function PeriodizacionPage({ embedded = false, anioInicial = "", onConfiguracionGuardada } = {}) {
   const [anios, setAnios] = useState([]);
   const [anioSel, setAnioSel] = useState(anioInicial || "");
   const [cargando, setCargando] = useState(false);
@@ -235,6 +235,7 @@ function PeriodizacionPage({ embedded = false, anioInicial = "" } = {}) {
       });
 
       notify("success", "Periodo guardado correctamente");
+      onConfiguracionGuardada?.(anioSel);
       const config = await periodizacionAPI.obtenerConfiguracionActual(anioSel);
       setConfiguracionActual(config);
       setTipoPeriodizacion(config.tipo_periodizacion || tipoPeriodizacion);
@@ -261,6 +262,11 @@ function PeriodizacionPage({ embedded = false, anioInicial = "" } = {}) {
       if (!objetivo) return prev;
 
       copia[index] = { ...objetivo, [campo]: valor };
+
+      // No recalcular mientras el control de fecha todavía está en edición.
+      // Los navegadores pueden emitir valores vacíos o parciales al escribir
+      // manualmente el día, mes y año.
+      if (valor && !/^\d{4}-\d{2}-\d{2}$/.test(valor)) return copia;
 
       const inicioBase =
         parseFecha(copia[index].fecha_inicio) ||
@@ -315,7 +321,9 @@ function PeriodizacionPage({ embedded = false, anioInicial = "" } = {}) {
       if (!periodo.fecha_inicio || !periodo.fecha_fin) {
         return "Todas las fechas de los periodos son obligatorias";
       }
-      if (periodo.fecha_inicio >= periodo.fecha_fin) {
+      const inicio = parseFecha(periodo.fecha_inicio);
+      const fin = parseFecha(periodo.fecha_fin);
+      if (!inicio || !fin || inicio.getTime() >= fin.getTime()) {
         return `El periodo ${periodo.numero_periodo} tiene fechas invalidas`;
       }
     }
@@ -327,8 +335,10 @@ function PeriodizacionPage({ embedded = false, anioInicial = "" } = {}) {
     for (let i = 1; i < ordenados.length; i += 1) {
       const previo = ordenados[i - 1];
       const actual = ordenados[i];
-      if (previo.fecha_fin >= actual.fecha_inicio) {
-        return `Los periodos ${previo.numero_periodo} y ${actual.numero_periodo} se solapan o tienen fechas invertidas`;
+      const finPrevio = parseFecha(previo.fecha_fin);
+      const inicioActual = parseFecha(actual.fecha_inicio);
+      if (!finPrevio || !inicioActual || finPrevio.getTime() >= inicioActual.getTime()) {
+        return `Los periodos ${previo.numero_periodo} y ${actual.numero_periodo} se solapan o tienen fechas invertidas (${previo.fecha_fin} / ${actual.fecha_inicio})`;
       }
     }
 
@@ -370,6 +380,7 @@ function PeriodizacionPage({ embedded = false, anioInicial = "" } = {}) {
       });
 
       notify("success", "Periodizacion guardada correctamente");
+      onConfiguracionGuardada?.(anioSel);
       await cargar();
       const config = await periodizacionAPI.obtenerConfiguracionActual(anioSel);
       setConfiguracionActual(config);
@@ -536,16 +547,30 @@ function PeriodizacionPage({ embedded = false, anioInicial = "" } = {}) {
                     type="date"
                     value={periodo.fecha_inicio}
                     onChange={(e) =>
-                      actualizarPeriodo(index, "fecha_inicio", e.target.value)
+                      setPeriodosForm((prev) =>
+                        prev.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? { ...item, fecha_inicio: e.target.value }
+                            : item,
+                        ),
+                      )
                     }
+                    onBlur={() => actualizarPeriodo(index, "fecha_inicio", periodo.fecha_inicio)}
                     style={{ minHeight: embedded ? 38 : undefined, paddingTop: embedded ? 0.45 : undefined, paddingBottom: embedded ? 0.45 : undefined }}
                   />
                   <input
                     type="date"
                     value={periodo.fecha_fin}
                     onChange={(e) =>
-                      actualizarPeriodo(index, "fecha_fin", e.target.value)
+                      setPeriodosForm((prev) =>
+                        prev.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? { ...item, fecha_fin: e.target.value }
+                            : item,
+                        ),
+                      )
                     }
+                    onBlur={() => actualizarPeriodo(index, "fecha_fin", periodo.fecha_fin)}
                     style={{ minHeight: embedded ? 38 : undefined, paddingTop: embedded ? 0.45 : undefined, paddingBottom: embedded ? 0.45 : undefined }}
                   />
                 </div>

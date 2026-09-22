@@ -1,6 +1,6 @@
 import React from "react";
 import { nombrePersona } from "../../../utils/personas";
-import { Trash2, Save } from "lucide-react";
+import { Compass, Trash2, Save } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
 
 const VALORES = ["A", "B", "C", "D"];
@@ -33,7 +33,7 @@ export const TabComportamiento = ({
     <div className="panel-card tab-pane active">
       <div className="panel-header">
         <div>
-          <h3>🧭 Comportamiento</h3>
+          <h3><Compass size={18} /> Comportamiento</h3>
           <p className="panel-sub">Selecciona un periodo y registra valoraciones A-D</p>
         </div>
         <div className="periodo-selector-comportamiento">

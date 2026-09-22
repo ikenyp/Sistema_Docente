@@ -13,6 +13,37 @@ const getAnioLectivoActivo = () => {
   return localStorage.getItem("anio_lectivo_activo") || "";
 };
 
+const getContextoActivo = () => localStorage.getItem("contexto_activo") || "";
+
+const normalizarDetalleError = (detail) => {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        const ubicacion = item?.loc || [];
+        const mensaje = item?.msg || "Error de validación";
+        if (ubicacion.includes("calificacion") && /less than or equal to 10/i.test(mensaje)) {
+          return "La nota no puede superar 10 puntos";
+        }
+        return mensaje;
+      })
+      .join(". ");
+  }
+  return detail ? JSON.stringify(detail) : "Error de validación";
+};
+
+export const listarTodasLasPaginas = async (listar, filtros = {}, size = 100) => {
+  const resultados = [];
+  let page = 1;
+  while (true) {
+    const pagina = await listar({ ...filtros, page, size });
+    const registros = Array.isArray(pagina) ? pagina : [];
+    resultados.push(...registros);
+    if (registros.length < size) return resultados;
+    page += 1;
+  }
+};
+
 // Construir querystring desde un objeto de filtros
 const buildQuery = (params = {}) => {
   const entries = Object.entries(params).filter(
@@ -33,6 +64,7 @@ const buildQuery = (params = {}) => {
 
 // Función para hacer peticiones autenticadas
 const apiCall = async (endpoint, method = "GET", body = null) => {
+  const startedAt = typeof performance !== "undefined" ? performance.now() : 0;
   // Todas las pantallas pasan por aquí para que token, contexto y errores
   // se manejen igual, sin repetir esa lógica en cada vista.
   const token = getToken();
@@ -41,6 +73,10 @@ const apiCall = async (endpoint, method = "GET", body = null) => {
   };
 
   const anioLectivoActivo = getAnioLectivoActivo();
+  const contextoActivo = getContextoActivo();
+  if (contextoActivo) {
+    headers["X-Contexto-Id"] = contextoActivo;
+  }
   if (anioLectivoActivo) {
     headers["X-Anio-Lectivo"] = anioLectivoActivo;
   }
@@ -83,6 +119,11 @@ const apiCall = async (endpoint, method = "GET", body = null) => {
     }`;
 
     const response = await fetch(finalUrl, config);
+    if (import.meta.env.DEV) {
+      console.info(
+        `[API] ${method} ${endpoint} -> ${response.status} (${Math.round(performance.now() - startedAt)} ms)`,
+      );
+    }
 
     if (!response.ok) {
       // Manejar respuestas vacías (204) y otras respuestas sin contenido
@@ -100,10 +141,7 @@ const apiCall = async (endpoint, method = "GET", body = null) => {
           } else if (typeof error === "object") {
             // si existe 'detail', preferirlo
             if (error.detail !== undefined) {
-              errorMessage =
-                typeof error.detail === "string"
-                  ? error.detail
-                  : JSON.stringify(error.detail);
+              errorMessage = normalizarDetalleError(error.detail);
             } else {
               // serializar el objeto/array completo
               errorMessage = JSON.stringify(error);
@@ -153,6 +191,7 @@ export const cursosAPI = {
 
   obtenerCurso: (id_curso) => apiCall(`/cursos/${id_curso}`),
   obtenerDashboard: (id_curso) => apiCall(`/cursos/${id_curso}/dashboard`),
+  resumen: (filtros = {}) => apiCall(`/cursos/resumen${buildQuery(filtros)}`),
   listar: (filtros = {}) => apiCall(`/cursos${buildQuery(filtros)}`),
   crear: (data) => apiCall(`/cursos`, "POST", data),
   actualizar: (id_curso, data) => apiCall(`/cursos/${id_curso}`, "PUT", data),
@@ -212,7 +251,7 @@ export const estudiantesAPI = {
 // ==================== NOTAS ====================
 export const notasAPI = {
   // Obtener notas por insumo
-  listarPorInsumo: (id_insumo) => apiCall(`/notas?id_insumo=${id_insumo}`),
+  listarPorInsumo: (id_insumo) => apiCall(`/notas?id_insumo=${id_insumo}&size=100`),
 
   // Listar notas con filtros (por estudiante, insumo, etc.)
   listar: (filtros = {}) => apiCall(`/notas${buildQuery(filtros)}`),

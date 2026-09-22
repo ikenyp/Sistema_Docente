@@ -14,6 +14,8 @@ class Usuario(Base):
     contrasena = Column(String(200), nullable=False)
     rol = Column(Enum(RolUsuarioEnum, name="rol_usuario"), nullable=False)
     activo = Column(Boolean, default=True)
+    password_reset_jti = Column(String(64), nullable=True)
 
     cursos_tutor = relationship("Curso", foreign_keys="Curso.id_tutor", back_populates="tutor")
     asignaciones_docente = relationship("CursoMateriaDocente", back_populates="docente")
+    membresias_contexto = relationship("UsuarioContexto", back_populates="usuario", cascade="all, delete-orphan")

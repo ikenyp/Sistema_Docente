@@ -1,5 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.insumos import Insumo
 from app.models.cursos_materias_docentes import CursoMateriaDocente
@@ -9,7 +10,7 @@ from app.models.enums import TipoInsumoEnum
 
 # Obtener por ID
 async def obtener_por_id(db: AsyncSession, id_insumo: int, id_contexto: int | None = None):
-    query = select(Insumo).where(Insumo.id_insumo == id_insumo)
+    query = select(Insumo).options(selectinload(Insumo.cmd)).where(Insumo.id_insumo == id_insumo)
     if id_contexto is not None:
         query = (
             query.join(CursoMateriaDocente, CursoMateriaDocente.id_cmd == Insumo.id_cmd)

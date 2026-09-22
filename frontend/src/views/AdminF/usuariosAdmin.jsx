@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Pencil, Trash2, Save, X, UserPlus } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import CustomSelect from "../../components/admin/CustomSelect";
-import { usuariosAPI } from "../../services/api";
+import { listarTodasLasPaginas, usuariosAPI } from "../../services/api";
 import { notify, requestConfirm } from "../../components/notify";
 import { nombrePersona } from "../../utils/personas";
 
@@ -52,7 +52,7 @@ function UsuariosAdmin() {
   useEffect(() => {
     const fetchUsuarios = async () => {
       try {
-        const data = await usuariosAPI.listar({ size: 100 });
+        const data = await listarTodasLasPaginas(usuariosAPI.listar);
         setUsuarios(data);
         setCargandoUsuarios(false);
       } catch (error) {

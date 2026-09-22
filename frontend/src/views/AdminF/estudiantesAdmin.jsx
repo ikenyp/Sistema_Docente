@@ -4,7 +4,7 @@ import { Pencil, Brush, Save, X, UserPlus, Upload } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import CustomSelect from "../../components/admin/CustomSelect";
 import ImportarEstudiantesModal from "../../components/estudiantes/ImportarEstudiantesModal";
-import { estudiantesAPI, cursosAPI } from "../../services/api";
+import { estudiantesAPI, cursosAPI, listarTodasLasPaginas } from "../../services/api";
 import { notify } from "../../components/notify";
 import { nombrePersona } from "../../utils/personas";
 import { normalizarAnioLectivo } from "../../utils/anioLectivo";
@@ -57,7 +57,7 @@ function EstudiantesAdmin() {
 
   const cargarCursos = async () => {
     try {
-      const lista = await cursosAPI.listar({ size: 100 });
+      const lista = await listarTodasLasPaginas(cursosAPI.listar);
       setCursos(lista || []);
     } catch (e) {
       // silencioso
@@ -225,11 +225,6 @@ function EstudiantesAdmin() {
 
   const guardar = async () => {
     try {
-      if (!form.fecha_nacimiento && !editando) {
-        notify("error", "La fecha de nacimiento es obligatoria");
-        return;
-      }
-
       const estadoValue = editando
         ? normalizeEstado(form.estado)
         : "matriculado";
@@ -436,27 +431,23 @@ function EstudiantesAdmin() {
             </button>
             <h3>{editando ? "Editar Estudiante" : "Crear Estudiante"}</h3>
             <input
-              placeholder="Nombre"
+              placeholder="Nombres"
+              maxLength={50}
               value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              onChange={(e) => setForm({ ...form, nombre: e.target.value.slice(0, 50) })}
             />
             <input
-              placeholder="Apellido"
+              placeholder="Apellidos"
+              maxLength={50}
               value={form.apellido}
-              onChange={(e) => setForm({ ...form, apellido: e.target.value })}
+              onChange={(e) => setForm({ ...form, apellido: e.target.value.slice(0, 50) })}
             />
             <input
               placeholder="Cédula"
+              inputMode="numeric"
+              maxLength={10}
               value={form.cedula}
-              onChange={(e) => setForm({ ...form, cedula: e.target.value })}
-            />
-            <input
-              type="date"
-              placeholder="Fecha Nacimiento"
-              value={form.fecha_nacimiento}
-              onChange={(e) =>
-                setForm({ ...form, fecha_nacimiento: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, cedula: e.target.value.replace(/\D/g, "").slice(0, 10) })}
             />
             {editando ? (
               <CustomSelect

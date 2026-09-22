@@ -1,12 +1,15 @@
 export async function requestHttp(url, method = "GET", body = null, extraHeaders = {}) {
+  const startedAt = typeof performance !== "undefined" ? performance.now() : 0;
   // Login y refresh también usan este cliente para mantener un único manejo de errores.
   const headers = {
     "X-App-Mode": (localStorage.getItem("app_mode") || "institucional").toLowerCase(),
     ...extraHeaders,
   };
   const anio = localStorage.getItem("anio_lectivo_activo");
+  const contextoActivo = localStorage.getItem("contexto_activo");
   const token = localStorage.getItem("token");
   if (anio) headers["X-Anio-Lectivo"] = anio;
+  if (contextoActivo) headers["X-Contexto-Id"] = contextoActivo;
   if (token && !headers.Authorization) headers.Authorization = `Bearer ${token}`;
 
   const config = { method, headers };
@@ -23,6 +26,11 @@ export async function requestHttp(url, method = "GET", body = null, extraHeaders
 
   try {
     const response = await fetch(url, config);
+    if (import.meta.env.DEV) {
+      console.info(
+        `[API] ${method} ${url} -> ${response.status} (${Math.round(performance.now() - startedAt)} ms)`,
+      );
+    }
     if (response.status === 204) return null;
     if (!response.ok) {
       let message = `HTTP ${response.status}`;

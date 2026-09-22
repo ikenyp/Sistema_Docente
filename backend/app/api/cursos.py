@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_session
 from app.core.app_mode import is_personal_mode
 from app.core.context_manager import resolve_contexto_id
-from app.schemas.cursos import CursoCreate, CursoUpdate, CursoResponseDetailed, CursoDashboardResponse
+from app.schemas.cursos import CursoCreate, CursoUpdate, CursoResponseDetailed, CursoDashboardResponse, CursoResumenResponse
 from app.services import cursos as service
 from app.auth.dependencies import get_current_user
 from app.schemas.usuarios import RolUsuarioEnum
@@ -15,6 +15,7 @@ from app.models.cursos_materias_docentes import CursoMateriaDocente
 from app.models.estructuras_academicas import EstructuraMateria
 from app.models.estudiantes import Estudiante
 from app.models.usuarios import Usuario
+from app.models.cursos import Curso
 from app.services.authorization import (
     validar_docente_puede_editar_curso,
     validar_usuario_puede_ver_curso,
@@ -70,6 +71,51 @@ async def listar_cursos(
 
     return await service.listar_cursos(db, id_contexto, page, size, nombre, anio_lectivo, id_tutor)
 
+
+@router.get("/resumen", response_model=list[CursoResumenResponse])
+async def resumir_cursos(
+    page: int = Query(1, ge=1),
+    size: int = Query(100, ge=1, le=100),
+    request: Request = None,
+    current_user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+):
+    id_contexto = await resolve_contexto_id(db, current_user, request)
+    estudiantes = (
+        select(Estudiante.id_curso_actual.label("id_curso"), func.count(Estudiante.id_estudiante).label("total"))
+        .where(
+            Estudiante.id_contexto == id_contexto,
+            or_(Estudiante.eliminado.is_(False), Estudiante.eliminado.is_(None)),
+        )
+        .group_by(Estudiante.id_curso_actual)
+        .subquery()
+    )
+    materias = (
+        select(CursoMateriaDocente.id_curso.label("id_curso"), func.count(func.distinct(CursoMateriaDocente.id_materia)).label("total"))
+        .join(Curso, Curso.id_curso == CursoMateriaDocente.id_curso)
+        .where(Curso.id_contexto == id_contexto)
+        .group_by(CursoMateriaDocente.id_curso)
+        .subquery()
+    )
+    query = (
+        select(Curso, func.coalesce(estudiantes.c.total, 0), func.coalesce(materias.c.total, 0))
+        .outerjoin(estudiantes, estudiantes.c.id_curso == Curso.id_curso)
+        .outerjoin(materias, materias.c.id_curso == Curso.id_curso)
+        .options(joinedload(Curso.tutor), joinedload(Curso.estructura_academica))
+        .where(Curso.id_contexto == id_contexto)
+        .limit(size)
+        .offset((page - 1) * size)
+    )
+    result = await db.execute(query)
+    return [
+        {
+            **CursoResponseDetailed.model_validate(curso).model_dump(),
+            "total_estudiantes": total_estudiantes,
+            "total_materias": total_materias,
+        }
+        for curso, total_estudiantes, total_materias in result.all()
+    ]
+
 # Obtener curso por ID
 @router.get("/{id_curso}", response_model=CursoResponseDetailed)
 async def obtener_curso(
@@ -107,7 +153,12 @@ async def obtener_dashboard_curso(
     curso = await service.obtener_curso(db, id_curso, id_contexto)
 
     estudiantes_result = await db.execute(
-        select(Estudiante).where(Estudiante.id_curso_actual == id_curso)
+        select(Estudiante).where(
+            Estudiante.id_curso_actual == id_curso,
+            Estudiante.id_contexto == id_contexto,
+            Estudiante.anio_lectivo == curso.anio_lectivo,
+            or_(Estudiante.eliminado.is_(False), Estudiante.eliminado.is_(None)),
+        )
     )
     estudiantes = estudiantes_result.scalars().all()
 

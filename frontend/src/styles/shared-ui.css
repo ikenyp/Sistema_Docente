@@ -46,3 +46,64 @@
   background: linear-gradient(135deg, #2f72b5 0%, #4f5ebf 100%);
   color: #fff;
 }
+
+/* Shared modal title treatment across personal, course, admin and confirm dialogs. */
+.confirm-modal h3,
+.admin-modal-title,
+.admin-modal-content h3,
+.personal-modal-title,
+.modal-header h3,
+.course-mini-modal-title {
+  font-family: Arial, sans-serif;
+  font-weight: 800;
+  text-align: center !important;
+}
+
+.modal-header h3,
+.admin-modal-title,
+.admin-modal-content h3,
+.personal-modal-header h3 {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.shared-modal-title-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.1rem 0 0.6rem;
+  border-bottom: 1px solid #dce5f4;
+}
+
+.shared-modal-title-row h3 {
+  grid-column: 2;
+  width: auto;
+  max-width: none;
+  white-space: normal;
+  transform: none;
+  margin: 0;
+}
+
+.shared-modal-close {
+  position: static;
+  grid-column: 3;
+  justify-self: end;
+  transform: none;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #3a4f75;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.shared-modal-close:hover {
+  background: #e2e8f0;
+}

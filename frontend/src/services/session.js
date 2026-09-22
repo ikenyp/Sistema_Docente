@@ -47,6 +47,7 @@ export function clearSessionStorage() {
   localStorage.removeItem("token");
   localStorage.removeItem("role");
   localStorage.removeItem("app_mode");
+  localStorage.removeItem("contexto_activo");
   localStorage.removeItem("usuario");
   localStorage.removeItem("anio_lectivo_activo");
 }

@@ -1,5 +1,5 @@
 import React from "react";
-import { Trash2, Save } from "lucide-react";
+import { CalendarCheck, Trash2, Save } from "lucide-react";
 import { nombrePersona } from "../../../utils/personas";
 
 const ESTADOS = [
@@ -29,7 +29,7 @@ export const TabAsistencia = ({
     <div className="panel-card tab-pane active">
       <div className="panel-header">
         <div>
-          <h3>🗓️ Asistencia</h3>
+          <h3><CalendarCheck size={18} /> Asistencia</h3>
           <p className="panel-sub">Selecciona una fecha y registra la asistencia del día</p>
           <div className="header-inline-control attendance-date-control">
             <label className="control-label">Fecha:</label>

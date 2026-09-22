@@ -18,6 +18,7 @@ import {
   estudiantesAPI,
   asignacionesAPI,
   estructurasAcademicasAPI,
+  listarTodasLasPaginas,
 } from "../../services/api";
 
 function Admin() {
@@ -40,6 +41,7 @@ function Admin() {
 
   const cursosRecientes = useMemo(() => {
     try {
+      if (localStorage.getItem("admin_recent_courses_context") !== localStorage.getItem("contexto_activo")) return [];
       const raw = JSON.parse(localStorage.getItem("admin_recent_courses") || "[]");
       const lista = Array.isArray(raw) ? raw : [];
       const ids = new Set();
@@ -61,9 +63,7 @@ function Admin() {
     return cursosRecientes
       .map((item) => {
         const curso = cursos.find((c) => Number(c.id_curso) === Number(item.id_curso));
-        return curso
-          ? { ...item, nombre: curso.nombre, anio_lectivo: curso.anio_lectivo }
-          : item;
+        return curso ? { ...item, nombre: curso.nombre, anio_lectivo: curso.anio_lectivo } : null;
       })
       .filter((item) => !anioActivo || normalizarAnioLectivo(item.anio_lectivo) === anioActivo)
       .filter(Boolean);
@@ -73,11 +73,11 @@ function Admin() {
     setCargando(true);
     try {
       const [u, c, e, a, es, al] = await Promise.allSettled([
-        usuariosAPI.listar({ size: 100 }),
-        cursosAPI.listar({ size: 100 }),
-        estudiantesAPI.buscar({ estado: "matriculado", size: 100 }),
-        asignacionesAPI.listar({ size: 100 }),
-        estructurasAcademicasAPI.listar({ size: 100 }),
+        listarTodasLasPaginas(usuariosAPI.listar),
+        listarTodasLasPaginas(cursosAPI.listar),
+        listarTodasLasPaginas(estudiantesAPI.buscar, { estado: "matriculado" }).catch(() => []),
+        listarTodasLasPaginas(asignacionesAPI.listar),
+        listarTodasLasPaginas(estructurasAcademicasAPI.listar),
         aniosLectivosAPI.listar(),
       ]);
       // Las cargas son independientes: un fallo de usuarios no debe ocultar
@@ -133,6 +133,20 @@ function Admin() {
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  useEffect(() => {
+    if (!cursos.length) return;
+    const idsValidos = new Set(cursos.map((curso) => Number(curso.id_curso)));
+    try {
+      const recientes = JSON.parse(localStorage.getItem("admin_recent_courses") || "[]");
+      const depurados = (Array.isArray(recientes) ? recientes : []).filter((item) =>
+        idsValidos.has(Number(item?.id_curso)),
+      );
+      localStorage.setItem("admin_recent_courses", JSON.stringify(depurados));
+    } catch {
+      localStorage.removeItem("admin_recent_courses");
+    }
+  }, [cursos]);
 
   const anios = useMemo(() => {
     const base = aniosLectivos
