@@ -1,6 +1,6 @@
 import React from "react";
 import { nombrePersona } from "../../../utils/personas";
-import { Compass, Trash2, Save } from "lucide-react";
+import { Compass, Save } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
 
 const VALORES = ["A", "B", "C", "D"];
@@ -19,6 +19,7 @@ export const TabComportamiento = ({
   onGuardarUno,
   onEliminarUno,
   onGuardarTodo,
+  guardandoComportamiento,
 }) => {
   const periodosOptions = periodos.map((periodo) => ({
     value: String(periodo.numero_periodo),
@@ -54,14 +55,14 @@ export const TabComportamiento = ({
             <col className="behavior-col-student" />
             <col className="behavior-col-value" />
             <col className="behavior-col-observation" />
-            <col className="behavior-col-action" />
+            {!soloLecturaTutor && <col className="behavior-col-action" />}
           </colgroup>
           <thead>
             <tr>
               <th>Estudiante</th>
               <th className="table-th-center">Valor</th>
               <th>Observaciones</th>
-              <th>Acciones</th>
+              {!soloLecturaTutor && <th>Acciones</th>}
             </tr>
           </thead>
           <tbody>
@@ -110,30 +111,29 @@ export const TabComportamiento = ({
                         placeholder="Observaciones..."
                       />
                     </td>
-                    <td>
+                    {!soloLecturaTutor && <td>
                       <div className="behavior-actions-row">
                         <button
                           className="btn-save btn-save-inline"
                           type="button"
-                          disabled={soloLecturaTutor}
+                          disabled={guardandoComportamiento}
                           onClick={() => onGuardarUno(estudiante.id_estudiante)}
                           aria-label="Guardar comportamiento"
                         >
                           <Save size={16} />
-                          <span>Guardar</span>
+                          <span>{guardandoComportamiento ? "Guardando..." : "Guardar"}</span>
                         </button>
                         <button
                           className="btn-delete btn-delete-inline"
                           type="button"
-                          disabled={soloLecturaTutor}
+                          disabled={guardandoComportamiento}
                           onClick={() => onEliminarUno(estudiante.id_estudiante)}
                           aria-label="Eliminar comportamiento"
                         >
-                          <Trash2 size={16} />
-                          <span>Eliminar</span>
+                          Eliminar
                         </button>
                       </div>
-                    </td>
+                    </td>}
                   </tr>
                 );
               })}
@@ -142,9 +142,9 @@ export const TabComportamiento = ({
       </div>
 
       <div className="tab-footer-actions">
-        <button className="btn-primary btn-save-inline behavior-save-btn" type="button" onClick={onGuardarTodo} disabled={soloLecturaTutor}>
+        <button className="btn-primary btn-save-inline behavior-save-btn" type="button" onClick={onGuardarTodo} disabled={soloLecturaTutor || guardandoComportamiento}>
           <Save size={16} />
-          <span>{soloLecturaTutor ? "Solo lectura" : "Guardar comportamiento"}</span>
+          <span>{soloLecturaTutor ? "Solo lectura" : guardandoComportamiento ? "Guardando..." : "Guardar comportamiento"}</span>
         </button>
       </div>
     </div>

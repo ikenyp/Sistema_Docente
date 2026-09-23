@@ -93,7 +93,7 @@ function CursoPrincipal() {
   const [periodos, setPeriodos] = useState([]);
   const [errorCargaPeriodos] = useState(null);
   const [filtroPeriodo, setFiltroPeriodo] = useState("todos");
-  const [ordenInsumos, setOrdenInsumos] = useState("a-z");
+  const [ordenInsumos, setOrdenInsumos] = useState("reciente");
   const [menuFiltroPeriodoAbierto, setMenuFiltroPeriodoAbierto] = useState(false);
   const [menuOrdenInsumosAbierto, setMenuOrdenInsumosAbierto] = useState(false);
 
@@ -108,6 +108,7 @@ function CursoPrincipal() {
   const [insumoEditando, setInsumoEditando] = useState(null);
   const [editandoInsumo, setEditandoInsumo] = useState(false);
   const [cargandoInsumo, setCargandoInsumo] = useState(false);
+  const [eliminandoInsumo, setEliminandoInsumo] = useState(false);
 
   // Tabs
   const [activeTab, setActiveTab] = useState(esModoPersonal ? "estudiantes" : "insumos");
@@ -126,11 +127,13 @@ function CursoPrincipal() {
 
   // Asistencia
   const [asistencias, setAsistencias] = useState([]);
+  const [guardandoAsistencia, setGuardandoAsistencia] = useState(false);
   const [fechaAsistencia, setFechaAsistencia] = useState(fechaHoy);
   const [estadosTemporales, setEstadosTemporales] = useState({});
 
   // Comportamiento
   const [comportamientos, setComportamientos] = useState([]);
+  const [guardandoComportamiento, setGuardandoComportamiento] = useState(false);
   const [valoresTemporales, setValoresTemporales] = useState({});
   const [observacionesTemporales, setObservacionesTemporales] = useState({});
   const [comportamientoMes, setComportamientoMes] = useState("");
@@ -139,6 +142,7 @@ function CursoPrincipal() {
   const [estudianteSeleccionado, setEstudianteSeleccionado] = useState("");
   const [notasIndividuales, setNotasIndividuales] = useState([]);
   const [cargandoNotasIndividual, setCargandoNotasIndividual] = useState(false);
+  const [guardandoNotaIndividual, setGuardandoNotaIndividual] = useState(false);
   const [notasPorEstudiante, setNotasPorEstudiante] = useState({});
 
   // Promedios
@@ -579,14 +583,18 @@ function CursoPrincipal() {
           "institucional" &&
         Number(cursoActual?.id_tutor) === Number(usuario.id_usuario);
 
+      const todasLasAsignaciones = dashboard?.asignaciones || [];
       const cmd = esTutorInstitucional
-        ? dashboard?.asignaciones || []
-        : (dashboard?.asignaciones || []).filter(
-            (item) => item.id_docente === usuario.id_usuario,
+        ? todasLasAsignaciones
+        : todasLasAsignaciones.filter(
+            (item) => Number(item.id_docente) === Number(usuario.id_usuario),
           );
+      const asignacionesGestionables = todasLasAsignaciones.filter(
+        (item) => Number(item.id_docente) === Number(usuario.id_usuario),
+      );
 
       setMateriasGestionablesDocente(
-        (cmd || [])
+        asignacionesGestionables
           .map((item) => item.id_cmd || item.cmd?.id_cmd || item.id_materia || item.materia?.id_materia)
           .filter(Boolean),
       );
@@ -594,12 +602,16 @@ function CursoPrincipal() {
       // Guardamos IDs normalizados como texto porque algunas respuestas de la
       // API llegan como números y otras como strings.
       const gestionablesIds = new Set(
-        (cmd || [])
+        asignacionesGestionables
           .map((item) => item.id_cmd || item.cmd?.id_cmd || item.id_materia || item.materia?.id_materia)
           .filter(Boolean)
           .map((value) => String(value)),
       );
-      const primeraGestionable = (cmd || []).find((item) => gestionablesIds.has(String(item.id_cmd)));
+      const primeraGestionable = (cmd || []).find((item) =>
+        gestionablesIds.has(
+          String(item.id_cmd || item.cmd?.id_cmd || item.id_materia || item.materia?.id_materia),
+        ),
+      );
       setMateriaSeleccionada(primeraGestionable || (cmd && cmd.length > 0 ? cmd[0] : null));
       if (!cmd || cmd.length === 0) {
         setInsumosMateria([]);
@@ -747,8 +759,9 @@ function CursoPrincipal() {
 
   const confirmarEliminarInsumo = async () => {
     const insumo = insumoPendienteEliminar;
-    if (!insumo) return;
+    if (!insumo || eliminandoInsumo) return;
 
+    setEliminandoInsumo(true);
     try {
       await insumosAPI.eliminar(insumo.id_insumo);
       await cargarInsumos(materiaSeleccionada.id_cmd);
@@ -756,6 +769,8 @@ function CursoPrincipal() {
       notify("success", "Insumo eliminado correctamente");
     } catch (err) {
       notify("error", "Error al eliminar insumo: " + err.message);
+    } finally {
+      setEliminandoInsumo(false);
     }
   };
 
@@ -831,11 +846,14 @@ function CursoPrincipal() {
     [asistencias, fechaAsistencia],
   );
 
-  const guardarAsistenciaUno = async (id_estudiante, { silent = false } = {}) => {
+  const guardarAsistenciaUno = async (id_estudiante, { silent = false, recargar = true } = {}) => {
     // Si ya existe asistencia para esa fecha se actualiza; si no, se crea.
     // Así el botón puede usarse varias veces sin generar registros duplicados.
     const estado = estadosTemporales[id_estudiante];
     if (!estado) return false;
+    const accionIndividual = !silent;
+    if (accionIndividual && guardandoAsistencia) return false;
+    if (accionIndividual) setGuardandoAsistencia(true);
 
     const existente = asistenciaExistentePorEstudiante(id_estudiante);
     const payload = {
@@ -851,7 +869,9 @@ function CursoPrincipal() {
       } else {
         await asistenciaAPI.crear(payload);
       }
-      await cargarAsistencia(materiaSeleccionada.id_cmd);
+      if (recargar) {
+        await cargarAsistencia(materiaSeleccionada.id_cmd);
+      }
       if (!silent) {
         notify("success", existente ? "Asistencia actualizada" : "Asistencia guardada");
       }
@@ -859,6 +879,8 @@ function CursoPrincipal() {
     } catch (err) {
       if (!silent) notify("error", "No se pudo guardar: " + err.message);
       return false;
+    } finally {
+      if (accionIndividual) setGuardandoAsistencia(false);
     }
   };
 
@@ -884,25 +906,39 @@ function CursoPrincipal() {
   };
 
   const guardarAsistenciaTodo = async () => {
-    let guardadas = 0;
-    let fallidas = 0;
-    for (const estudiante of estudiantesCurso) {
-      if (estadosTemporales[estudiante.id_estudiante]) {
-        const guardada = await guardarAsistenciaUno(estudiante.id_estudiante, { silent: true });
-        if (guardada) guardadas += 1;
-        else fallidas += 1;
-      }
-    }
-    if (guardadas > 0) {
-      notify("success", "Asistencia guardada correctamente");
-    }
-    if (fallidas > 0) {
-      notify(
-        "error",
-        fallidas === 1
-          ? "1 registro no pudo guardarse. Revisa la fecha seleccionada."
-          : `${fallidas} registros no pudieron guardarse. Revisa la fecha seleccionada.`,
+    if (guardandoAsistencia) return;
+    setGuardandoAsistencia(true);
+    const pendientes = estudiantesCurso.filter(
+      (estudiante) => estadosTemporales[estudiante.id_estudiante],
+    );
+    try {
+      const resultados = await Promise.all(
+        pendientes.map((estudiante) =>
+          guardarAsistenciaUno(estudiante.id_estudiante, {
+            silent: true,
+            recargar: false,
+          }),
+        ),
       );
+      const guardadas = resultados.filter(Boolean).length;
+      const fallidas = resultados.length - guardadas;
+
+      if (pendientes.length > 0) {
+        await cargarAsistencia(materiaSeleccionada.id_cmd);
+      }
+      if (guardadas > 0) {
+        notify("success", "Asistencia guardada correctamente");
+      }
+      if (fallidas > 0) {
+        notify(
+          "error",
+          fallidas === 1
+            ? "1 registro no pudo guardarse. Revisa la fecha seleccionada."
+            : `${fallidas} registros no pudieron guardarse. Revisa la fecha seleccionada.`,
+        );
+      }
+    } finally {
+      setGuardandoAsistencia(false);
     }
   };
 
@@ -943,6 +979,9 @@ function CursoPrincipal() {
   const guardarComportamientoUno = async (id_estudiante, { silent = false } = {}) => {
     const valor = valoresTemporales[id_estudiante];
     if (!valor) return false;
+    const accionIndividual = !silent;
+    if (accionIndividual && guardandoComportamiento) return false;
+    if (accionIndividual) setGuardandoComportamiento(true);
 
     const existente = comportamientoExistentePorEstudiante(id_estudiante);
     const payload = {
@@ -965,6 +1004,8 @@ function CursoPrincipal() {
     } catch (err) {
       if (!silent) notify("error", "No se pudo guardar: " + err.message);
       return false;
+    } finally {
+      if (accionIndividual) setGuardandoComportamiento(false);
     }
   };
 
@@ -1026,19 +1067,24 @@ function CursoPrincipal() {
   const guardarNotaIndividual = async (registro, nuevoValor, idNotaAEliminar = null) => {
     // Una celda vacía elimina la nota existente; un valor reemplaza o crea la
     // nota. El backend sigue siendo quien valida el rango permitido.
+    if (guardandoNotaIndividual) return;
     if (idNotaAEliminar) {
+      setGuardandoNotaIndividual(true);
       try {
         await notasAPI.eliminar(idNotaAEliminar);
         await cargarNotasEstudiante(estudianteSeleccionado);
         await cargarNotasCurso();
       } catch (err) {
         notify("error", "No se pudo eliminar la nota: " + err.message);
+      } finally {
+        setGuardandoNotaIndividual(false);
       }
       return;
     }
 
     if (nuevoValor === "" || nuevoValor === null || nuevoValor === undefined) return;
 
+    setGuardandoNotaIndividual(true);
     try {
       if (registro.id_nota) {
         await notasAPI.actualizar(registro.id_nota, {
@@ -1056,6 +1102,8 @@ function CursoPrincipal() {
       await cargarNotasCurso();
     } catch (err) {
       notify("error", "No se pudo guardar la nota: " + err.message);
+    } finally {
+      setGuardandoNotaIndividual(false);
     }
   };
 
@@ -1086,25 +1134,31 @@ function CursoPrincipal() {
   };
 
   const guardarComportamientoTodo = async () => {
+    if (guardandoComportamiento) return;
+    setGuardandoComportamiento(true);
     let guardados = 0;
     let fallidos = 0;
-    for (const estudiante of estudiantesCurso) {
-      if (valoresTemporales[estudiante.id_estudiante]) {
-        const guardado = await guardarComportamientoUno(estudiante.id_estudiante, { silent: true });
-        if (guardado) guardados += 1;
-        else fallidos += 1;
+    try {
+      for (const estudiante of estudiantesCurso) {
+        if (valoresTemporales[estudiante.id_estudiante]) {
+          const guardado = await guardarComportamientoUno(estudiante.id_estudiante, { silent: true });
+          if (guardado) guardados += 1;
+          else fallidos += 1;
+        }
       }
-    }
-    if (guardados > 0) {
-      notify("success", `${guardados} registro${guardados === 1 ? "" : "s"} de comportamiento guardado${guardados === 1 ? "" : "s"}`);
-    }
-    if (fallidos > 0) {
-      notify(
-        "error",
-        fallidos === 1
-          ? "1 registro de comportamiento no pudo guardarse"
-          : `${fallidos} registros de comportamiento no pudieron guardarse`,
-      );
+      if (guardados > 0) {
+        notify("success", `${guardados} registro${guardados === 1 ? "" : "s"} de comportamiento guardado${guardados === 1 ? "" : "s"}`);
+      }
+      if (fallidos > 0) {
+        notify(
+          "error",
+          fallidos === 1
+            ? "1 registro de comportamiento no pudo guardarse"
+            : `${fallidos} registros de comportamiento no pudieron guardarse`,
+        );
+      }
+    } finally {
+      setGuardandoComportamiento(false);
     }
   };
 
@@ -1263,18 +1317,6 @@ function CursoPrincipal() {
                 >
                   <h3>Falta configuracion de periodizacion</h3>
                   <p>{errorCargaPeriodos}</p>
-                </div>
-            )}
-
-            {soloLecturaTutor && (
-                <div
-                  className="empty-state"
-                  style={{ marginBottom: "0.95rem", border: "1px solid #dce5f4" }}
-                >
-                  <h3>Modo tutor</h3>
-                  <p>
-                    Puedes revisar materias, notas, asistencia, promedios y comportamiento del curso completo, pero sin editar datos de las materias.
-                  </p>
                 </div>
             )}
 
@@ -1462,7 +1504,8 @@ function CursoPrincipal() {
                   agregarInsumo={agregarInsumo}
                   abrirInsumosNotas={abrirInsumosNotas}
                   abrirEdicionInsumo={abrirEdicionInsumo}
-                  eliminarInsumo={eliminarInsumo}
+                   eliminarInsumo={eliminarInsumo}
+                   eliminandoInsumo={eliminandoInsumo}
                 />
             )}
 
@@ -1478,6 +1521,7 @@ function CursoPrincipal() {
                 onGuardarUno={guardarAsistenciaUno}
                 onEliminarUno={eliminarAsistenciaUno}
                 onGuardarTodo={guardarAsistenciaTodo}
+                guardandoAsistencia={guardandoAsistencia}
             />
 
             <TabComportamiento
@@ -1486,7 +1530,7 @@ function CursoPrincipal() {
                 mesComportamiento={comportamientoMes}
                 setMesComportamiento={setComportamientoMes}
                 periodos={periodos}
-                soloLecturaTutor={false}
+                soloLecturaTutor={soloLecturaTutor}
                 valoresTemporales={valoresTemporales}
                 setValoresTemporales={setValoresTemporales}
                 observacionesTemporales={observacionesTemporales}
@@ -1495,6 +1539,7 @@ function CursoPrincipal() {
                 onGuardarUno={guardarComportamientoUno}
                 onEliminarUno={eliminarComportamientoUno}
                 onGuardarTodo={guardarComportamientoTodo}
+                guardandoComportamiento={guardandoComportamiento}
             />
 
             <TabNotasEstudiante
@@ -1508,6 +1553,7 @@ function CursoPrincipal() {
                 notasIndividuales={notasIndividuales}
                 cargandoNotasIndividual={cargandoNotasIndividual}
                 onGuardarNota={guardarNotaIndividual}
+                guardandoNota={guardandoNotaIndividual}
             />
 
             {/* TAB: PROMEDIOS */}
@@ -1528,7 +1574,8 @@ function CursoPrincipal() {
                 materiasCurso={materiasCurso}
                 materiaSeleccionada={materiaSeleccionada}
                 cursoDetalle={cursoDetalle}
-            />
+                soloLecturaTutor={soloLecturaTutor}
+              />
 
             <TabPeriodizacion
                 activeTab={activeTab}
@@ -1853,13 +1900,13 @@ function CursoPrincipal() {
                 </span>
               </div>
               <div className="modal-insumo-edit-footer">
-                <button className="btn-cancel btn-inline-icon" type="button" onClick={() => setInsumoPendienteEliminar(null)}>
+                <button className="btn-cancel btn-inline-icon" type="button" onClick={() => setInsumoPendienteEliminar(null)} disabled={eliminandoInsumo}>
                   <X size={14} />
                   Cancelar
                 </button>
-                <button className="btn-delete btn-delete-inline" type="button" onClick={confirmarEliminarInsumo}>
+                <button className="btn-delete btn-delete-inline" type="button" onClick={confirmarEliminarInsumo} disabled={eliminandoInsumo}>
                   <Trash2 size={14} />
-                  Eliminar
+                  {eliminandoInsumo ? "Eliminando..." : "Eliminar"}
                 </button>
               </div>
             </div>
@@ -2018,6 +2065,7 @@ function CursoPrincipal() {
         <AnalisisAcademico
           idCurso={id_curso}
           nombreCurso={cursoDetalle?.nombre || curso?.nombre}
+          habilitado={!cargando && Boolean(cursoDetalle) && !error}
         />
 
       </div>

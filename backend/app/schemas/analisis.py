@@ -17,7 +17,12 @@ class AnalisisEstudianteResumen(BaseModel):
     promedio_registrado: float | None = None
     actividades_registradas: int = 0
     actividades_pendientes: int = 0
+    actividades_pendientes_nombres: list[str] = Field(default_factory=list)
     porcentaje_asistencia: float | None = None
+    asistencias_favorables: int = 0
+    asistencias_totales: int = 0
+    tendencia_promedio: float | None = None
+    puntaje_riesgo: int = 0
     alertas: list[AnalisisAlerta] = Field(default_factory=list)
 
 
@@ -33,6 +38,7 @@ class AnalisisCursoResumen(BaseModel):
     alertas_altas: int = 0
     alertas_medias: int = 0
     estudiantes_afectados: int = 0
+    estudiantes_en_riesgo: int = 0
     situaciones: int = 0
 
 
@@ -69,6 +75,8 @@ class AnalisisSituacion(BaseModel):
     descripcion: str
     prioridad: str
     afectados: int = 0
+    id_estudiantes: list[int] = Field(default_factory=list)
+    nombres_estudiantes: list[str] = Field(default_factory=list)
     materia: str | None = None
     actividad: str | None = None
     promedio: float | None = None

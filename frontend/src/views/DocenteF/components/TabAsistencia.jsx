@@ -1,5 +1,5 @@
 import React from "react";
-import { CalendarCheck, Trash2, Save } from "lucide-react";
+import { CalendarCheck, Save } from "lucide-react";
 import { nombrePersona } from "../../../utils/personas";
 
 const ESTADOS = [
@@ -20,6 +20,7 @@ export const TabAsistencia = ({
   onGuardarUno,
   onEliminarUno,
   onGuardarTodo,
+  guardandoAsistencia,
 }) => {
   // La asistencia se edita por estudiante y fecha; repetir el guardado actualiza
   // el registro existente en lugar de crear duplicados.
@@ -47,13 +48,13 @@ export const TabAsistencia = ({
           <colgroup>
             <col className="attendance-col-student" />
             <col className="attendance-col-status" />
-            <col className="attendance-col-action" />
+            {!soloLecturaTutor && <col className="attendance-col-action" />}
           </colgroup>
           <thead>
             <tr>
               <th>Estudiante</th>
               <th className="table-th-center">Asistencia del día</th>
-              <th>Acciones</th>
+              {!soloLecturaTutor && <th>Acciones</th>}
             </tr>
           </thead>
           <tbody>
@@ -87,17 +88,17 @@ export const TabAsistencia = ({
                         ))}
                       </div>
                     </td>
-                    <td>
+                    {!soloLecturaTutor && <td>
                       <button
                         className="btn-delete btn-delete-inline"
                         type="button"
                         onClick={() => onEliminarUno(estudiante.id_estudiante)}
                         aria-label="Limpiar asistencia"
+                        disabled={guardandoAsistencia}
                       >
-                        <Trash2 size={16} />
-                        <span>Limpiar</span>
+                        Limpiar
                       </button>
-                    </td>
+                    </td>}
                   </tr>
                 );
               })}
@@ -106,9 +107,9 @@ export const TabAsistencia = ({
       </div>
 
       <div className="tab-footer-actions attendance-footer-actions">
-        <button className="btn-primary attendance-save-btn" type="button" onClick={onGuardarTodo} disabled={soloLecturaTutor}>
+        <button className="btn-primary attendance-save-btn" type="button" onClick={onGuardarTodo} disabled={soloLecturaTutor || guardandoAsistencia}>
           <Save size={16} />
-          <span>{soloLecturaTutor ? "Solo lectura" : "Guardar asistencia"}</span>
+          <span>{soloLecturaTutor ? "Solo lectura" : guardandoAsistencia ? "Guardando..." : "Guardar asistencia"}</span>
         </button>
       </div>
 

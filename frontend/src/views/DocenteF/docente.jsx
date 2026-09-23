@@ -369,12 +369,11 @@ function Docente() {
       estudiantesPersonales.filter(
         (estudiante) => Number(estudiante.id_curso_actual) === Number(curso.id_curso),
       ).length;
-    const cantidadMaterias =
-      curso.total_materias ??
-      curso.cantidad_materias ??
-      asignacionesPersonales.filter(
-        (asignacion) => Number(asignacion.id_curso) === Number(curso.id_curso),
-      ).length;
+    const cantidadMaterias = asignacionesPersonales.filter(
+      (asignacion) =>
+        Number(asignacion.id_curso || asignacion.curso?.id_curso) ===
+        Number(curso.id_curso),
+    ).length;
     const partes = [];
     if (cantidadEstudiantes !== null && cantidadEstudiantes !== undefined) {
       partes.push(`${cantidadEstudiantes} estudiante${cantidadEstudiantes === 1 ? "" : "s"}`);
@@ -582,6 +581,7 @@ function Docente() {
         ),
       );
       setCursos(cursosUnicos);
+      setAsignacionesPersonales(todasAsignaciones || []);
       setCargando(false);
 
       if (modoActual === "personal") {
@@ -620,12 +620,6 @@ function Docente() {
             }
           });
         }
-      }
-
-      if (modoActual === "personal") {
-        setAsignacionesPersonales(todasAsignaciones || []);
-      } else {
-        setAsignacionesPersonales(asignaciones || []);
       }
 
       // Los docentes solo pueden consultar estudiantes dentro de un curso
@@ -1928,7 +1922,7 @@ function Docente() {
           </div>
         </div>
 
-        {cargando && <p>Cargando cursos...</p>}
+        {cargando && !cursos.length && <p>Cargando cursos...</p>}
         {error && (
           <div className="empty-state error-state">
             <h3>No se pudieron cargar los cursos</h3>
@@ -1987,7 +1981,7 @@ function Docente() {
           </div>
         )}
 
-        {!cargando && !error && (
+        {(!cargando || cursos.length > 0) && !error && (
           <>
             {appMode === "personal" && mostrarWizard && (
               <div className="personal-modal-overlay">

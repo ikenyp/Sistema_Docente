@@ -417,6 +417,7 @@ export const asignacionesAPI = {
 // ==================== ANALISIS ACADEMICO ====================
 export const analisisAPI = {
   analizarCurso: (id_curso) => apiCall(`/analisis/curso/${id_curso}`),
+  explicarCurso: (id_curso) => apiCall(`/analisis/curso/${id_curso}/explicacion`, "POST"),
   analizarEstudiante: (id_curso, id_estudiante) =>
     apiCall(`/analisis/curso/${id_curso}/estudiante/${id_estudiante}`),
 };

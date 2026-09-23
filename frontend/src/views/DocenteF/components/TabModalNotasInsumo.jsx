@@ -14,6 +14,7 @@ export const TabModalNotasInsumo = ({
 }) => {
   const [estudiantes, setEstudiantes] = useState([]);
   const [notas, setNotas] = useState({});
+  const [guardandoEstudiante, setGuardandoEstudiante] = useState(null);
   const notasGuardadas = useRef({});
   const guardandoNotas = useRef(new Set());
 
@@ -77,6 +78,7 @@ export const TabModalNotasInsumo = ({
     if (valor === "" || notasGuardadas.current[idEstudiante] === valor) return;
 
     guardandoNotas.current.add(idEstudiante);
+    setGuardandoEstudiante(idEstudiante);
     try {
       const notaGuardada = await guardarNota(
         idEstudiante,
@@ -94,7 +96,19 @@ export const TabModalNotasInsumo = ({
       }));
     } finally {
       guardandoNotas.current.delete(idEstudiante);
+      setGuardandoEstudiante(null);
     }
+  };
+
+  const moverFocoNota = (idEstudiante, direccion) => {
+    const indiceActual = estudiantesOrdenados.findIndex(
+      (estudiante) => String(estudiante.id_estudiante) === String(idEstudiante),
+    );
+    const indiceDestino = indiceActual + direccion;
+    const estudianteDestino = estudiantesOrdenados[indiceDestino];
+    if (!estudianteDestino) return;
+
+    document.getElementById(`nota-${estudianteDestino.id_estudiante}`)?.focus();
   };
 
   return (
@@ -113,14 +127,14 @@ export const TabModalNotasInsumo = ({
               <col className="tabla-notas-col-numero" />
               <col className="tabla-notas-col-estudiante" />
               <col className="tabla-notas-col-nota" />
-              <col className="tabla-notas-col-accion" />
+              {!soloLecturaTutor && <col className="tabla-notas-col-accion" />}
             </colgroup>
             <thead>
               <tr>
                 <th>No.</th>
                 <th>Estudiante</th>
                 <th>Nota</th>
-                <th>Acciones</th>
+                {!soloLecturaTutor && <th>Acciones</th>}
               </tr>
             </thead>
             <tbody>
@@ -142,6 +156,14 @@ export const TabModalNotasInsumo = ({
                       disabled={soloLecturaTutor}
                       onBlur={() => guardarNotaDesdeInput(estudiante.id_estudiante)}
                       onKeyDown={(event) => {
+                        if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+                          event.preventDefault();
+                          moverFocoNota(
+                            estudiante.id_estudiante,
+                            event.key === "ArrowUp" ? -1 : 1,
+                          );
+                          return;
+                        }
                         if (event.key === "Enter") {
                           event.preventDefault();
                           guardarNotaDesdeInput(estudiante.id_estudiante);
@@ -155,15 +177,15 @@ export const TabModalNotasInsumo = ({
                       }}
                     />
                   </td>
-                  <td>
+                  {!soloLecturaTutor && <td>
                     <div className="actions-cell">
                       <button
                         className="btn-save btn-save-inline"
-                        disabled={soloLecturaTutor}
+                        disabled={soloLecturaTutor || guardandoEstudiante === estudiante.id_estudiante}
                         onClick={() => guardarNotaDesdeInput(estudiante.id_estudiante)}
                       >
                         <Save size={16} />
-                        <span>{soloLecturaTutor ? "Solo lectura" : "Guardar"}</span>
+                        <span>{soloLecturaTutor ? "Solo lectura" : guardandoEstudiante === estudiante.id_estudiante ? "Guardando..." : "Guardar"}</span>
                       </button>
                       {notas[estudiante.id_estudiante]?.id_nota && !soloLecturaTutor && (
                         <button
@@ -186,7 +208,7 @@ export const TabModalNotasInsumo = ({
                         </button>
                       )}
                     </div>
-                  </td>
+                  </td>}
                 </tr>
               ))}
             </tbody>

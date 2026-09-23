@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeftRight, BookOpen } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
-import { Save } from "lucide-react";
 import { calcularPromedioInteractivo } from "../../../utils/promedios";
 import { nombrePersona } from "../../../utils/personas";
 
@@ -21,6 +20,7 @@ export const TabNotasEstudiante = ({
   notasIndividuales,
   cargandoNotasIndividual,
   onGuardarNota,
+  guardandoNota,
 }) => {
   // Muestra las notas de un estudiante por periodo y aplica la ponderación
   // dinámica usada en las vistas interactivas.
@@ -258,7 +258,7 @@ export const TabNotasEstudiante = ({
                       <th>Insumo</th>
                       <th>Ponderacion</th>
                       <th>Nota</th>
-                      <th>Accion</th>
+                      {!soloLecturaTutor && <th>Accion</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -279,11 +279,11 @@ export const TabNotasEstudiante = ({
                             disabled={soloLecturaTutor}
                           />
                         </td>
-                        <td>
+                        {!soloLecturaTutor && <td>
                           <button
                             className="btn-guardar-nota"
                             type="button"
-                            disabled={soloLecturaTutor}
+                            disabled={guardandoNota}
                             onClick={() => {
                               const input = document.getElementById(
                                 `nota-ind-${registro.insumo.id_insumo}`,
@@ -291,15 +291,14 @@ export const TabNotasEstudiante = ({
                               onGuardarNota(registro, input.value);
                             }}
                           >
-                            <Save size={18} />
-                            <span>{soloLecturaTutor ? "Solo lectura" : "Guardar"}</span>
+                            <span>{guardandoNota ? "Guardando..." : "Guardar"}</span>
                           </button>
-                        </td>
+                        </td>}
                       </tr>
                     ))}
                     {periodo.notasPeriodo.length === 0 && (
                       <tr>
-                        <td colSpan={4} style={{ textAlign: "center" }}>
+                        <td colSpan={soloLecturaTutor ? 3 : 4} style={{ textAlign: "center" }}>
                           No hay actividades configuradas para este periodo
                         </td>
                       </tr>

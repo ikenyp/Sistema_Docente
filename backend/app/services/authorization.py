@@ -74,7 +74,7 @@ async def validar_usuario_puede_ver_curso(
         select(CursoMateriaDocente).where(
             CursoMateriaDocente.id_curso == id_curso,
             CursoMateriaDocente.id_docente == current_user.id_usuario,
-        )
+        ).limit(1)
     )
     if asignacion.scalar_one_or_none():
         return curso
@@ -143,10 +143,6 @@ async def validar_usuario_puede_ver_cmd(
         return cmd
 
     if cmd.id_docente == current_user.id_usuario:
-        return cmd
-
-    curso = await _obtener_curso(db, cmd.id_curso, id_contexto)
-    if curso.id_tutor == current_user.id_usuario:
         return cmd
 
     raise HTTPException(
@@ -352,7 +348,7 @@ async def validar_docente_puede_registrar_comportamiento(
         select(CursoMateriaDocente.id_cmd).where(
             CursoMateriaDocente.id_curso == id_curso,
             CursoMateriaDocente.id_docente == id_docente,
-        )
+        ).limit(1)
     )
     if asignacion_result.scalar_one_or_none() is not None:
         return curso

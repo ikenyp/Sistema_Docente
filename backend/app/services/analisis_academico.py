@@ -35,7 +35,26 @@ def _nombre(estudiante: Estudiante) -> str:
     return f"{estudiante.apellido} {estudiante.nombre}".strip()
 
 
-async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoResponse:
+def _prioridad_por_afectados(cantidad: int, umbral_alto: int, umbral_medio: int) -> str:
+    if cantidad >= umbral_alto:
+        return "alta"
+    if cantidad >= umbral_medio:
+        return "media"
+    return "baja"
+
+
+def _nota_sobre_diez(nota: Nota, insumo: Insumo) -> float | None:
+    maximo = float(insumo.ponderacion or 0)
+    if maximo <= 0:
+        return None
+    return float(nota.calificacion) * 10 / maximo
+
+
+async def analizar_curso(
+    db: AsyncSession,
+    curso: Curso,
+    id_docente: int | None = None,
+) -> AnalisisCursoResponse:
     """Construye indicadores explicables sin modificar datos académicos."""
     estudiantes_result = await db.execute(
         select(Estudiante)
@@ -49,13 +68,15 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
     )
     estudiantes = list(estudiantes_result.scalars().all())
     estudiante_ids = {est.id_estudiante for est in estudiantes}
+    nombres_estudiantes = {est.id_estudiante: _nombre(est) for est in estudiantes}
 
+    filtros_cmd = [CursoMateriaDocente.id_curso == curso.id_curso]
+    if id_docente is not None:
+        filtros_cmd.append(CursoMateriaDocente.id_docente == id_docente)
     cmd_result = await db.execute(
         select(CursoMateriaDocente)
         .options(joinedload(CursoMateriaDocente.materia))
-        .where(
-            CursoMateriaDocente.id_curso == curso.id_curso
-        )
+        .where(*filtros_cmd)
     )
     asignaciones = list(cmd_result.scalars().all())
     cmd_ids = [cmd.id_cmd for cmd in asignaciones]
@@ -68,7 +89,7 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
     insumos: list[Insumo] = []
     if cmd_ids:
         insumos_result = await db.execute(
-            select(Insumo).where(Insumo.id_cmd.in_(cmd_ids))
+            select(Insumo).options(joinedload(Insumo.periodo)).where(Insumo.id_cmd.in_(cmd_ids))
         )
         insumos = list(insumos_result.scalars().all())
 
@@ -96,11 +117,19 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
     notas_por_estudiante: dict[int, list[float]] = defaultdict(list)
     notas_por_insumo: dict[tuple[int, int], Nota] = {}
     notas_por_insumo_lista: dict[int, list[float]] = defaultdict(list)
+    insumo_por_id = {insumo.id_insumo: insumo for insumo in insumos}
+    notas_por_estudiante_periodo: dict[int, dict[int, list[float]]] = defaultdict(lambda: defaultdict(list))
     for nota in notas:
-        valor = float(nota.calificacion)
+        insumo = insumo_por_id.get(nota.id_insumo)
+        valor = _nota_sobre_diez(nota, insumo) if insumo else None
+        if valor is None:
+            continue
         notas_por_estudiante[nota.id_estudiante].append(valor)
         notas_por_insumo[(nota.id_estudiante, nota.id_insumo)] = nota
         notas_por_insumo_lista[nota.id_insumo].append(valor)
+        numero_periodo = getattr(insumo.periodo, "numero_periodo", None) if insumo else None
+        if numero_periodo is not None:
+            notas_por_estudiante_periodo[nota.id_estudiante][numero_periodo].append(valor)
 
     asistencia_por_estudiante: dict[int, list[str]] = defaultdict(list)
     for registro in asistencias:
@@ -115,9 +144,15 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
         promedio = round(mean(valores), 2) if valores else None
         pendientes = max(0, len(insumos) - len(valores))
         asistencias_estudiante = asistencia_por_estudiante[id_estudiante]
+        asistencias_favorables = sum(estado in ESTADOS_ASISTENCIA for estado in asistencias_estudiante)
+        actividades_pendientes_nombres = [
+            insumo.nombre
+            for insumo in insumos
+            if (id_estudiante, insumo.id_insumo) not in notas_por_insumo
+        ]
         porcentaje_asistencia = (
             round(
-                sum(estado in ESTADOS_ASISTENCIA for estado in asistencias_estudiante)
+                asistencias_favorables
                 * 100
                 / len(asistencias_estudiante),
                 2,
@@ -125,9 +160,24 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
             if asistencias_estudiante
             else None
         )
+        promedios_periodo = {
+            numero: round(mean(valores_periodo), 2)
+            for numero, valores_periodo in notas_por_estudiante_periodo[id_estudiante].items()
+            if valores_periodo
+        }
+        periodos_ordenados = sorted(promedios_periodo)
+        tendencia_promedio = None
+        if len(periodos_ordenados) >= 2:
+            tendencia_promedio = round(
+                promedios_periodo[periodos_ordenados[-1]]
+                - promedios_periodo[periodos_ordenados[-2]],
+                2,
+            )
+        puntaje_riesgo = 0
         alertas_estudiante: list[AnalisisAlerta] = []
 
         if promedio is not None and promedio < APROBACION_MINIMA:
+            puntaje_riesgo += 2
             alertas_estudiante.append(
                 AnalisisAlerta(
                     tipo="rendimiento",
@@ -141,6 +191,7 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
             )
 
         if pendientes:
+            puntaje_riesgo += 1 if pendientes < 3 else 2
             nivel = "alto" if pendientes >= 3 else "medio"
             alertas_estudiante.append(
                 AnalisisAlerta(
@@ -155,6 +206,7 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
             )
 
         if porcentaje_asistencia is not None and porcentaje_asistencia < 80:
+            puntaje_riesgo += 1 if porcentaje_asistencia >= 70 else 2
             alertas_estudiante.append(
                 AnalisisAlerta(
                     tipo="asistencia",
@@ -162,6 +214,20 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
                     titulo="Asistencia por debajo del nivel esperado",
                     descripcion=f"La asistencia observada es de {porcentaje_asistencia:.2f}%.",
                     recomendacion="Revisar el patrón de inasistencias y realizar seguimiento con el estudiante y su representante según el protocolo institucional.",
+                    id_estudiante=id_estudiante,
+                    estudiante=nombre,
+                )
+            )
+
+        if tendencia_promedio is not None and tendencia_promedio <= -1:
+            puntaje_riesgo += 1
+            alertas_estudiante.append(
+                AnalisisAlerta(
+                    tipo="tendencia",
+                    nivel="alto" if tendencia_promedio <= -2 else "medio",
+                    titulo="Descenso reciente del rendimiento",
+                    descripcion=f"El promedio bajó {abs(tendencia_promedio):.2f} puntos frente al periodo anterior.",
+                    recomendacion="Revisar las últimas actividades y conversar con el estudiante antes de que el descenso continúe.",
                     id_estudiante=id_estudiante,
                     estudiante=nombre,
                 )
@@ -175,7 +241,12 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
                 promedio_registrado=promedio,
                 actividades_registradas=len(valores),
                 actividades_pendientes=pendientes,
+                actividades_pendientes_nombres=actividades_pendientes_nombres,
                 porcentaje_asistencia=porcentaje_asistencia,
+                asistencias_favorables=asistencias_favorables,
+                asistencias_totales=len(asistencias_estudiante),
+                tendencia_promedio=tendencia_promedio,
+                puntaje_riesgo=puntaje_riesgo,
                 alertas=alertas_estudiante,
             )
         )
@@ -191,6 +262,7 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
         for item in estudiantes_resumen
     )
     pendientes_totales = sum(item.actividades_pendientes for item in estudiantes_resumen)
+    estudiantes_en_riesgo = sum(item.puntaje_riesgo >= 3 for item in estudiantes_resumen)
 
     actividades = []
     for insumo in insumos:
@@ -237,6 +309,7 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
         ("bajo_aprobacion", "Bajo la nota de aprobación", lambda item: any(alerta.tipo == "rendimiento" for alerta in item.alertas)),
         ("asistencia_baja", "Asistencia baja", lambda item: any(alerta.tipo == "asistencia" for alerta in item.alertas)),
         ("actividades_pendientes", "Actividades pendientes", lambda item: any(alerta.tipo == "actividades_pendientes" for alerta in item.alertas)),
+        ("riesgo_acumulado", "Riesgo acumulado", lambda item: item.puntaje_riesgo >= 3),
         ("sin_alertas", "Sin alertas detectadas", lambda item: not item.alertas),
     )
     for tipo, nombre, criterio in definiciones_grupos:
@@ -246,14 +319,22 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
     situaciones: list[AnalisisSituacion] = []
     for actividad in actividades:
         if actividad.promedio is not None and actividad.promedio < APROBACION_MINIMA:
+            estudiantes_bajo_actividad = [
+                id_estudiante
+                for id_estudiante in estudiante_ids
+                if (nota := notas_por_insumo.get((id_estudiante, actividad.id_insumo)))
+                and _nota_sobre_diez(nota, insumo_por_id[actividad.id_insumo]) < APROBACION_MINIMA
+            ]
             situaciones.append(
                 AnalisisSituacion(
                     id_situacion=f"actividad-{actividad.id_insumo}",
                     tipo="actividad_bajo_desempeno",
                     titulo="Actividad con bajo desempeño",
                     descripcion=f"La actividad concentra resultados inferiores a la nota de aprobación.",
-                    prioridad="alta" if actividad.estudiantes_bajo_aprobacion >= 3 else "media",
+                    prioridad=_prioridad_por_afectados(actividad.estudiantes_bajo_aprobacion, 3, 2),
                     afectados=actividad.estudiantes_bajo_aprobacion,
+                    id_estudiantes=estudiantes_bajo_actividad,
+                    nombres_estudiantes=[nombres_estudiantes[id_estudiante] for id_estudiante in estudiantes_bajo_actividad],
                     materia=actividad.materia,
                     actividad=actividad.nombre,
                     promedio=actividad.promedio,
@@ -272,8 +353,10 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
                 tipo="asistencia_baja",
                 titulo="Asistencia por debajo del nivel esperado",
                 descripcion="Hay estudiantes con un patrón de asistencia inferior al nivel esperado.",
-                prioridad="alta" if len(estudiantes_asistencia) >= 3 else "media",
+                prioridad=_prioridad_por_afectados(len(estudiantes_asistencia), 3, 2),
                 afectados=len(estudiantes_asistencia),
+                id_estudiantes=[item.id_estudiante for item in estudiantes_asistencia],
+                nombres_estudiantes=[item.estudiante for item in estudiantes_asistencia],
                 recomendacion="Revisar las inasistencias y coordinar el seguimiento correspondiente según el protocolo institucional.",
             )
         )
@@ -288,8 +371,10 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
                 tipo="actividades_pendientes",
                 titulo="Actividades sin calificación registrada",
                 descripcion="Hay estudiantes con actividades que aún no tienen una calificación registrada.",
-                prioridad="alta" if pendientes_totales >= 6 else "media",
+                prioridad=_prioridad_por_afectados(pendientes_totales, 6, 3),
                 afectados=len(estudiantes_pendientes),
+                id_estudiantes=[item.id_estudiante for item in estudiantes_pendientes],
+                nombres_estudiantes=[item.estudiante for item in estudiantes_pendientes],
                 recomendacion="Verificar si las actividades están pendientes de entrega o si falta registrar una evaluación.",
             )
         )
@@ -305,8 +390,10 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
                 tipo="rendimiento_bajo",
                 titulo="Estudiantes bajo la nota de aprobación",
                 descripcion="Hay estudiantes cuyo promedio de notas registradas está por debajo de 7.",
-                prioridad="alta" if len(estudiantes_bajo) >= 3 else "media",
+                prioridad=_prioridad_por_afectados(len(estudiantes_bajo), 3, 2),
                 afectados=len(estudiantes_bajo),
+                id_estudiantes=[item.id_estudiante for item in estudiantes_bajo],
+                nombres_estudiantes=[item.estudiante for item in estudiantes_bajo],
                 recomendacion="Revisar cada caso considerando sus evidencias, asistencia y actividades pendientes.",
             )
         )
@@ -325,6 +412,8 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
         fortalezas.append(f"La asistencia observada del curso se mantiene en {asistencia_curso:.2f}%.")
     if bajo_aprobacion:
         recomendaciones.append("Priorizar el seguimiento de los estudiantes bajo la nota de aprobación.")
+    if estudiantes_en_riesgo:
+        recomendaciones.append("Priorizar una revisión individual de los estudiantes que acumulan varias señales de riesgo.")
     if pendientes_totales:
         recomendaciones.append("Revisar las actividades sin calificación para distinguir entregas pendientes de registros aún no ingresados.")
     if asistencia_curso is not None and asistencia_curso < 85:
@@ -345,6 +434,7 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
             alertas_altas=alertas_altas,
             alertas_medias=alertas_medias,
             estudiantes_afectados=len(estudiantes_afectados),
+            estudiantes_en_riesgo=estudiantes_en_riesgo,
             situaciones=len(situaciones),
         ),
         situaciones=situaciones,
@@ -359,10 +449,13 @@ async def analizar_curso(db: AsyncSession, curso: Curso) -> AnalisisCursoRespons
 
 
 async def analizar_estudiante(
-    db: AsyncSession, curso: Curso, id_estudiante: int
+    db: AsyncSession,
+    curso: Curso,
+    id_estudiante: int,
+    id_docente: int | None = None,
 ):
     """Reutiliza el análisis del curso para mantener reglas consistentes."""
-    resultado = await analizar_curso(db, curso)
+    resultado = await analizar_curso(db, curso, id_docente=id_docente)
     estudiante = next(
         (item for item in resultado.estudiantes if item.id_estudiante == id_estudiante),
         None,

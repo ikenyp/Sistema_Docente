@@ -30,15 +30,7 @@ export default function NotificationCenter() {
   return (
     <div>
       <div className="notification-root">
-        {toasts.filter((t) => t.options?.position !== "bottom-right").map((t) => (
-          <div key={t.id} className={`toast toast-${t.type || "info"}`}>
-            {t.message}
-          </div>
-        ))}
-      </div>
-
-      <div className="notification-root notification-root-bottom-right">
-        {toasts.filter((t) => t.options?.position === "bottom-right").map((t) => (
+        {toasts.map((t) => (
           <div key={t.id} className={`toast toast-${t.type || "info"}`}>
             {t.message}
           </div>

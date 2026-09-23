@@ -1712,6 +1712,7 @@ function CursoHubAdmin() {
       <AnalisisAcademico
         idCurso={idCurso}
         nombreCurso={curso?.nombre}
+        habilitado={!cargando && Boolean(curso)}
       />
     </AdminLayout>
   );

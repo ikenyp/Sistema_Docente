@@ -41,6 +41,29 @@
   font-weight: 800;
 }
 
+.analisis-academico-loading-indicator {
+  position: absolute;
+  right: -0.15rem;
+  bottom: -0.1rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #f8f5ef;
+  border-radius: 50%;
+  color: #fff;
+  background: #7898be;
+}
+
+.analisis-academico-loading-indicator svg {
+  animation: analisis-academico-spin 0.9s linear infinite;
+}
+
+@keyframes analisis-academico-spin {
+  to { transform: rotate(360deg); }
+}
+
 .analisis-academico-overlay {
   position: fixed;
   inset: 0;
@@ -109,23 +132,62 @@
 .analisis-prioridades-grid small { margin-top: 0.35rem; color: #73829b; font-size: 0.7rem; }
 .analisis-situaciones { margin-bottom: 0.9rem; }
 .analisis-situaciones-lista { display: grid; gap: 0.55rem; }
+.analisis-situacion-item { display: grid; gap: 0.55rem; }
+.analisis-situacion-item.expandida { gap: 0; }
+.analisis-situacion-item.expandida .analisis-situacion { border-radius: 10px 10px 0 0; }
 .analisis-situacion { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.75rem; width: 100%; padding: 0.8rem; border: 1px solid #dce5f4; border-left: 4px solid #d39b4a; border-radius: 10px; color: #405777; background: #fff; cursor: pointer; text-align: left; }
 .analisis-situacion:hover { border-color: #9eb6d8; background: #f7faff; }
-.analisis-situacion-alta { border-left-color: #b85e6a; }
+.analisis-situacion-alta { border-color: #e19aa5; border-left-color: #c9364d; background: #ffe8eb; }
+.analisis-situacion-alta:hover { border-color: #cc5b6b; background: #ffdde2; }
 .analisis-situacion-media { border-left-color: #d39b4a; }
+.analisis-situacion-media { border-color: #eee1c3; background: #fffdf7; }
+.analisis-situacion-media:hover { border-color: #dfc993; background: #fffaf0; }
+.analisis-situacion-baja { border-color: #b9dcc8; border-left-color: #5c9b73; background: #f3fbf6; }
+.analisis-situacion-baja:hover { border-color: #8fc3a3; background: #eaf8ef; }
 .analisis-situacion-prioridad { align-self: start; padding: 0.25rem 0.4rem; border-radius: 5px; color: #8d5961; background: #fff0f1; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; }
 .analisis-situacion-media .analisis-situacion-prioridad { color: #866331; background: #fff8e9; }
+.analisis-situacion-baja .analisis-situacion-prioridad { color: #397254; background: #e5f5eb; }
 .analisis-situacion-contenido strong, .analisis-situacion-contenido small, .analisis-situacion-contenido em { display: block; }
 .analisis-situacion-contenido strong { color: #344e7c; }
 .analisis-situacion-contenido small { margin-top: 0.2rem; color: #627494; font-size: 0.75rem; font-weight: 700; }
 .analisis-situacion-contenido em { margin-top: 0.25rem; color: #71809a; font-size: 0.75rem; }
 .analisis-situacion-flecha { color: #7890b2; font-size: 1.4rem; }
-.analisis-situacion-detalle { margin-bottom: 1rem; padding: 0.9rem; border: 1px solid #b9cde6; border-radius: 11px; background: #f2f7fc; }
+.analisis-situacion-flecha.expandida { transform: rotate(90deg); }
+.analisis-situacion-detalle { margin-bottom: 1rem; padding: 0.9rem; border: 1px solid #b9cde6; border-top: 0; border-radius: 0 0 10px 10px; background: #f2f7fc; }
+.analisis-situacion-item-alta .analisis-situacion-detalle { border-color: #e19aa5; background: #fff1f3; }
+.analisis-situacion-item-media .analisis-situacion-detalle { border-color: #eee1c3; background: #fffefa; }
+.analisis-situacion-item-baja .analisis-situacion-detalle { border-color: #b9dcc8; background: #f8fdf9; }
+.analisis-seguimiento-individual { margin-top: 1.1rem; margin-bottom: 1.1rem; }
+.analisis-seguimiento-titulo { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0.7rem 0; border: 0; color: #344e7c; background: transparent; cursor: pointer; text-align: left; }
+.analisis-seguimiento-titulo > span:first-child { display: inline-flex; align-items: center; gap: 0.45rem; }
+.analisis-seguimiento-resumen { display: flex; align-items: center; gap: 0.35rem; color: #71809a; font-size: 0.72rem; }
+.analisis-seguimiento-resumen em { padding: 0.18rem 0.38rem; border-radius: 999px; font-style: normal; font-weight: 800; }
+.analisis-riesgo-alto { color: #8d414d; background: #ffe8eb; }
+.analisis-riesgo-medio { color: #866331; background: #fff8e9; }
+.analisis-riesgo-bajo { color: #397254; background: #e5f5eb; }
+.analisis-seguimiento-ayuda { margin: -0.35rem 0 0.55rem; color: #71809a; font-size: 0.75rem; }
+.analisis-seguimiento-lista { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
+.analisis-seguimiento-item { display: grid; gap: 0.35rem; width: 100%; padding: 0.75rem 0.85rem; border: 1px solid #dce5f4; border-radius: 10px; color: #536987; background: #fff; text-align: left; }
+.analisis-seguimiento-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; color: #344e7c; }
+.analisis-seguimiento-cabecera em { padding: 0.2rem 0.4rem; border-radius: 5px; color: #866331; background: #fff8e9; font-size: 0.68rem; font-style: normal; font-weight: 800; text-transform: capitalize; }
+.analisis-seguimiento-cabecera em.analisis-riesgo-alto { color: #8d414d; background: #ffe8eb; }
+.analisis-seguimiento-cabecera em.analisis-riesgo-medio { color: #866331; background: #fff8e9; }
+.analisis-seguimiento-cabecera em.analisis-riesgo-bajo { color: #397254; background: #e5f5eb; }
+.analisis-seguimiento-datos { color: #71809a; font-size: 0.75rem; }
+.analisis-seguimiento-alertas { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.analisis-alerta-chip { padding: 0.18rem 0.4rem; border-radius: 999px; color: #866331; background: #fff8e9; font-size: 0.65rem; font-weight: 800; }
+.analisis-alerta-chip-alto { color: #8d414d; background: #ffe8eb; }
+.analisis-alerta-chip-medio { color: #866331; background: #fff8e9; }
+.analisis-seguimiento-pendientes { color: #6a7b95; font-size: 0.72rem; line-height: 1.45; }
 .analisis-situacion-detalle h3 { margin: 0.2rem 0 0.35rem; color: #304d78; font-size: 1rem; }
 .analisis-situacion-detalle p { margin: 0.35rem 0; color: #536987; font-size: 0.8rem; }
 .analisis-situacion-recomendacion { padding-top: 0.55rem; border-top: 1px solid #d7e3f1; }
 .analisis-situacion-acciones { display: flex; gap: 0.55rem; margin-top: 0.7rem; }
 .analisis-situacion-acciones button { padding: 0.45rem 0.65rem; border: 1px solid #b5c8df; border-radius: 7px; color: #486b9b; background: #fff; cursor: pointer; font-size: 0.73rem; font-weight: 800; }
+.analisis-informacion-relacionada { display: grid; gap: 0.45rem; margin-top: 0.75rem; padding: 0.7rem 0 0.1rem; border-top: 1px dashed #c6d8eb; color: #536987; font-size: 0.78rem; }
+.analisis-informacion-relacionada strong { color: #344e7c; }
+.analisis-relacionados-lista { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.analisis-relacionados-lista span { padding: 0.28rem 0.5rem; border: 1px solid #cbdced; border-radius: 999px; color: #405777; background: #fff; font-weight: 700; }
 .analisis-inicio-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr); gap: 0.85rem; margin-bottom: 1rem; }
 .analisis-seccion-panel { min-width: 0; padding: 0.9rem; border: 1px solid #dce5f4; border-radius: 12px; background: #fff; }
 .analisis-prioritarios-lista { display: grid; gap: 0.45rem; }
@@ -180,6 +242,20 @@
 .analisis-estudiante-fila small { margin-top: 0.18rem; color: #73829b; font-size: 0.72rem; }
 .analisis-estudiante-datos { white-space: nowrap; color: #536f9d; font-size: 0.78rem; font-weight: 800; }
 .analisis-materias-vista { display: grid; gap: 0.55rem; }
+.analisis-contexto-filtro { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; padding: 0.65rem 0.75rem; border: 1px solid #b9cde6; border-radius: 9px; color: #486589; background: #f2f7fc; font-size: 0.78rem; font-weight: 700; }
+.analisis-contexto-filtro button { border: 0; color: #5275a8; background: transparent; cursor: pointer; font-size: 0.75rem; font-weight: 800; }
+.analisis-ia-button { display: inline-flex; align-items: center; gap: 0.35rem; width: fit-content; padding: 0.5rem 0.7rem; border: 1px solid #c8b9e8; border-radius: 8px; color: #6749a0; background: #f8f4ff; cursor: pointer; font-size: 0.75rem; font-weight: 800; }
+.analisis-ia-toolbar { display: grid; gap: 0.6rem; margin: 0.85rem 0 1rem; }
+.analisis-ia-button:disabled { opacity: 0.62; cursor: wait; }
+.analisis-ia-explicacion { padding: 0.85rem 1rem; border: 1px solid #d8ccef; border-left: 4px solid #9a7ad0; border-radius: 0 10px 10px 0; color: #4e4662; background: #faf8ff; font-size: 0.82rem; line-height: 1.55; }
+.analisis-ia-explicacion-titulo { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 0.35rem; padding: 0 0 0.55rem; border: 0; border-bottom: 1px solid #e6def4; color: #6749a0; background: transparent; cursor: pointer; font-weight: 800; text-align: left; }
+.analisis-ia-explicacion-titulo > span:first-child { display: inline-flex; align-items: center; gap: 0.35rem; }
+.analisis-ia-explicacion-flecha { font-size: 1rem; }
+.analisis-ia-explicacion-contenido { display: grid; gap: 0.35rem; padding-top: 0.65rem; }
+.analisis-ia-explicacion-contenido h4 { margin: 0.2rem 0 0; color: #3e3560; font-size: 0.85rem; }
+.analisis-ia-explicacion-contenido p { margin: 0; }
+.analisis-ia-explicacion-contenido ul { display: grid; gap: 0.25rem; margin: 0; padding-left: 1.15rem; }
+.analisis-ia-error { padding: 0.65rem 0.75rem; border: 1px solid #e7b8bf; border-radius: 8px; color: #8d414d; background: #fff4f5; font-size: 0.78rem; }
 .analisis-materia-fila, .analisis-actividad-fila { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.75rem; border: 1px solid #dce5f4; border-radius: 9px; background: #fff; color: #435a7c; }
 .analisis-materia-fila span, .analisis-actividad-fila small { color: #6a7b95; font-size: 0.76rem; text-align: right; }
 .analisis-actividades-titulo { margin-top: 1rem; }
@@ -202,6 +278,8 @@
   .analisis-situacion { grid-template-columns: auto minmax(0, 1fr); }
   .analisis-situacion-flecha { display: none; }
   .analisis-situacion-acciones { flex-direction: column; }
+  .analisis-seguimiento-lista { grid-template-columns: 1fr; }
+  .analisis-seguimiento-titulo { align-items: flex-start; flex-direction: column; gap: 0.45rem; }
   .analisis-filtros { align-items: flex-start; flex-direction: column; }
   .analisis-materia-fila, .analisis-actividad-fila, .analisis-estudiante-fila { align-items: flex-start; flex-direction: column; }
   .analisis-materia-fila span, .analisis-actividad-fila small { text-align: left; }

@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     SMTP_FROM: str = ""
     FRONTEND_URL: str = "http://localhost:3000"
     PLATFORM_OPERATOR_EMAILS: str = ""
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
+    GEMINI_TIMEOUT_SECONDS: int = 30
 
     # Ignorar variables extra en .env
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

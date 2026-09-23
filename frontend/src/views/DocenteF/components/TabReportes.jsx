@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { FileSpreadsheet } from "lucide-react";
+import { Eye, FileSpreadsheet } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
 import { asistenciaAPI, insumosAPI, notasAPI } from "../../../services/api";
 import { notify } from "../../../components/notify";
@@ -697,6 +697,7 @@ export const TabReportes = ({
   materiasCurso = [],
   cursoDetalle,
   compactPreview = false,
+  soloLecturaTutor = false,
 }) => {
   // Genera el resultado oficial y mantiene siempre las ponderaciones 70/10/20.
   const [periodoId, setPeriodoId] = useState("");
@@ -963,10 +964,10 @@ export const TabReportes = ({
             type="button"
             className="btn-primary btn-inline-icon"
             onClick={reportType === "individual" ? exportarReporteIndividual : reportType === "anual" ? exportarGeneral : exportarTrimestre}
-            disabled={generando || (reportType === "individual" && !estudianteReporteId) || (reportType === "trimestre" && !periodoId)}
+            disabled={soloLecturaTutor || generando || (reportType === "individual" && !estudianteReporteId) || (reportType === "trimestre" && !periodoId)}
           >
-            <FileSpreadsheet size={16} />
-            {reportType === "individual" ? "Exportar Excel individual" : reportType === "anual" ? "Exportar Excel anual" : "Exportar Excel del periodo"}
+            {soloLecturaTutor ? <Eye size={16} /> : <FileSpreadsheet size={16} />}
+            {soloLecturaTutor ? "Solo lectura" : generando ? "Generando..." : reportType === "individual" ? "Exportar Excel individual" : reportType === "anual" ? "Exportar Excel anual" : "Exportar Excel del periodo"}
           </button>
         </div>
         {reportType === "individual" && reporteIndividualPreview ? (

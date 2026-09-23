@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpen, ClipboardList, PencilLine, Plus, Trash2 } from "lucide-react";
+import { BookOpen, ClipboardList, Eye, PencilLine, Plus, Trash2 } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
 
 export const TabInsumos = ({
@@ -25,6 +25,7 @@ export const TabInsumos = ({
   abrirInsumosNotas,
   abrirEdicionInsumo,
   eliminarInsumo,
+  eliminandoInsumo,
 }) => {
   // Administra los insumos de la materia seleccionada. Las acciones llegan
   // desde CursoPrincipal para conservar una sola fuente de estado.
@@ -32,7 +33,7 @@ export const TabInsumos = ({
     <div className="insumos-section">
       <h3><ClipboardList size={18} /> Insumos</h3>
 
-      <div className="agregar-insumo">
+      {!soloLecturaTutor ? <div className="agregar-insumo">
         <input
           type="text"
           placeholder="Nombre del insumo"
@@ -98,7 +99,14 @@ export const TabInsumos = ({
             )}
           </span>
         </button>
-      </div>
+      </div> : (
+        <div className="agregar-insumo">
+          <button className="btn-add-insumo" type="button" disabled>
+            <Eye size={16} />
+            <span className="btn-add-insumo-label">Solo lectura</span>
+          </button>
+        </div>
+      )}
 
       <div className="insumos-toolbar">
         <div className="toolbar-status-pill toolbar-status-pill-compact toolbar-status-pill-tight">
@@ -109,9 +117,9 @@ export const TabInsumos = ({
                : `Periodo ${filtroPeriodo}`}
           </span>
         </div>
-        <div className="toolbar-status-pill toolbar-status-pill-compact toolbar-status-pill-tight">
+         <div className="toolbar-status-pill toolbar-status-pill-compact toolbar-status-pill-tight">
           <strong>Orden:</strong>
-          <span>{ordenInsumos === "a-z" ? "Alfabético" : "Z-A"}</span>
+          <span>{ordenInsumos === "reciente" ? "Más recientes" : ordenInsumos === "antiguo" ? "Más antiguos" : ordenInsumos === "a-z" ? "Alfabético" : "Z-A"}</span>
         </div>
         <div className="insumos-toolbar-actions">
           <div className="toolbar-anchor toolbar-anchor-filter">
@@ -174,8 +182,10 @@ export const TabInsumos = ({
             </button>
             {menuOrdenInsumosAbierto && (
               <ul className="toolbar-dropdown-menu toolbar-dropdown-menu-right" role="listbox">
-                {[
-                  { value: "a-z", label: "A-Z" },
+                  {[
+                   { value: "reciente", label: "Más recientes" },
+                   { value: "antiguo", label: "Más antiguos" },
+                   { value: "a-z", label: "A-Z" },
                   { value: "z-a", label: "Z-A" },
                 ].map((option) => (
                   <li
@@ -205,7 +215,13 @@ export const TabInsumos = ({
               const cmp = a.nombre.localeCompare(b.nombre, "es", {
                 sensitivity: "base",
               });
-              return ordenInsumos === "z-a" ? -cmp : cmp;
+               if (ordenInsumos === "reciente") {
+                 return Number(b.id_insumo) - Number(a.id_insumo);
+               }
+               if (ordenInsumos === "antiguo") {
+                 return Number(a.id_insumo) - Number(b.id_insumo);
+               }
+               return ordenInsumos === "z-a" ? -cmp : cmp;
             });
 
           return (
@@ -235,7 +251,7 @@ export const TabInsumos = ({
                         </button>
                         <button
                           className="btn-icon btn-edit"
-                          disabled={soloLecturaTutor}
+                          disabled={soloLecturaTutor || eliminandoInsumo}
                           onClick={() => abrirEdicionInsumo(insumo)}
                           aria-label="Editar insumo"
                         >
@@ -245,6 +261,7 @@ export const TabInsumos = ({
                           <button
                             className="btn-icon btn-delete"
                             onClick={() => eliminarInsumo(insumo)}
+                            disabled={eliminandoInsumo}
                             aria-label="Eliminar insumo"
                           >
                             <Trash2 size={16} />
