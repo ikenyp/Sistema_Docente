@@ -130,13 +130,19 @@ async def listar_contextos_autorizados(
         for correo in settings.PLATFORM_OPERATOR_EMAILS.split(",")
         if correo.strip()
     }
-    if usuario.correo.lower() in operadores and contextos:
-        contextos.insert(0, {
-            "id_contexto": contextos[0]["id_contexto"],
+    if usuario.correo.lower() in operadores:
+        contexto_plataforma = await db.scalar(
+            select(Contexto.id_contexto)
+            .where(Contexto.tipo_modo == "institucional", Contexto.activo == True)
+            .order_by(Contexto.id_contexto)
+        )
+        if contexto_plataforma is not None:
+            contextos.insert(0, {
+            "id_contexto": contexto_plataforma,
             "modo": "plataforma",
             "nombre": "Operación de plataforma",
             "rol": "operador",
-        })
+            })
     return contextos
 
 

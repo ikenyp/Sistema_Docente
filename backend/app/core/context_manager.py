@@ -6,6 +6,7 @@ from app.core.app_mode import resolve_app_mode
 from app.models.contextos import Contexto
 from app.models.usuarios_contextos import UsuarioContexto
 from app.models.usuarios import Usuario
+from app.core.config import settings
 
 
 async def resolve_contexto_id(
@@ -16,6 +17,26 @@ async def resolve_contexto_id(
     # El header selecciona el contexto, pero no puede saltarse las reglas del rol
     # ni permitir que un usuario acceda al espacio personal de otra persona.
     modo = resolve_app_mode(request)
+
+    operadores = {
+        correo.strip().lower()
+        for correo in settings.PLATFORM_OPERATOR_EMAILS.split(",")
+        if correo.strip()
+    }
+    if modo == "plataforma" and current_user.correo.lower() in operadores:
+        result = await db.execute(
+            select(Contexto.id_contexto).where(
+                Contexto.tipo_modo == "institucional",
+                Contexto.activo == True,
+            ).order_by(Contexto.id_contexto)
+        )
+        contexto_plataforma = result.scalar_one_or_none()
+        if contexto_plataforma is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No existe una institución activa para inicializar la plataforma",
+            )
+        return contexto_plataforma
 
     if modo == "personal":
         result = await db.execute(

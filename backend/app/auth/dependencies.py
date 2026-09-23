@@ -47,6 +47,11 @@ async def get_current_user(
 
     # El rol efectivo depende del contexto activo. El rol global se conserva
     # como compatibilidad, pero las rutas usan esta membresía cuando existe.
+    operadores = {
+        correo.strip().lower()
+        for correo in settings.PLATFORM_OPERATOR_EMAILS.split(",")
+        if correo.strip()
+    }
     try:
         id_contexto = await resolve_contexto_id(db, usuario, request)
         contexto_result = await db.execute(
@@ -67,6 +72,8 @@ async def get_current_user(
             if rol_contexto:
                 usuario.rol = RolUsuarioEnum(rol_contexto)
     except HTTPException:
+        if usuario.correo.lower() in operadores:
+            return usuario
         raise
 
     return usuario

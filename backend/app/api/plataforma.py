@@ -7,6 +7,7 @@ from app.core.database import get_session
 from app.models.contextos import Contexto
 from app.models.instituciones import Institucion
 from app.models.usuarios import Usuario
+from app.models.usuarios_contextos import UsuarioContexto
 from app.schemas.instituciones import InstitucionCreate, InstitucionResponse
 from app.services.instituciones import crear_institucion_con_administrador
 
@@ -20,9 +21,11 @@ async def listar_instituciones(
     db: AsyncSession = Depends(get_session),
 ):
     result = await db.execute(
-        select(Institucion, Contexto, Usuario.correo)
+        select(Institucion, Contexto, Usuario)
         .join(Contexto, Contexto.id_institucion == Institucion.id_institucion)
-        .outerjoin(Usuario, Usuario.id_usuario == Contexto.id_owner_docente)
+        .join(UsuarioContexto, UsuarioContexto.id_contexto == Contexto.id_contexto)
+        .join(Usuario, Usuario.id_usuario == UsuarioContexto.id_usuario)
+        .where(UsuarioContexto.rol == "administrativo", UsuarioContexto.activo == True)
         .order_by(Institucion.nombre)
     )
     return [
@@ -32,9 +35,11 @@ async def listar_instituciones(
             slug=institucion.slug,
             activo=institucion.activo,
             id_contexto=contexto.id_contexto,
-            correo_administrador=correo,
+            nombre_administrador=administrador.nombre,
+            apellido_administrador=administrador.apellido,
+            correo_administrador=administrador.correo,
         )
-        for institucion, contexto, correo in result.all()
+        for institucion, contexto, administrador in result.all()
     ]
 
 
