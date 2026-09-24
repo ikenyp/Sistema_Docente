@@ -806,8 +806,7 @@ export const TabReportes = ({
       const estudiante = estudiantesCurso.find(
         (item) => String(item.id_estudiante) === String(idEstudiante),
       );
-      const [notas, asistencias, insumosPorMateria] = await Promise.all([
-        notasAPI.listar({ id_estudiante: idEstudiante, size: 100 }),
+      const [asistencias, insumosPorMateria] = await Promise.all([
         asistenciaAPI.listar({ id_estudiante: idEstudiante, size: 100 }),
         Promise.all(
           materiasCurso.map(async (asignacion) => [
@@ -816,6 +815,11 @@ export const TabReportes = ({
           ]),
         ),
       ]);
+      const todosLosInsumos = insumosPorMateria.flatMap(([, insumos]) => insumos || []);
+      const respuestasNotas = await Promise.all(
+        todosLosInsumos.map((insumo) => notasAPI.obtenerNotaEstudiante(idEstudiante, insumo.id_insumo)),
+      );
+      const notas = respuestasNotas.flat();
       const notasPorInsumo = new Map(
         (notas || []).map((nota) => [
           String(nota.id_insumo),
@@ -903,7 +907,7 @@ export const TabReportes = ({
       <div className="panel-header">
         <div>
           <h3><FileSpreadsheet size={18} /> Reportes</h3>
-          <p className="panel-sub">Exporta reportes en Excel con el formato académico del curso</p>
+          <p className="panel-sub">{soloLecturaTutor ? "Consulta la previsualización de los reportes del curso" : "Exporta reportes en Excel con el formato académico del curso"}</p>
         </div>
       </div>
 

@@ -35,7 +35,7 @@ export const TabComportamiento = ({
       <div className="panel-header">
         <div>
           <h3><Compass size={18} /> Comportamiento</h3>
-          <p className="panel-sub">Selecciona un periodo y registra valoraciones A-D</p>
+          <p className="panel-sub">{soloLecturaTutor ? "Consulta las valoraciones de comportamiento del curso en esta materia" : "Selecciona un periodo y registra valoraciones del curso en esta materia"}</p>
         </div>
         <div className="periodo-selector-comportamiento">
           <label className="control-label">Periodo:</label>

@@ -1132,9 +1132,47 @@ textarea:focus,
 .insumos-section .btn-add-insumo {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.45rem;
   min-width: 160px;
   padding: 0.7rem 1.05rem;
+}
+
+.insumos-docente-responsable {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #c8d8ee;
+  border-radius: 9px;
+  color: #345987;
+  background: #f2f7fd;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.insumos-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.insumos-solo-lectura {
+  align-self: center;
+  min-width: 240px;
+}
+
+.insumos-docente-responsable small {
+  display: block;
+  margin-bottom: 0.08rem;
+  color: #6c83a5;
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .insumos-section .btn-add-insumo svg {
@@ -1152,6 +1190,8 @@ textarea:focus,
 }
 
 .insumo-card {
+  display: flex;
+  flex-direction: column;
   border: 1px solid #d6e0f2;
   border-radius: 12px;
   padding: 0.8rem;
@@ -1207,6 +1247,10 @@ textarea:focus,
 
 .btn-edit {
   background: linear-gradient(135deg, #6b8fbd 0%, #5d7eae 52%, #4f709e 100%);
+}
+
+.insumo-info {
+  flex: 1;
 }
 
 .insumos-section .btn-notas,
@@ -2850,6 +2894,14 @@ textarea:focus,
 }
 
 @media (max-width: 760px) {
+  .insumos-heading-row {
+    flex-direction: column;
+  }
+
+  .insumos-solo-lectura {
+    width: 100%;
+  }
+
   .navbar-curso {
     height: auto;
     padding: 0.65rem;
@@ -2876,7 +2928,7 @@ textarea:focus,
 
   .form-grid,
   .agregar-insumo,
-  .insumo-actions {
+.insumo-actions {
     grid-template-columns: 1fr;
     flex-direction: column;
   }
@@ -2893,6 +2945,10 @@ textarea:focus,
   .promedios-detail-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.insumo-card.solo-lectura .insumo-actions {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .course-stats-grid {

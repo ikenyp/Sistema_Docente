@@ -145,6 +145,15 @@ async def validar_usuario_puede_ver_cmd(
     if cmd.id_docente == current_user.id_usuario:
         return cmd
 
+    tutor_result = await db.execute(
+        select(Curso.id_tutor).where(
+            Curso.id_curso == cmd.id_curso,
+            Curso.id_contexto == id_contexto,
+        )
+    )
+    if tutor_result.scalar_one_or_none() == current_user.id_usuario:
+        return cmd
+
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="No tiene acceso a esta asignación",

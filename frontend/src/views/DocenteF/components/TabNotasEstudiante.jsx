@@ -146,7 +146,7 @@ export const TabNotasEstudiante = ({
       <div className="panel-header">
         <div>
           <h3><BookOpen size={18} /> Notas por estudiante</h3>
-          <p className="panel-sub">Revisa las actividades, notas y promedios por periodo</p>
+          <p className="panel-sub">Revisa las notas y el promedio general o por periodos</p>
         </div>
         {mostrarPromedioGeneral && (
           <div className="nota-general-badge accent">

@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpen, ClipboardList, Eye, PencilLine, Plus, Trash2 } from "lucide-react";
+import { BookOpen, ClipboardList, Eye, PencilLine, Plus, Trash2, UserRound } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
 
 export const TabInsumos = ({
@@ -31,7 +31,28 @@ export const TabInsumos = ({
   // desde CursoPrincipal para conservar una sola fuente de estado.
   return activeTab === "insumos" && materiaSeleccionada ? (
     <div className="insumos-section">
-      <h3><ClipboardList size={18} /> Insumos</h3>
+      <div className="insumos-heading-row">
+        <div>
+          <h3><ClipboardList size={18} /> Insumos</h3>
+          <p className="panel-sub">
+            {soloLecturaTutor
+              ? "Consulta las actividades y evaluaciones registradas en la materia"
+              : "Administra las actividades, proyectos y evaluaciones de la materia"}
+          </p>
+          {soloLecturaTutor && materiaSeleccionada.docente && (
+            <div className="insumos-docente-responsable">
+              <UserRound size={17} />
+              <span><small>Docente responsable</small>{materiaSeleccionada.docente.nombre} {materiaSeleccionada.docente.apellido}</span>
+            </div>
+          )}
+        </div>
+        {soloLecturaTutor && (
+          <button className="btn-add-insumo insumos-solo-lectura" type="button" disabled>
+            <Eye size={16} />
+            <span className="btn-add-insumo-label">Solo lectura</span>
+          </button>
+        )}
+      </div>
 
       {!soloLecturaTutor ? <div className="agregar-insumo">
         <input
@@ -99,14 +120,7 @@ export const TabInsumos = ({
             )}
           </span>
         </button>
-      </div> : (
-        <div className="agregar-insumo">
-          <button className="btn-add-insumo" type="button" disabled>
-            <Eye size={16} />
-            <span className="btn-add-insumo-label">Solo lectura</span>
-          </button>
-        </div>
-      )}
+      </div> : null}
 
       <div className="insumos-toolbar">
         <div className="toolbar-status-pill toolbar-status-pill-compact toolbar-status-pill-tight">
@@ -235,7 +249,7 @@ export const TabInsumos = ({
               ) : (
                 <div className="insumos-grid">
                   {insumosPeriodo.map((insumo) => (
-                    <div key={insumo.id_insumo} className="insumo-card">
+                    <div key={insumo.id_insumo} className={`insumo-card ${soloLecturaTutor ? "solo-lectura" : ""}`}>
                       <div className="insumo-info">
                         <h4>{insumo.nombre}</h4>
                         <p>{insumo.descripcion}</p>
@@ -249,14 +263,14 @@ export const TabInsumos = ({
                           <BookOpen size={18} />
                           <span>Notas</span>
                         </button>
-                        <button
+                        {!soloLecturaTutor && <button
                           className="btn-icon btn-edit"
-                          disabled={soloLecturaTutor || eliminandoInsumo}
+                          disabled={eliminandoInsumo}
                           onClick={() => abrirEdicionInsumo(insumo)}
                           aria-label="Editar insumo"
                         >
                           <PencilLine size={16} />
-                        </button>
+                        </button>}
                         {!soloLecturaTutor && (
                           <button
                             className="btn-icon btn-delete"

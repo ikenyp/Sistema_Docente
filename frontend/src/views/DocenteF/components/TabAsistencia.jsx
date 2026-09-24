@@ -31,7 +31,7 @@ export const TabAsistencia = ({
       <div className="panel-header">
         <div>
           <h3><CalendarCheck size={18} /> Asistencia</h3>
-          <p className="panel-sub">Selecciona una fecha y registra la asistencia del día</p>
+          <p className="panel-sub">{soloLecturaTutor ? "Consulta la asistencia registrada del curso en esta materia" : "Selecciona una fecha y registra la asistencia del curso en esta materia"}</p>
           <div className="header-inline-control attendance-date-control">
             <label className="control-label">Fecha:</label>
             <input

@@ -15,7 +15,7 @@ export const TabPeriodizacion = ({
         <div>
           <h3><CalendarDays size={18} /> Periodizacion</h3>
           <p className="panel-sub">
-            Consulta los periodos configurados para este ano lectivo
+            Consulta los periodos configurados para este año lectivo
           </p>
         </div>
       </div>
