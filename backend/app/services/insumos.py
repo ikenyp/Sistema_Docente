@@ -217,15 +217,22 @@ async def actualizar_insumo(
         periodo_actualizado = periodo_obj.id_periodo
         values["id_periodo"] = periodo_actualizado
 
-    # VALIDACIÓN CRÍTICA: No permitir cambiar tipo_insumo si ya tiene notas
-    if "tipo_insumo" in values:
+    # No permitir cambiar la estructura de un insumo que ya tiene notas.
+    # El frontend puede enviar todos los campos en cada edición, por lo que
+    # comprobamos si realmente cambió ponderación, tipo o periodo.
+    cambia_estructura = (
+        ("ponderacion" in values and float(values["ponderacion"]) != float(insumo.ponderacion))
+        or ("tipo_insumo" in values and values["tipo_insumo"] != insumo.tipo_insumo)
+        or ("id_periodo" in values and values["id_periodo"] != insumo.id_periodo)
+    )
+    if cambia_estructura:
         notas_existentes = await db.execute(
-            select(Nota).where(Nota.id_insumo == id_insumo)
+            select(Nota.id_nota).where(Nota.id_insumo == id_insumo).limit(1)
         )
         if notas_existentes.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No se puede cambiar el tipo de insumo si ya tiene notas asignadas"
+                detail="No se puede cambiar la ponderación, el tipo o el periodo de un insumo que ya tiene notas asignadas"
             )
 
     # Validar unicidad si cambia el nombre

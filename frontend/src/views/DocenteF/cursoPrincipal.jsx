@@ -53,6 +53,10 @@ function CursoPrincipal() {
   const [materiasCurso, setMateriasCurso] = useState([]);
   const [materiaSeleccionada, setMateriaSeleccionada] = useState(null);
   const [insumosMateria, setInsumosMateria] = useState([]);
+  const cargaInsumosRef = useRef(0);
+  const cargaAsistenciaRef = useRef(0);
+  const cargaNotasIndividualRef = useRef(0);
+  const cargaNotasCursoRef = useRef(0);
   const [materiasDisponiblesAgregar, setMateriasDisponiblesAgregar] = useState([]);
   const [cargandoOpcionesCurso, setCargandoOpcionesCurso] = useState(false);
   const [modalMateriaOpen, setModalMateriaOpen] = useState(false);
@@ -293,9 +297,12 @@ function CursoPrincipal() {
     // Un CMD representa la relación curso-materia-docente. Los insumos siempre
     // se consultan por esa relación para no mezclar materias del mismo curso.
     if (!id_cmd) return;
+    const solicitud = ++cargaInsumosRef.current;
     try {
       const insumos = await insumosAPI.listarPorCMD(id_cmd);
-      setInsumosMateria(insumos || []);
+      if (solicitud === cargaInsumosRef.current) {
+        setInsumosMateria(insumos || []);
+      }
     } catch (err) {
       console.error("Error al cargar insumos:", err);
     }
@@ -303,9 +310,12 @@ function CursoPrincipal() {
 
   const cargarAsistencia = useCallback(async (id_cmd) => {
     if (!id_cmd) return;
+    const solicitud = ++cargaAsistenciaRef.current;
     try {
       const data = await asistenciaAPI.listar({ id_cmd, size: 100 });
-      setAsistencias(data || []);
+      if (solicitud === cargaAsistenciaRef.current) {
+        setAsistencias(data || []);
+      }
     } catch (err) {
       console.error("Error al cargar asistencia:", err);
     }
@@ -1015,9 +1025,14 @@ function CursoPrincipal() {
       if (!id_estudiante || !materiaSeleccionada) return;
       try {
         setCargandoNotasIndividual(true);
-        const notas = await notasAPI.listar({ id_estudiante });
+        const solicitud = ++cargaNotasIndividualRef.current;
+        const respuestas = await Promise.all(
+          (insumosMateria || []).map((insumo) =>
+            notasAPI.obtenerNotaEstudiante(id_estudiante, insumo.id_insumo),
+          ),
+        );
         const mapNotas = {};
-        (notas || []).forEach((nota) => {
+        respuestas.flat().forEach((nota) => {
           mapNotas[nota.id_insumo] = nota;
         });
 
@@ -1027,7 +1042,9 @@ function CursoPrincipal() {
           valor: mapNotas[insumo.id_insumo]?.calificacion ?? "",
         }));
 
-        setNotasIndividuales(dataset);
+        if (solicitud === cargaNotasIndividualRef.current) {
+          setNotasIndividuales(dataset);
+        }
       } catch (err) {
         notify(
           "error",
@@ -1044,21 +1061,29 @@ function CursoPrincipal() {
     if (!materiaSeleccionada || estudiantesCurso.length === 0) return;
 
     try {
-      const acumulado = {};
-      for (const estudiante of estudiantesCurso) {
-        const notas = await notasAPI.listar({ id_estudiante: estudiante.id_estudiante });
-        const mapNotas = {};
-        (notas || []).forEach((nota) => {
-          mapNotas[nota.id_insumo] = nota;
-        });
-        acumulado[estudiante.id_estudiante] = (insumosMateria || []).map((insumo) => ({
-          insumo,
-          id_nota: mapNotas[insumo.id_insumo]?.id_nota || null,
-          valor: mapNotas[insumo.id_insumo]?.calificacion ?? "",
-          id_estudiante: estudiante.id_estudiante,
-        }));
+      const solicitud = ++cargaNotasCursoRef.current;
+      const respuestas = await Promise.all(
+        (insumosMateria || []).map((insumo) => notasAPI.listarPorInsumo(insumo.id_insumo)),
+      );
+      const notasPorEstudiante = {};
+      respuestas.flat().forEach((nota) => {
+        if (!notasPorEstudiante[nota.id_estudiante]) notasPorEstudiante[nota.id_estudiante] = {};
+        notasPorEstudiante[nota.id_estudiante][nota.id_insumo] = nota;
+      });
+      const acumulado = Object.fromEntries(
+        estudiantesCurso.map((estudiante) => [
+          estudiante.id_estudiante,
+          (insumosMateria || []).map((insumo) => ({
+            insumo,
+            id_nota: notasPorEstudiante[estudiante.id_estudiante]?.[insumo.id_insumo]?.id_nota || null,
+            valor: notasPorEstudiante[estudiante.id_estudiante]?.[insumo.id_insumo]?.calificacion ?? "",
+            id_estudiante: estudiante.id_estudiante,
+          })),
+        ]),
+      );
+      if (solicitud === cargaNotasCursoRef.current) {
+        setNotasPorEstudiante(acumulado);
       }
-      setNotasPorEstudiante(acumulado);
     } catch (err) {
       console.error("Error al cargar notas del curso:", err);
     }
@@ -1166,7 +1191,7 @@ function CursoPrincipal() {
     if (activeTab === "notasEstudiante" && estudianteSeleccionado) {
       cargarNotasEstudiante(estudianteSeleccionado);
     }
-  }, [activeTab, cargarNotasEstudiante, estudianteSeleccionado]);
+  }, [activeTab, cargarNotasEstudiante, estudianteSeleccionado, materiaSeleccionada?.id_cmd]);
 
   useEffect(() => {
     if (activeTab !== "notasEstudiante") {
@@ -1329,12 +1354,10 @@ function CursoPrincipal() {
                       const selected = materiasCurso.find(
                         (m) => String(m.id_cmd) === String(value),
                       );
+                      setInsumosMateria([]);
+                      setAsistencias([]);
+                      setNotasIndividuales([]);
                       setMateriaSeleccionada(selected);
-                      await cargarInsumos(selected.id_cmd);
-                      await cargarAsistencia(selected.id_cmd);
-                      if (estudianteSeleccionado) {
-                        cargarNotasEstudiante(estudianteSeleccionado);
-                      }
                     }}
                     options={materiasOptions}
                     placeholder={materiaSeleccionada ? materiaNombre(materiaSeleccionada) : "Selecciona materia"}
