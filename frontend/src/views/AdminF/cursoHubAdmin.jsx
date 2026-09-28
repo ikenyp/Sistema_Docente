@@ -19,6 +19,7 @@ import {
   listarTodasLasPaginas,
 } from "../../services/api";
 import { notify, requestConfirm } from "../../components/notify";
+import { getAdminRecentCoursesKey } from "../../utils/adminRecentCourses";
 import { normalizarAnioLectivo } from "../../utils/anioLectivo";
 import { calcularPromedioInteractivo } from "../../utils/promedios";
 import { nombrePersona } from "../../utils/personas";
@@ -84,7 +85,7 @@ function CursoHubAdmin() {
 
   const registrarCursoReciente = useCallback((cursoReciente) => {
     if (!cursoReciente?.id_curso) return;
-    const key = "admin_recent_courses";
+    const key = getAdminRecentCoursesKey();
     const actual = JSON.parse(localStorage.getItem(key) || "[]");
     const siguiente = [
       {

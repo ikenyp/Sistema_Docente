@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { TrendingUp } from "lucide-react";
 import { calcularPromedioInteractivo } from "../../../utils/promedios";
+import TabHelpButton from "../../../components/TabHelpButton";
 import { nombrePersona } from "../../../utils/personas";
 
 const toNumber = (value) => {
@@ -121,7 +122,7 @@ export const TabPromedios = ({
     <div className={`panel-card tab-pane ${activeTab === "promedios" ? "active" : ""}`}>
       <div className="panel-header">
         <div>
-          <h3><TrendingUp size={18} /> Promedios</h3>
+          <h3><TrendingUp size={18} /> Promedios <TabHelpButton title="Promedios" description="Revisa los promedios del curso por estudiante y por periodo. Haz clic en un estudiante para desplegar todas sus notas y el detalle de sus resultados." /></h3>
           <p className="panel-sub">Promedios por periodo y detalle expandible</p>
         </div>
       </div>

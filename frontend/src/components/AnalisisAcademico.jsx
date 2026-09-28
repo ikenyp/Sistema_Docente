@@ -80,7 +80,7 @@ function obtenerHuellaAnalisis(analisis) {
   });
 }
 
-export function AnalisisAcademico({ idCurso, nombreCurso, habilitado = true }) {
+export function AnalisisAcademico({ idCurso, nombreCurso, habilitado = true, tutorialTarget }) {
   const [abierto, setAbierto] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [analisis, setAnalisis] = useState(null);
@@ -208,6 +208,7 @@ export function AnalisisAcademico({ idCurso, nombreCurso, habilitado = true }) {
       <button
         type="button"
         className="analisis-academico-launcher"
+        data-tutorial={tutorialTarget}
         onClick={abrir}
         aria-label="Abrir análisis académico"
         title={cargando ? "Analizando el curso..." : "Abrir análisis académico"}

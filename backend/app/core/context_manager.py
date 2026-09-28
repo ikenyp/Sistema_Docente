@@ -52,6 +52,22 @@ async def resolve_contexto_id(
         contexto = result.scalars().first()
 
         if contexto is None:
+            tiene_institucional = await db.scalar(
+                select(Contexto.id_contexto)
+                .join(UsuarioContexto, UsuarioContexto.id_contexto == Contexto.id_contexto)
+                .where(
+                    UsuarioContexto.id_usuario == current_user.id_usuario,
+                    UsuarioContexto.activo == True,
+                    Contexto.tipo_modo == "institucional",
+                    Contexto.activo == True,
+                )
+                .limit(1)
+            )
+            if tiene_institucional:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="No tienes un contexto personal activo. Puedes crear tu espacio personal para continuar.",
+                )
             contexto = Contexto(
                 tipo_modo="personal",
                 nombre=f"Personal Docente {current_user.id_usuario}",

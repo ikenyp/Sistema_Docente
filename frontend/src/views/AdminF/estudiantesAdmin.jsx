@@ -28,6 +28,7 @@ function EstudiantesAdmin() {
   const [error, setError] = useState("");
 
   const [cursos, setCursos] = useState([]);
+  const [cursosCargados, setCursosCargados] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalImportOpen, setModalImportOpen] = useState(false);
@@ -61,6 +62,8 @@ function EstudiantesAdmin() {
       setCursos(lista || []);
     } catch (e) {
       // silencioso
+    } finally {
+      setCursosCargados(true);
     }
   };
 
@@ -72,8 +75,7 @@ function EstudiantesAdmin() {
       let page = 1;
       while (true) {
         const lote = await estudiantesAPI.buscar({
-          nombre: filtrosAplicados.busqueda || undefined,
-          apellido: filtrosAplicados.busqueda || undefined,
+          busqueda: filtrosAplicados.busqueda || undefined,
           estado: filtrosAplicados.estado || undefined,
           id_curso: filtrosAplicados.id_curso && filtrosAplicados.id_curso !== "sin_curso"
             ? filtrosAplicados.id_curso
@@ -178,11 +180,12 @@ function EstudiantesAdmin() {
   }, []);
 
   useEffect(() => {
+    if (!cursosCargados) return undefined;
     const timeout = setTimeout(() => {
       cargarConFiltros(filtros);
     }, 250);
     return () => clearTimeout(timeout);
-  }, [filtros, cargarConFiltros]);
+  }, [cursosCargados, filtros, cargarConFiltros]);
 
   const limpiarFiltros = () => {
     const base = {
@@ -193,7 +196,6 @@ function EstudiantesAdmin() {
       size: filtros.size,
     };
     setFiltros(base);
-    cargarConFiltros(base);
   };
 
   const abrirCrear = () => {

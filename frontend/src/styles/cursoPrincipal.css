@@ -13,6 +13,8 @@
       transparent 32%
     ),
     linear-gradient(145deg, #f8f5ef 0%, #dfe5f4 58%, #c7d5ed 100%);
+  background-attachment: fixed;
+  background-size: cover;
   font-family: "Trebuchet MS", "Segoe UI", Tahoma, sans-serif;
   color: #23324f;
 }

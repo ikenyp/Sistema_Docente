@@ -3,6 +3,7 @@ import { Eye, FileSpreadsheet } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
 import { asistenciaAPI, insumosAPI, notasAPI } from "../../../services/api";
 import { notify } from "../../../components/notify";
+import TabHelpButton from "../../../components/TabHelpButton";
 import { calcularPromedioInteractivo } from "../../../utils/promedios";
 
 let XLSX;
@@ -906,15 +907,15 @@ export const TabReportes = ({
     <div className="panel-card tab-pane active">
       <div className="panel-header">
         <div>
-          <h3><FileSpreadsheet size={18} /> Reportes</h3>
+          <h3><FileSpreadsheet size={18} /> Reportes <TabHelpButton title="Reportes" steps={[{ title: "Reporte individual", description: "Genera un reporte para un estudiante, con sus materias y periodos. Selecciona un estudiante para previsualizarlo.", target: "reportes-individual" }, { title: "Reporte por periodo", description: "Muestra todos los estudiantes de la materia dentro del periodo que elijas.", target: "reportes-periodo" }, { title: "Reporte anual", description: "Incluye todos los estudiantes y periodos de la materia en un solo reporte.", target: "reportes-anual" }, { title: "Previsualización", description: "Revisa el contenido y el formato del reporte seleccionado antes de descargarlo.", target: "reportes-preview" }, { title: "Exporta el reporte", description: "Cuando la información esté lista, usa este botón para exportar el reporte en Excel.", target: "reportes-exportar" }]} /></h3>
           <p className="panel-sub">{soloLecturaTutor ? "Consulta la previsualización de los reportes del curso" : "Exporta reportes en Excel con el formato académico del curso"}</p>
         </div>
       </div>
 
       <div className="reportes-box reportes-selector-cards">
-        <div role="button" tabIndex="0" className={`reportes-card reportes-card-selectable ${reportType === "individual" ? "active" : ""}`} onClick={() => setReportType("individual")} onKeyDown={(event) => event.key === "Enter" && setReportType("individual")}>
+        <div data-help-target="reportes-individual" role="button" tabIndex="0" className={`reportes-card reportes-card-selectable ${reportType === "individual" ? "active" : ""}`} onClick={() => setReportType("individual")} onKeyDown={(event) => event.key === "Enter" && setReportType("individual")}>
           <h4>Reporte individual</h4>
-          <p>Un estudiante, todas sus materias y sus tres periodos.</p>
+          <p>Un estudiante, todas sus materias y sus periodos configurados.</p>
           {reportType === "individual" && (
             <CustomSelect
               value={estudianteReporteId}
@@ -938,7 +939,7 @@ export const TabReportes = ({
           )}
         </div>
 
-        <div role="button" tabIndex="0" className={`reportes-card reportes-card-selectable ${reportType === "trimestre" ? "active" : ""}`} onClick={() => setReportType("trimestre")} onKeyDown={(event) => event.key === "Enter" && setReportType("trimestre")}>
+        <div data-help-target="reportes-periodo" role="button" tabIndex="0" className={`reportes-card reportes-card-selectable ${reportType === "trimestre" ? "active" : ""}`} onClick={() => setReportType("trimestre")} onKeyDown={(event) => event.key === "Enter" && setReportType("trimestre")}>
           <h4>Reporte por periodo</h4>
           <p>Todos los estudiantes de la materia y un periodo.</p>
           {reportType === "trimestre" && (
@@ -952,13 +953,13 @@ export const TabReportes = ({
           )}
         </div>
 
-        <div role="button" tabIndex="0" className={`reportes-card reportes-card-selectable ${reportType === "anual" ? "active" : ""}`} onClick={() => setReportType("anual")} onKeyDown={(event) => event.key === "Enter" && setReportType("anual")}>
+        <div data-help-target="reportes-anual" role="button" tabIndex="0" className={`reportes-card reportes-card-selectable ${reportType === "anual" ? "active" : ""}`} onClick={() => setReportType("anual")} onKeyDown={(event) => event.key === "Enter" && setReportType("anual")}>
           <h4>Reporte anual</h4>
           <p>Todos los estudiantes y periodos de la materia.</p>
         </div>
       </div>
 
-      <div className="reportes-preview-card">
+      <div className="reportes-preview-card" data-help-target="reportes-preview">
         <div className="reportes-preview-head">
           <div>
               <h4>Previsualización {reportType === "individual" ? "individual" : reportType === "anual" ? "anual" : "por periodo"}</h4>
@@ -966,6 +967,7 @@ export const TabReportes = ({
           </div>
           <button
             type="button"
+            data-help-target="reportes-exportar"
             className="btn-primary btn-inline-icon"
             onClick={reportType === "individual" ? exportarReporteIndividual : reportType === "anual" ? exportarGeneral : exportarTrimestre}
             disabled={soloLecturaTutor || generando || (reportType === "individual" && !estudianteReporteId) || (reportType === "trimestre" && !periodoId)}

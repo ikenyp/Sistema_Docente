@@ -36,6 +36,7 @@ export default function Login() {
   const [success, setSuccess] = useState("");
   const [contextosPendientes, setContextosPendientes] = useState([]);
   const [tokenPendiente, setTokenPendiente] = useState("");
+  const [sinContextoPersonal, setSinContextoPersonal] = useState(false);
   const navigate = useNavigate();
 
   // Detectar modo desde parámetro de query al cargar el componente
@@ -108,6 +109,7 @@ export default function Login() {
     localStorage.setItem("admin_recent_courses_context", String(contexto.id_contexto));
     localStorage.setItem("token", token);
     localStorage.setItem("contexto_activo", String(contexto.id_contexto));
+    localStorage.setItem("contexto_nombre", contexto.nombre || "Institución activa");
     localStorage.setItem("app_mode", contexto.modo);
     localStorage.setItem("role", String(contexto.rol || "").toLowerCase());
     scheduleSessionWatch(token);
@@ -120,6 +122,7 @@ export default function Login() {
     localStorage.setItem("usuario", JSON.stringify(usuario));
     setContextosPendientes([]);
     setTokenPendiente("");
+    setSinContextoPersonal(false);
 
     if (contexto.modo === "plataforma") {
       navigate("/plataforma/instituciones");
@@ -130,22 +133,38 @@ export default function Login() {
     }
   };
 
+  const crearEspacioPersonal = async () => {
+    setLoading(true);
+    try {
+      const contexto = await requestHttp(`${API_ROOT_URL}/auth/create-personal-context`, "POST", null, {
+        Authorization: `Bearer ${tokenPendiente}`,
+        "X-App-Mode": "personal",
+      });
+      await activarContexto(contexto, tokenPendiente);
+    } catch (err) {
+      showError(err.message || "No se pudo crear el espacio personal");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     resetFlowMessages();
     setLoading(true);
+    const appMode = selectedMode || "institucional";
+    let autenticado = false;
     try {
       const form = new URLSearchParams();
       form.append("username", email); // el backend espera "username"
       form.append("password", password);
-
-      const appMode = selectedMode || "institucional";
 
       const data = await requestHttp(`${API_ROOT_URL}/auth/login`, "POST", form, {
         "Content-Type": "application/x-www-form-urlencoded",
         "X-App-Mode": appMode,
       });
       localStorage.setItem("token", data.access_token);
+      autenticado = true;
       const contextos = await requestHttp(`${API_ROOT_URL}/auth/contextos`, "GET", null, {
         Authorization: `Bearer ${data.access_token}`,
         "X-App-Mode": appMode,
@@ -157,6 +176,11 @@ export default function Login() {
       }
       const disponibles = (contextos || []).filter((contexto) => contexto.modo === appMode);
       if (!disponibles.length) {
+        if (appMode === "personal") {
+          setTokenPendiente(data.access_token);
+          setSinContextoPersonal(true);
+          return;
+        }
         throw new Error("No tienes un espacio activo para el modo seleccionado");
       }
       if (disponibles.length === 1) {
@@ -166,6 +190,11 @@ export default function Login() {
         setTokenPendiente(data.access_token);
       }
     } catch (err) {
+      if (appMode === "personal" && autenticado) {
+        setTokenPendiente(localStorage.getItem("token") || "");
+        setSinContextoPersonal(true);
+        return;
+      }
       clearSessionStorage();
       showError(err.message || "Error al iniciar sesión");
     } finally {
@@ -273,7 +302,20 @@ export default function Login() {
               : "login-card"
           }
         >
-          {contextosPendientes.length > 0 ? (
+          {sinContextoPersonal ? (
+            <>
+              <h2 className="login-title">No tienes un espacio personal activo</h2>
+              <p className="login-note">¿Quieres crear un espacio personal independiente para gestionar tus propios años, materias y cursos?</p>
+              <div className="personal-context-actions">
+                <button className="login-button" type="button" onClick={crearEspacioPersonal} disabled={loading}>
+                  {loading ? "Creando espacio..." : "Crear espacio personal"}
+                </button>
+                <button className="login-button secondary" type="button" onClick={() => { clearSessionStorage(); setSinContextoPersonal(false); setTokenPendiente(""); setSelectedMode(""); }}>
+                  Volver al inicio de sesión
+                </button>
+              </div>
+            </>
+          ) : contextosPendientes.length > 0 ? (
             <>
               <h2 className="login-title">Selecciona tu espacio</h2>
               <p className="login-subtitle">Elige dónde deseas trabajar en esta sesión</p>

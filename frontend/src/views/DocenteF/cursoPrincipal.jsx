@@ -11,10 +11,11 @@ import {
   cmdAPI,
   materiasAPI,
 } from "../../services/api";
-import { Save, UserPlus, BookOpen, Settings2, Trash2, Brush, X, Upload, Pencil, Users } from "lucide-react";
+import { Save, UserPlus, BookOpen, Settings2, Trash2, Brush, X, Upload, Pencil, Users, ArrowLeft } from "lucide-react";
 import CustomSelect from "../../components/admin/CustomSelect";
 import ImportarEstudiantesModal from "../../components/estudiantes/ImportarEstudiantesModal";
 import { AnalisisAcademico } from "../../components/AnalisisAcademico";
+import TabHelpButton from "../../components/TabHelpButton";
 import { TabInsumos } from "./components/TabInsumos";
 import { TabAsistencia } from "./components/TabAsistencia";
 import { TabComportamiento } from "./components/TabComportamiento";
@@ -27,6 +28,7 @@ import { clearSessionStorage } from "../../services/session";
 import { nombrePersona } from "../../utils/personas";
 import "../../styles/cursoPrincipal.css";
 import { notify, requestConfirm } from "../../components/notify";
+import { abrirTutorial } from "../../components/AppTutorial";
 
 function CursoPrincipal() {
   // Esta vista coordina el trabajo dentro de un curso: materias, insumos,
@@ -47,6 +49,16 @@ function CursoPrincipal() {
   const [datosUsuario, setDatosUsuario] = useState(null);
   const [materiasGestionablesDocente, setMateriasGestionablesDocente] = useState([]);
   const [menuUsuario, setMenuUsuario] = useState(false);
+
+  useEffect(() => {
+    const cerrarMenuFuera = (event) => {
+      if (!event.target.closest(".navbar-user, .menu-usuario")) {
+        setMenuUsuario(false);
+      }
+    };
+    document.addEventListener("pointerdown", cerrarMenuFuera);
+    return () => document.removeEventListener("pointerdown", cerrarMenuFuera);
+  }, []);
 
   // Datos del curso
   const [cursoDetalle, setCursoDetalle] = useState(curso || null);
@@ -116,6 +128,14 @@ function CursoPrincipal() {
 
   // Tabs
   const [activeTab, setActiveTab] = useState(esModoPersonal ? "estudiantes" : "insumos");
+
+  useEffect(() => {
+    const cambiarTabDesdeTutorial = (event) => {
+      if (event.detail) setActiveTab(event.detail);
+    };
+    window.addEventListener("sistema-docente:tutorial-course-tab", cambiarTabDesdeTutorial);
+    return () => window.removeEventListener("sistema-docente:tutorial-course-tab", cambiarTabDesdeTutorial);
+  }, []);
 
   useEffect(() => {
     if (!esModoPersonal) return;
@@ -1215,9 +1235,12 @@ function CursoPrincipal() {
   return (
     <div className="curso-principal-page">
       <div className="navbar-curso">
-        <button className="btn-volver" onClick={() => navigate("/docente", { replace: true })}>
-          ← Volver
-        </button>
+        <div className="navbar-leading">
+          <button className="btn-volver" onClick={() => navigate("/docente", { replace: true })}>
+            <ArrowLeft size={16} />
+            <span>Volver</span>
+          </button>
+        </div>
 
         <h2 className="navbar-title navbar-title-curso">
           Panel de Gestión Docente
@@ -1227,13 +1250,18 @@ function CursoPrincipal() {
           className="navbar-user"
           onClick={() => setMenuUsuario(!menuUsuario)}
         >
-          {datosUsuario
-            ? nombrePersona(datosUsuario)
-            : "Usuario"}
+          <span className="navbar-user-meta">
+            <strong>{datosUsuario ? nombrePersona(datosUsuario) : "Usuario"}</strong>
+            <small>Docente · {appMode === "personal" ? "Personal" : "Institucional"}</small>
+          </span>
+          <span className="navbar-user-chevron" aria-hidden="true" />
         </div>
 
         {menuUsuario && (
           <div className="menu-usuario">
+            <button type="button" onClick={() => { setMenuUsuario(false); abrirTutorial(); }}>
+              Ver tutorial
+            </button>
             <button onClick={cerrarSesion}>Cerrar Sesión</button>
           </div>
         )}
@@ -1296,7 +1324,7 @@ function CursoPrincipal() {
           </div>
         ) : (
           <>
-            <div className="course-summary">
+            <div className="course-summary" data-tutorial="curso-resumen">
                 <div className="course-summary-main">
                   <p className="summary-label">Curso</p>
                   <h3 className="course-summary-title">{cursoDetalle?.nombre || "Curso"}</h3>
@@ -1312,7 +1340,7 @@ function CursoPrincipal() {
                 </div>
             </div>
 
-            <div className="cards-grid course-stats-grid">
+            <div className="cards-grid course-stats-grid" data-tutorial="curso-indicadores">
                 <div className="stat-card accent">
                   <p className="stat-label">Materias activas</p>
                   <h3 className="stat-value">{materiasCurso.length}</h3>
@@ -1345,7 +1373,7 @@ function CursoPrincipal() {
                 </div>
             )}
 
-            <div className="materia-selector">
+            <div className="materia-selector" data-tutorial="curso-materia">
                 <label>Selecciona Materia:</label>
                 <div className="materia-selector-inline">
                   <CustomSelect
@@ -1379,10 +1407,11 @@ function CursoPrincipal() {
                 </div>
             </div>
 
-            <div className="tabs-curso">
+            <div className="tabs-curso" data-tutorial="curso-pestanas">
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
+                    data-tutorial={`curso-tab-${tab.id}`}
                     className={`tab-button ${
                       activeTab === tab.id ? "active" : ""
                     }`}
@@ -1397,10 +1426,10 @@ function CursoPrincipal() {
               <div className="panel-card tab-pane active estudiantes-tab-panel">
                 <div className="panel-header estudiantes-tab-header">
                   <div>
-                    <h3><Users size={18} /> Estudiantes</h3>
+                    <h3><Users size={18} /> Estudiantes <TabHelpButton title="Estudiantes" steps={[{ title: "Busca estudiantes", description: "Escribe un nombre, apellido o cédula para encontrar rápidamente un registro.", target: "estudiantes-busqueda" }, { title: "Filtra por estado", description: "Usa este selector para mostrar estudiantes matriculados, retirados o graduados.", target: "estudiantes-filtro" }, { title: "Importa o añade", description: "Importa una lista desde Excel o registra un estudiante individual.", target: "estudiantes-acciones" }, { title: "Edita o retira", description: "En cada fila puedes editar la información o retirar al estudiante del curso.", target: "estudiantes-tabla" }]} /></h3>
                     <p className="panel-sub">Gestiona los estudiantes del curso. Puedes buscar, filtrar y retirar.</p>
                   </div>
-                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <div data-help-target="estudiantes-acciones" style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                     <button type="button" className="btn-view btn-inline-icon btn-add-student-wrap" onClick={() => setMostrarImportarEstudiantes(true)}>
                       <Upload size={16} />
                       <span>Importar<br />Excel</span>
@@ -1414,11 +1443,13 @@ function CursoPrincipal() {
 
                 <div className="estudiantes-course-filters">
                   <input
+                    data-help-target="estudiantes-busqueda"
                     placeholder="Buscar por nombre, apellido o cédula"
                     value={busquedaEstudiantesCurso}
                     onChange={(e) => setBusquedaEstudiantesCurso(e.target.value)}
                   />
                   <CustomSelect
+                    dataHelpTarget="estudiantes-filtro"
                     value={estadoEstudiantesCurso}
                     onChange={setEstadoEstudiantesCurso}
                     options={[
@@ -1443,7 +1474,7 @@ function CursoPrincipal() {
                   </button>
                 </div>
 
-                <div className="table-container estudiantes-course-table-container">
+                <div className="table-container estudiantes-course-table-container" data-help-target="estudiantes-tabla">
                   <table className="estudiantes-course-table">
                     <thead>
                       <tr>
@@ -2089,6 +2120,7 @@ function CursoPrincipal() {
           idCurso={id_curso}
           nombreCurso={cursoDetalle?.nombre || curso?.nombre}
           habilitado={!cargando && Boolean(cursoDetalle) && !error}
+          tutorialTarget="curso-analisis"
         />
 
       </div>

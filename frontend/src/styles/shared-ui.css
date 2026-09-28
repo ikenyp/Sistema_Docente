@@ -22,12 +22,13 @@
   position: absolute;
   top: 68px;
   right: 12px;
-  min-width: 180px;
-  background: #fff;
-  border: 1px solid #dde5f4;
-  border-radius: 12px;
-  padding: 0.35rem;
-  box-shadow: 0 14px 28px rgba(25, 37, 62, 0.2);
+  min-width: 210px;
+  padding: 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 36px rgba(45, 61, 101, 0.22);
+  backdrop-filter: blur(12px);
   z-index: 80;
 }
 
@@ -36,14 +37,23 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #25304a;
+  color: #304261;
   text-align: left;
-  padding: 0.62rem 0.75rem;
+  padding: 0.72rem 0.8rem;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
   cursor: pointer;
 }
 
+.menu-usuario button + button {
+  margin-top: 0.2rem;
+  border-top: 1px solid #e5eaf3;
+  border-radius: 0 0 8px 8px;
+}
+
 .menu-usuario button:hover {
-  background: linear-gradient(135deg, #2f72b5 0%, #4f5ebf 100%);
+  background: linear-gradient(110deg, #5875ab 0%, #8a78b2 100%);
   color: #fff;
 }
 
@@ -106,4 +116,276 @@
 
 .shared-modal-close:hover {
   background: #e2e8f0;
+}
+ :root {
+  --app-ink: #1e2b42;
+  --app-muted: #5f7192;
+  --app-blue: #4f709e;
+  --app-blue-soft: #6b8fbd;
+  --app-surface: rgba(255, 255, 255, 0.9);
+  --app-border: rgba(255, 255, 255, 0.72);
+  --app-shadow: 0 18px 40px rgba(28, 44, 77, 0.16);
+  --app-gradient: linear-gradient(135deg, #6b8fbd 0%, #5d7eae 52%, #4f709e 100%);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--app-ink);
+  font-family: "Trebuchet MS", "Segoe UI", Tahoma, sans-serif;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 221, 181, 0.26), transparent 30%),
+    radial-gradient(circle at 85% 78%, rgba(103, 145, 255, 0.24), transparent 32%),
+    linear-gradient(140deg, #f8f5ef 0%, #d9dff1 55%, #bbc9e8 100%);
+}
+
+.navbar-admin,
+.navbar-docente,
+.navbar-curso {
+  min-height: 56px !important;
+  height: 56px !important;
+  box-sizing: border-box;
+  gap: 1rem;
+  padding: 0 1.25rem;
+  align-items: center;
+  background: linear-gradient(110deg, #344f80 0%, #5875ab 48%, #8a78b2 100%) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(14px);
+  border-bottom: 0;
+}
+
+.navbar-brand {
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.025em;
+  white-space: nowrap;
+}
+
+.navbar-leading {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 0.75rem;
+}
+
+.navbar-admin .titulo-admin,
+.navbar-docente .navbar-title,
+.navbar-curso .navbar-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0 0.75rem;
+  transform: none;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.015em;
+}
+
+.navbar-title-left {
+  text-align: left !important;
+  padding-left: 0.25rem !important;
+}
+
+.navbar-context {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 0.05rem;
+  min-width: 0;
+  max-width: 280px;
+  text-align: center;
+}
+
+.navbar-context small {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.navbar-context strong {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navbar-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+  border-color: rgba(255, 255, 255, 0.34);
+  border-radius: 999px;
+  padding: 0.42rem 0.7rem 0.42rem 0.85rem;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.navbar-user::after {
+  content: none;
+}
+
+.navbar-user-meta {
+  display: grid;
+  gap: 0.05rem;
+  line-height: 1.1;
+}
+
+.navbar-user-meta strong {
+  font-size: 0.82rem;
+}
+
+.navbar-user-meta small {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.navbar-user-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.navbar-user-chevron::before {
+  content: "";
+  width: 0.42rem;
+  height: 0.42rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-0.1rem) rotate(45deg);
+}
+
+.navbar-curso .btn-volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 34px;
+  padding: 0.38rem 0.68rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.navbar-curso .btn-volver:hover {
+  transform: none;
+  border-color: rgba(255, 255, 255, 0.52);
+  background: rgba(255, 255, 255, 0.2);
+  filter: none;
+}
+
+@media (max-width: 760px) {
+  .navbar-admin,
+  .navbar-docente,
+  .navbar-curso {
+    height: auto;
+    min-height: 56px !important;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    padding: 0.6rem 0.75rem;
+  }
+
+  .navbar-brand {
+    font-size: 0.82rem;
+  }
+
+  .navbar-admin .titulo-admin,
+  .navbar-docente .navbar-title,
+  .navbar-curso .navbar-title {
+    order: 3;
+    flex-basis: 100%;
+    padding: 0.15rem 0;
+    font-size: 0.92rem;
+  }
+
+  .navbar-admin .titulo-admin.navbar-title-left,
+  .navbar-docente .navbar-title.navbar-title-left {
+    text-align: left;
+  }
+
+  .navbar-user {
+    margin-left: auto;
+    font-size: 0.76rem;
+  }
+}
+
+.admin-page,
+.docente-page,
+.curso-principal-page,
+.curso-principal-container {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 221, 181, 0.22), transparent 30%),
+    radial-gradient(circle at 85% 78%, rgba(103, 145, 255, 0.2), transparent 32%),
+    linear-gradient(140deg, #f8f5ef 0%, #d9dff1 55%, #bbc9e8 100%);
+}
+
+.admin-page .panel-card,
+.admin-page .table-container,
+.docente-page .personal-setup-card,
+.docente-page .stat-card:not(.accent):not(.stat-card-pending),
+.docente-page .curso-card,
+.curso-principal-page .panel-card,
+.curso-principal-container .panel-card {
+  border-color: var(--app-border);
+  border-radius: 18px;
+  box-shadow: var(--app-shadow);
+}
+
+.admin-page .panel-card,
+.admin-page .table-container,
+.docente-page .personal-setup-card,
+.docente-page .stat-card:not(.accent):not(.stat-card-pending),
+.docente-page .curso-card,
+.curso-principal-page .panel-card,
+.curso-principal-container .panel-card {
+  background: var(--app-surface);
+}
+
+.curso-principal-page .panel-card.tab-pane,
+.curso-principal-container .panel-card.tab-pane {
+  background: rgba(255, 255, 255, 0.86);
+}
+
+
+
+.docente-page .stat-card.stat-card-pending {
+  background: linear-gradient(135deg, #c94c5f 0%, #e06474 52%, #ee7e8d 100%);
+  border-color: #c94c5f;
+  color: #fff;
+}
+
+.docente-page .stat-card.stat-card-pending .stat-label,
+.docente-page .stat-card.stat-card-pending .stat-value,
+.docente-page .stat-card.stat-card-pending .stat-sub {
+  color: #fff;
+}
+
+.docente-page .personal-modal-card,
+.curso-principal-page .modal,
+.curso-principal-container .modal {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--app-border);
+  box-shadow: var(--app-shadow);
 }

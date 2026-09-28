@@ -35,6 +35,7 @@ import { clearSessionStorage } from "../../services/session";
 import { notify } from "../../components/notify";
 import { normalizarAnioLectivo, validarAnioLectivo } from "../../utils/anioLectivo";
 import { nombrePersona } from "../../utils/personas";
+import { abrirTutorial, avanzarTutorial } from "../../components/AppTutorial";
 
 function Docente() {
   // Panel principal del docente. Une cursos, materias personales, años lectivos
@@ -49,6 +50,16 @@ function Docente() {
   const [appMode, setAppMode] = useState(
     (localStorage.getItem("app_mode") || "institucional").toLowerCase(),
   );
+
+  useEffect(() => {
+    const cerrarMenuFuera = (event) => {
+      if (!event.target.closest(".navbar-user, .menu-usuario")) {
+        setMenuUsuario(false);
+      }
+    };
+    document.addEventListener("pointerdown", cerrarMenuFuera);
+    return () => document.removeEventListener("pointerdown", cerrarMenuFuera);
+  }, []);
   const [aniosLectivosPersonales, setAniosLectivosPersonales] = useState([]);
   const [aniosLectivosPersonalesDetalles, setAniosLectivosPersonalesDetalles] = useState([]);
   const [anioLectivoActivoPersonal, setAnioLectivoActivoPersonal] = useState(
@@ -505,6 +516,9 @@ function Docente() {
       const modoActual = (
         localStorage.getItem("app_mode") || "institucional"
       ).toLowerCase();
+      const anioContextoCarga = modoActual === "personal"
+        ? localStorage.getItem(getAnioLectivoStorageKey()) || anioLectivoActivoPersonal || ""
+        : "";
       setAppMode(modoActual);
 
       const [asignacionesResult, cursosResult] = await Promise.allSettled([
@@ -587,7 +601,7 @@ function Docente() {
       if (modoActual === "personal") {
         const cursosTutorActual = cursosUnicos.filter(
           (curso) =>
-            curso?.anio_lectivo === anioContextoVisible &&
+            curso?.anio_lectivo === anioContextoCarga &&
             (Number(curso?.id_tutor) === Number(usuario.id_usuario) ||
               Number(curso?.tutor?.id_usuario) === Number(usuario.id_usuario)),
         );
@@ -598,7 +612,7 @@ function Docente() {
           let tutorAsignado = false;
           cursosUnicos.forEach((curso) => {
             const esTutorDelDocente =
-              curso?.anio_lectivo === anioContextoVisible &&
+              curso?.anio_lectivo === anioContextoCarga &&
               (Number(curso?.id_tutor) === Number(usuario.id_usuario) ||
                 Number(curso?.tutor?.id_usuario) ===
                   Number(usuario.id_usuario));
@@ -669,9 +683,9 @@ function Docente() {
       }
 
       const cursosContexto =
-        modoActual === "personal" && anioContextoVisible
-          ? cursosUnicos.filter(
-              (curso) => curso?.anio_lectivo === anioContextoVisible,
+          modoActual === "personal" && anioContextoCarga
+            ? cursosUnicos.filter(
+              (curso) => curso?.anio_lectivo === anioContextoCarga,
             )
           : cursosUnicos;
 
@@ -696,7 +710,7 @@ function Docente() {
 
       let aniosSinPeriodizacion = 0;
       if (modoActual === "personal") {
-        const aniosUnicos = anioContextoVisible ? [anioContextoVisible] : [];
+        const aniosUnicos = anioContextoCarga ? [anioContextoCarga] : [];
         for (const anio of aniosUnicos) {
           try {
             const config =
@@ -738,7 +752,7 @@ function Docente() {
     } finally {
       setCargando(false);
     }
-  }, [navigate, anioContextoVisible]);
+  }, [navigate, anioLectivoActivoPersonal]);
 
   useEffect(() => {
     // Una cuenta personal nueva puede no tener años ni cursos todavía.
@@ -1004,6 +1018,7 @@ function Docente() {
         nombre: "",
         soyTutor: true,
       });
+      avanzarTutorial("sistema-docente:tutorial-course-created");
       notify("success", "Curso creado correctamente");
     } catch (err) {
       setErrorWizard(`Error al crear curso: ${err.message}`);
@@ -1042,6 +1057,7 @@ function Docente() {
       cambiarAnioPersonal(formato);
       setMostrarAnioModal(false);
       setAnioNuevoPersonal("");
+      avanzarTutorial();
       notify("success", `Año lectivo ${formato} creado`);
     } catch (err) {
       setErrorAnioPersonal(err.message || "No se pudo crear el año lectivo");
@@ -1229,7 +1245,7 @@ function Docente() {
     <div className="docente-page">
       {/* ====================== NAVBAR ====================== */}
       <div className="navbar-docente">
-        <div className="navbar-title navbar-title-docente">
+        <div className="navbar-title navbar-title-docente navbar-title-left">
           Panel de Gestión Docente
         </div>
 
@@ -1237,13 +1253,18 @@ function Docente() {
           className="navbar-user"
           onClick={() => setMenuUsuario(!menuUsuario)}
         >
-          {datosUsuario
-            ? nombrePersona(datosUsuario)
-            : "Docente"}
+          <span className="navbar-user-meta">
+            <strong>{datosUsuario ? nombrePersona(datosUsuario) : "Docente"}</strong>
+            <small>Docente · {appMode === "personal" ? "Personal" : "Institucional"}</small>
+          </span>
+          <span className="navbar-user-chevron" aria-hidden="true" />
         </div>
 
         {menuUsuario && (
           <div className="menu-usuario">
+            <button type="button" onClick={() => { setMenuUsuario(false); abrirTutorial(); }}>
+              Ver tutorial
+            </button>
             <button onClick={cerrarSesion}>Cerrar Sesión</button>
           </div>
         )}
@@ -1260,8 +1281,9 @@ function Docente() {
             </div>
             <div className="personal-year-context-grid personal-year-context-grid-inline">
               <label className="personal-year-context-select">
-                <CustomSelect
-                  value={anioLectivoActivoPersonal}
+                  <CustomSelect
+                    dataTutorial="selector-anio-personal"
+                    value={anioLectivoActivoPersonal}
                   onChange={cambiarAnioPersonal}
                   options={[
                     {
@@ -1285,6 +1307,7 @@ function Docente() {
                 <button
                   type="button"
                   className="btn-add-docente btn-inline-icon"
+                  data-tutorial="crear-anio"
                   onClick={() => setMostrarAnioModal(true)}
                 >
                   <Plus size={14} />
@@ -1293,6 +1316,7 @@ function Docente() {
                 <button
                   type="button"
                   className="toolbar-blue-btn btn-inline-icon"
+                  data-tutorial="periodizacion"
                   onClick={() => {
                     const anioGuardado = localStorage.getItem(getAnioLectivoStorageKey()) || "";
                     if (anioGuardado) setAnioLectivoActivoPersonal(anioGuardado);
@@ -1305,6 +1329,7 @@ function Docente() {
                 <button
                   type="button"
                   className="toolbar-outline-btn btn-inline-icon"
+                  data-tutorial="configurar-anio"
                   onClick={() => setMostrarConfigAnioModal(true)}
                 >
                   <Settings2 size={14} />
@@ -1338,9 +1363,10 @@ function Docente() {
                 key={anioLectivoActivoPersonal || "sin-anio"}
                 embedded
                 anioInicial={anioLectivoActivoPersonal}
-                onConfiguracionGuardada={() =>
-                  setResumenOperacion((prev) => ({ ...prev, aniosSinPeriodizacion: 0 }))
-                }
+                onConfiguracionGuardada={() => {
+                  setResumenOperacion((prev) => ({ ...prev, aniosSinPeriodizacion: 0 }));
+                  avanzarTutorial("sistema-docente:tutorial-periodization-saved");
+                }}
               />
             </div>
           </div>
@@ -1672,7 +1698,7 @@ function Docente() {
           </div>
         )}
 
-        <div className="cards-grid dashboard-summary-grid docente-summary-grid">
+        <div className="cards-grid dashboard-summary-grid docente-summary-grid" data-tutorial="dashboard-cards">
           <div className="stat-card accent">
             <p className="stat-label">Cursos visibles</p>
             <h3 className="stat-value">{cursosVisiblesCount}</h3>
@@ -1792,6 +1818,7 @@ function Docente() {
               <button
                 className="toolbar-blue-btn"
                 type="button"
+                data-tutorial="configurar-materias"
                 onClick={abrirModalMateriasPersonales}
               >
                 <BookOpen size={14} />
@@ -1802,6 +1829,7 @@ function Docente() {
               <button
                 className="toolbar-success-btn"
                 type="button"
+                data-tutorial="crear-curso"
                 onClick={abrirWizardCurso}
               >
                 <Plus size={14} />
@@ -2031,7 +2059,7 @@ function Docente() {
                     </p>
                     {appMode === "personal" && (
                       <div
-                        className={`course-tutor-toggle ${cursoTutorActual && !nuevoCurso.soyTutor ? "is-disabled" : ""}`}
+                         className={`course-tutor-toggle create-course-tutor-toggle ${cursoTutorActual && !nuevoCurso.soyTutor ? "is-disabled" : ""}`}
                       >
                         <button
                           type="button"
@@ -2088,7 +2116,7 @@ function Docente() {
               </div>
             )}
 
-            <div className="grid-cursos">
+            <div className="grid-cursos" data-tutorial="curso-card">
               {cursosVisibles.length === 0 ? (
                 <div className="empty-state">
                   <h3>
@@ -2187,13 +2215,15 @@ function Docente() {
               >
                 <div
                   style={{
-                    background: "rgba(255, 255, 255, 0.95)",
-                    borderRadius: "12px",
-                    padding: "1.5rem",
-                    width: "90%",
-                    maxWidth: "400px",
-                    textAlign: "left",
-                    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
+                     background: "rgba(255, 255, 255, 0.95)",
+                     borderRadius: "18px",
+                     border: "1px solid #dce5f4",
+                     padding: "0.9rem",
+                     width: "min(90vw, 420px)",
+                     maxHeight: "92vh",
+                     overflow: "auto",
+                     textAlign: "left",
+                     boxShadow: "0 22px 44px rgba(18, 31, 58, 0.26)",
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >

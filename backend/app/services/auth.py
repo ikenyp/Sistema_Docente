@@ -19,6 +19,7 @@ from app.schemas.auth import (
 )
 from app.models.usuarios import Usuario
 from app.models.password_reset_requests import PasswordResetRequest
+from app.models.contextos import Contexto
 from sqlalchemy import func, select
 from app.crud import usuarios as crud
 from app.schemas.usuarios import RolUsuarioEnum
@@ -73,7 +74,17 @@ async def registrar_docente_personal(
         rol=RolUsuarioEnum.docente.value,
         activo=True,
     )
-    return await crud.crear(db, usuario)
+    usuario_creado = await crud.crear(db, usuario)
+    db.add(
+        Contexto(
+            tipo_modo="personal",
+            nombre=f"Personal Docente {usuario_creado.id_usuario}",
+            id_owner_docente=usuario_creado.id_usuario,
+            activo=True,
+        )
+    )
+    await db.commit()
+    return usuario_creado
 
 
 async def solicitar_recuperacion_contrasena(

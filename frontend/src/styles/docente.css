@@ -141,7 +141,7 @@
 }
 
 .personal-action {
-  padding: 0.56rem 0.86rem;
+  padding: 0.78rem 0.9rem;
   font-size: 0.84rem;
   background: linear-gradient(135deg, #6b8fbd 0%, #5d7eae 52%, #4f709e 100%);
   box-shadow: 0 8px 15px rgba(74, 98, 141, 0.22);
@@ -1499,6 +1499,11 @@
   font-size: 0.86rem;
 }
 
+.create-course-tutor-toggle {
+  width: 100%;
+  margin: 0.15rem 0 0.55rem;
+}
+
 .course-tutor-toggle.is-disabled {
   color: #7a869a;
 }
@@ -1604,7 +1609,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  padding: 0.78rem 0.9rem;
+  padding: 0.56rem 0.86rem;
   border: 0;
   border-radius: 10px;
   font-weight: 700;
@@ -1625,6 +1630,28 @@
 .course-edit-modal-btn-save {
   background: linear-gradient(135deg, #6ca88f 0%, #5a917a 52%, #4e7c68 100%);
   color: #fff;
+}
+
+.wizard-actions-compact .course-edit-modal-btn {
+  padding: 0.56rem 0.86rem;
+  font-size: 0.84rem;
+  font-family: "Trebuchet MS", "Segoe UI", Tahoma, sans-serif;
+  transition: transform 0.2s, box-shadow 0.2s, filter 0.2s;
+}
+
+.wizard-actions-compact .course-edit-modal-btn-cancel {
+  background: #e8ecf5;
+  color: #223553;
+  box-shadow: 0 8px 15px rgba(111, 124, 144, 0.16);
+}
+
+.wizard-actions-compact .course-edit-modal-btn-save {
+  box-shadow: 0 8px 15px rgba(74, 127, 105, 0.2);
+}
+
+.wizard-actions-compact .course-edit-modal-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.03);
 }
 
 @media (max-width: 760px) {

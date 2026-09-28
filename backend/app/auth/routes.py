@@ -157,6 +157,38 @@ async def refresh_session(
         "role": usuario.rol.value,
     }
 
+
+@router.post("/create-personal-context")
+async def create_personal_context(
+    request: Request,
+    db: AsyncSession = Depends(get_session),
+    usuario=Depends(get_current_user),
+):
+    """Crea explícitamente el espacio personal de un usuario autenticado."""
+    existente = await db.scalar(
+        select(Contexto).where(
+            Contexto.tipo_modo == "personal",
+            Contexto.id_owner_docente == usuario.id_usuario,
+            Contexto.activo == True,
+        ).order_by(Contexto.id_contexto)
+    )
+    if existente is None:
+        existente = Contexto(
+            tipo_modo="personal",
+            nombre=f"Personal Docente {usuario.id_usuario}",
+            id_owner_docente=usuario.id_usuario,
+            activo=True,
+        )
+        db.add(existente)
+        await db.commit()
+        await db.refresh(existente)
+    return {
+        "id_contexto": existente.id_contexto,
+        "modo": "personal",
+        "nombre": existente.nombre,
+        "rol": "docente",
+    }
+
 # Ruta protegida que solo permite acceso a usuarios con rol ADMINISTRATIVO
 @router.get("/admin-only")
 async def admin_route(

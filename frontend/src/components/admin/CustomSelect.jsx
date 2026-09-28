@@ -16,6 +16,8 @@ export default function CustomSelect({
   menuMaxHeight = 260,
   searchable = false,
   searchPlaceholder = "Buscar...",
+  dataHelpTarget,
+  dataTutorial,
 }) {
   const [openState, setOpenState] = useState(false);
   const [search, setSearch] = useState("");
@@ -98,6 +100,8 @@ export default function CustomSelect({
   return (
     <div
       className={`custom-select ${className}`}
+      data-help-target={dataHelpTarget}
+      data-tutorial={dataTutorial}
       ref={ref}
       style={{
         position: "relative",

@@ -242,6 +242,19 @@
   box-shadow: 0 7px 14px rgba(111, 124, 144, 0.2);
 }
 
+.personal-context-actions {
+  display: grid;
+  gap: 0.8rem;
+  width: 100%;
+  margin-top: 1.15rem;
+  justify-items: center;
+}
+
+.personal-context-actions .login-button {
+  width: 100%;
+  margin: 0;
+}
+
 .login-button.secondary:hover:not(:disabled) {
   box-shadow: 0 10px 20px rgba(111, 124, 144, 0.28);
 }

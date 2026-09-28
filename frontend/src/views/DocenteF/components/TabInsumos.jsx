@@ -1,6 +1,7 @@
 import React from "react";
 import { BookOpen, ClipboardList, Eye, PencilLine, Plus, Trash2, UserRound } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
+import TabHelpButton from "../../../components/TabHelpButton";
 
 export const TabInsumos = ({
   activeTab,
@@ -33,7 +34,7 @@ export const TabInsumos = ({
     <div className="insumos-section">
       <div className="insumos-heading-row">
         <div>
-          <h3><ClipboardList size={18} /> Insumos</h3>
+          <h3><ClipboardList size={18} /> Insumos <TabHelpButton title="Insumos y notas" steps={[{ title: "Define el insumo", description: "Escribe el nombre, descripción y ponderación de la actividad.", target: ["insumos-nombre", "insumos-descripcion", "insumos-ponderacion"] }, { title: "Elige tipo y periodo", description: "Clasifica el insumo y asígnalo al periodo correspondiente.", target: ["insumos-tipo", "insumos-periodo"] }, { title: "Agrega el insumo", description: "Guarda la actividad para que aparezca organizada en el curso.", target: "insumos-agregar" }, { title: "Gestiona tus insumos", description: "En cada insumo puedes abrir Notas para registrar calificaciones, editar su información o eliminarlo cuando corresponda.", target: "insumos-lista" }]} /></h3>
           <p className="panel-sub">
             {soloLecturaTutor
               ? "Consulta las actividades y evaluaciones registradas en la materia"
@@ -54,8 +55,9 @@ export const TabInsumos = ({
         )}
       </div>
 
-      {!soloLecturaTutor ? <div className="agregar-insumo">
+      {!soloLecturaTutor ? <div className="agregar-insumo" data-help-target="insumos-formulario">
         <input
+          data-help-target="insumos-nombre"
           type="text"
           placeholder="Nombre del insumo"
           value={nuevoInsumo.nombre}
@@ -64,6 +66,7 @@ export const TabInsumos = ({
           }
         />
         <input
+          data-help-target="insumos-descripcion"
           type="text"
           placeholder="Descripción"
           value={nuevoInsumo.descripcion}
@@ -72,6 +75,7 @@ export const TabInsumos = ({
           }
         />
         <input
+          data-help-target="insumos-ponderacion"
           type="number"
           placeholder="Ponderación (0-10)"
           min="0"
@@ -83,6 +87,7 @@ export const TabInsumos = ({
           }
         />
         <CustomSelect
+          dataHelpTarget="insumos-tipo"
           value={nuevoInsumo.tipo_insumo}
           onChange={(value) =>
             setNuevoInsumo({ ...nuevoInsumo, tipo_insumo: value })
@@ -96,6 +101,7 @@ export const TabInsumos = ({
           className="custom-select-white"
         />
         <CustomSelect
+          dataHelpTarget="insumos-periodo"
           value={nuevoInsumo.id_periodo}
           onChange={(value) =>
             setNuevoInsumo({ ...nuevoInsumo, id_periodo: value })
@@ -105,6 +111,7 @@ export const TabInsumos = ({
           className="custom-select-white"
         />
         <button
+          data-help-target="insumos-agregar"
           onClick={agregarInsumo}
           disabled={cargandoInsumo || soloLecturaTutor}
           className="btn-add-insumo"
@@ -239,7 +246,7 @@ export const TabInsumos = ({
             });
 
           return (
-            <div key={periodo.id_periodo} className="periodo-section">
+            <div key={periodo.id_periodo} className="periodo-section" data-help-target="insumos-lista">
               <h4 className="periodo-title">
                 {periodo.nombre_periodo ||
                    `Periodo ${periodo.numero_periodo}`}

@@ -1,0 +1,118 @@
+.tab-help {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.tab-help-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #cbd8ec;
+  border-radius: 999px;
+  color: #5275a8;
+  background: rgba(255, 255, 255, 0.76);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, transform 0.18s;
+}
+
+.tab-help-trigger:hover,
+.tab-help-trigger[aria-expanded="true"] {
+  color: #fff;
+  background: linear-gradient(110deg, #5875ab, #8a78b2);
+  transform: translateY(-1px);
+}
+
+.tab-help-popover {
+  position: absolute;
+  top: calc(100% + 0.55rem);
+  left: 0;
+  right: auto;
+  z-index: 140;
+  width: min(300px, 76vw);
+  padding: 0.9rem 1rem;
+  border: 1px solid #dce5f4;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 16px 34px rgba(38, 57, 94, 0.2);
+  color: #526888;
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+
+.tab-help-popover-contextual {
+  position: fixed !important;
+  left: auto;
+  right: auto;
+  z-index: 300 !important;
+}
+
+.tab-help-active-target {
+  position: relative !important;
+  z-index: 91 !important;
+  outline: 3px solid rgba(117, 163, 231, 0.9) !important;
+  outline-offset: 3px;
+  border-radius: 9px;
+}
+
+.tab-help-focus-box {
+  position: fixed;
+  z-index: 91;
+  border: 3px solid rgba(117, 163, 231, 0.9);
+  border-radius: 13px;
+  pointer-events: none;
+}
+
+.tab-help-group-target {
+  outline: none !important;
+}
+
+.tab-help-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: #243b63;
+}
+
+.tab-help-popover p { margin: 0.55rem 0 0; }
+.tab-help-popover ul { margin: 0.55rem 0 0; padding-left: 1.1rem; }
+.tab-help-popover li + li { margin-top: 0.25rem; }
+
+.tab-help-close {
+  display: inline-flex;
+  border: 0;
+  border-radius: 7px;
+  padding: 0.25rem;
+  color: #6a7d9d;
+  background: #f0f4fa;
+  cursor: pointer;
+}
+
+.tab-help-progress {
+  margin-top: 0.7rem;
+  color: #7a8dab;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.tab-help-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  margin-top: 0.65rem;
+}
+
+.tab-help-actions button {
+  border: 0;
+  border-radius: 8px;
+  padding: 0.4rem 0.65rem;
+  color: #fff;
+  background: linear-gradient(110deg, #5875ab, #8a78b2);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+}

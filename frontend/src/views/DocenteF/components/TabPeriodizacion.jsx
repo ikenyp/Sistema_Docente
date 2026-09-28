@@ -1,5 +1,6 @@
 import React from "react";
 import { CalendarDays, Info } from "lucide-react";
+import TabHelpButton from "../../../components/TabHelpButton";
 
 export const TabPeriodizacion = ({
   activeTab,
@@ -13,7 +14,7 @@ export const TabPeriodizacion = ({
     <div className="panel-card tab-pane active">
       <div className="panel-header">
         <div>
-          <h3><CalendarDays size={18} /> Periodizacion</h3>
+          <h3><CalendarDays size={18} /> Periodizacion <TabHelpButton title="Periodización" description="Consulta los periodos configurados para el año lectivo y verifica cuáles están disponibles para trabajar." /></h3>
           <p className="panel-sub">
             Consulta los periodos configurados para este año lectivo
           </p>

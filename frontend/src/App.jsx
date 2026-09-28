@@ -16,6 +16,7 @@ import CursoPrincipal from "./views/DocenteF/cursoPrincipal";
 
 import NotificationCenter from "./components/NotificationCenter";
 import SessionModal from "./components/SessionModal";
+import AppTutorial from "./components/AppTutorial";
 import "./styles/shared-ui.css";
 import {
   clearSessionStorage,
@@ -73,6 +74,7 @@ function AppShell({ sessionState, handleStay, handleLogout, clearSessionState })
   return (
     <>
       <NotificationCenter />
+      {location.pathname !== "/" && <AppTutorial />}
       {location.pathname !== "/" && (
         <SessionModal
           state={sessionState}

@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.estudiantes import Estudiante
 from app.schemas.estudiantes import EstadoEstudiante  
@@ -52,6 +52,7 @@ async def listar_estudiantes(
     estado: EstadoEstudiante | None = None, 
     nombre: str | None = None, 
     apellido: str | None = None, 
+    busqueda: str | None = None,
     id_curso_actual: int | None = None, 
     page: int = 1, 
     size: int = 10
@@ -64,6 +65,9 @@ async def listar_estudiantes(
     
     if estado:
         query = query.where(Estudiante.estado == estado)
+    if busqueda:
+        termino = f"%{busqueda}%"
+        query = query.where(or_(Estudiante.nombre.ilike(termino), Estudiante.apellido.ilike(termino)))
     if nombre:
         query = query.where(Estudiante.nombre.ilike(f"%{nombre}%"))
     if apellido:

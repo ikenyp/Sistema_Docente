@@ -4,6 +4,10 @@ import { ADMIN_NAV, PERSONAL_DOCENTE_NAV } from "./adminNav";
 import { clearSessionStorage } from "../../services/session";
 import { normalizarAnioLectivo } from "../../utils/anioLectivo";
 import { nombrePersona } from "../../utils/personas";
+import { abrirTutorial } from "../AppTutorial";
+import { API_ROOT_URL } from "../../services/apiConfig";
+import { requestHttp } from "../../services/http";
+import { getAdminRecentCoursesKey } from "../../utils/adminRecentCourses";
 import "../../styles/admin.css";
 
 function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, headerActions }) {
@@ -19,6 +23,43 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
     navItems || (appMode === "personal" ? PERSONAL_DOCENTE_NAV : ADMIN_NAV);
   const resolvedUserLabel =
     defaultUserLabel || (appMode === "personal" ? "Docente" : "Administrador");
+  const [contextoNombre, setContextoNombre] = useState(
+    localStorage.getItem("contexto_nombre") || "Institución activa",
+  );
+
+  useEffect(() => {
+    const cerrarMenuFuera = (event) => {
+      if (!event.target.closest(".navbar-user, .menu-usuario")) {
+        setMenuUsuario(false);
+      }
+    };
+    document.addEventListener("pointerdown", cerrarMenuFuera);
+    return () => document.removeEventListener("pointerdown", cerrarMenuFuera);
+  }, []);
+
+  useEffect(() => {
+    const cargarNombreContexto = async () => {
+      const token = localStorage.getItem("token");
+      const contextoId = localStorage.getItem("contexto_activo");
+      if (!token || !contextoId) return;
+      try {
+        const contextos = await requestHttp(`${API_ROOT_URL}/auth/contextos`, "GET", null, {
+          Authorization: `Bearer ${token}`,
+          "X-App-Mode": "institucional",
+        });
+        const contexto = (contextos || []).find(
+          (item) => String(item.id_contexto) === String(contextoId),
+        );
+        if (contexto?.nombre) {
+          setContextoNombre(contexto.nombre);
+          localStorage.setItem("contexto_nombre", contexto.nombre);
+        }
+      } catch {
+        // El nombre guardado localmente se mantiene como respaldo visual.
+      }
+    };
+    cargarNombreContexto();
+  }, []);
 
   const anioLectivoActivo = normalizarAnioLectivo(
     localStorage.getItem(`anio_lectivo_activo:institucional:${localStorage.getItem("contexto_activo") || "sin-contexto"}`) || "",
@@ -27,9 +68,8 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
 
   const cursosRecientes = (() => {
     if (appMode !== "institucional") return [];
-    if (localStorage.getItem("admin_recent_courses_context") !== contextoActivo) return [];
     try {
-      const raw = JSON.parse(localStorage.getItem("admin_recent_courses") || "[]");
+      const raw = JSON.parse(localStorage.getItem(getAdminRecentCoursesKey()) || "[]");
       return (Array.isArray(raw) ? raw : [])
         .filter((item) => item && item.id_curso)
         .filter((item) => !anioLectivoActivo || normalizarAnioLectivo(item.anio_lectivo) === anioLectivoActivo)
@@ -66,7 +106,11 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
         >
           ☰
         </button>
-        <h1 className="titulo-admin">📚 Sistema Docente</h1>
+        <h1 className="titulo-admin navbar-title-left">Panel administrativo</h1>
+        <div className="navbar-context" title={contextoNombre}>
+          <small>Institución activa</small>
+          <strong>{contextoNombre}</strong>
+        </div>
         <div
           className="navbar-user"
           onClick={() => setMenuUsuario(!menuUsuario)}
@@ -74,12 +118,17 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
           tabIndex={0}
           onKeyDown={(e) => e.key === "Enter" && setMenuUsuario(!menuUsuario)}
         >
-          {datosUsuario
-            ? nombrePersona(datosUsuario)
-            : resolvedUserLabel}
+          <span className="navbar-user-meta">
+            <strong>{datosUsuario ? nombrePersona(datosUsuario) : resolvedUserLabel}</strong>
+            <small>Administrador</small>
+          </span>
+          <span className="navbar-user-chevron" aria-hidden="true" />
         </div>
         {menuUsuario && (
           <div className="menu-usuario">
+            <button type="button" onClick={() => { setMenuUsuario(false); abrirTutorial(); }}>
+              Ver tutorial
+            </button>
             <button type="button" onClick={cerrarSesion}>
               Cerrar sesión
             </button>
@@ -88,7 +137,7 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
       </header>
 
       <div className={`admin-shell${sidebarOpen ? " sidebar-open" : ""}`}>
-        <aside className="admin-sidebar" aria-label="Navegación administrativa">
+        <aside className="admin-sidebar" data-tutorial="admin-sidebar" aria-label="Navegación administrativa">
           <nav className="admin-sidebar-nav">
             {resolvedNav.map((item, idx) =>
               item.kind === "heading" ? (
@@ -98,6 +147,7 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
               ) : (
                 <NavLink
                   key={item.to}
+                  data-tutorial={item.label === "Cursos" ? "admin-cursos-nav" : undefined}
                   to={item.to}
                   end={item.end}
                   className={({ isActive }) =>

@@ -1,6 +1,7 @@
 import React from "react";
 import { CalendarCheck, Save } from "lucide-react";
 import { nombrePersona } from "../../../utils/personas";
+import TabHelpButton from "../../../components/TabHelpButton";
 
 const ESTADOS = [
   { value: "presente", label: "Presente" },
@@ -30,11 +31,12 @@ export const TabAsistencia = ({
     <div className="panel-card tab-pane active">
       <div className="panel-header">
         <div>
-          <h3><CalendarCheck size={18} /> Asistencia</h3>
+          <h3><CalendarCheck size={18} /> Asistencia <TabHelpButton title="Asistencia" steps={[{ title: "Selecciona una fecha", description: "Elige el día que deseas registrar o consultar.", target: "asistencia-fecha" }, { title: "Marca el estado", description: "En el listado se indica si el estudiante estuvo presente, ausente o justificado.", target: "asistencia-tabla" }, { title: "Guarda los cambios", description: "Confirma el registro de asistencia del día.", target: "asistencia-guardar" }]} /></h3>
           <p className="panel-sub">{soloLecturaTutor ? "Consulta la asistencia registrada del curso en esta materia" : "Selecciona una fecha y registra la asistencia del curso en esta materia"}</p>
           <div className="header-inline-control attendance-date-control">
             <label className="control-label">Fecha:</label>
-            <input
+              <input
+                data-help-target="asistencia-fecha"
               type="date"
               value={fechaAsistencia}
               onChange={(e) => setFechaAsistencia(e.target.value)}
@@ -43,7 +45,7 @@ export const TabAsistencia = ({
         </div>
       </div>
 
-      <div className="table-container">
+          <div className="table-container" data-help-target="asistencia-tabla">
         <table className="attendance-table">
           <colgroup>
             <col className="attendance-col-student" />
@@ -107,7 +109,7 @@ export const TabAsistencia = ({
       </div>
 
       <div className="tab-footer-actions attendance-footer-actions">
-        <button className="btn-primary attendance-save-btn" type="button" onClick={onGuardarTodo} disabled={soloLecturaTutor || guardandoAsistencia}>
+          <button data-help-target="asistencia-guardar" className="btn-primary attendance-save-btn" type="button" onClick={onGuardarTodo} disabled={soloLecturaTutor || guardandoAsistencia}>
           <Save size={16} />
           <span>{soloLecturaTutor ? "Solo lectura" : guardandoAsistencia ? "Guardando..." : "Guardar asistencia"}</span>
         </button>

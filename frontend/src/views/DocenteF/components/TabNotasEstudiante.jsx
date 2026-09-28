@@ -3,6 +3,7 @@ import { ArrowLeftRight, BookOpen } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
 import { calcularPromedioInteractivo } from "../../../utils/promedios";
 import { nombrePersona } from "../../../utils/personas";
+import TabHelpButton from "../../../components/TabHelpButton";
 
 const formatAverage = (value) => {
   if (value === null || value === undefined) return "-";
@@ -145,7 +146,7 @@ export const TabNotasEstudiante = ({
     <div className="panel-card tab-pane active">
       <div className="panel-header">
         <div>
-          <h3><BookOpen size={18} /> Notas por estudiante</h3>
+          <h3><BookOpen size={18} /> Notas por estudiante <TabHelpButton title="Notas por estudiante" steps={estudianteSeleccionado ? [{ title: "Consulta sus notas", description: "Revisa las notas y el promedio general del estudiante seleccionado.", target: "notas-detalle-estudiante" }, { title: "Filtra por periodo", description: "Usa este selector para ver todos los periodos o concentrarte en uno específico.", target: "notas-filtro-periodo" }] : [{ title: "Busca un estudiante", description: "Usa el buscador para escribir su nombre o apellido y filtrar rápidamente el listado.", target: "notas-busqueda" }, { title: "Selecciona del listado", description: "Puedes seleccionar un estudiante entre los resultados filtrados o elegirlo directamente del listado completo.", target: "notas-listado-estudiantes" }]} /></h3>
           <p className="panel-sub">Revisa las notas y el promedio general o por periodos</p>
         </div>
         {mostrarPromedioGeneral && (
@@ -167,6 +168,7 @@ export const TabNotasEstudiante = ({
         <div className="form-grid">
           <div className="estudiante-search-wrap">
             <input
+              data-help-target="notas-busqueda"
               type="text"
               className="estudiante-search-input"
               value={busquedaEstudiante}
@@ -174,7 +176,7 @@ export const TabNotasEstudiante = ({
               placeholder="Buscar estudiante..."
             />
 
-            <div className="estudiante-pill-row">
+            <div className="estudiante-pill-row" data-help-target="notas-listado-estudiantes">
               {estudiantesFiltrados.map((est) => (
                 <button
                   key={est.id_estudiante}
@@ -220,6 +222,7 @@ export const TabNotasEstudiante = ({
               <strong>Ver:</strong>
             </span>
             <CustomSelect
+              dataHelpTarget="notas-filtro-periodo"
               value={periodoFiltrado}
               onChange={setPeriodoFiltrado}
               options={[
@@ -239,7 +242,7 @@ export const TabNotasEstudiante = ({
       {cargandoNotasIndividual && <p>Cargando notas...</p>}
 
       {!cargandoNotasIndividual && estudianteSeleccionado && (
-        <div className="notas-estudiante-wrap">
+        <div className="notas-estudiante-wrap" data-help-target="notas-detalle-estudiante">
           {periodosFiltrados.map((periodo) => (
             <section key={periodo.id_periodo} className="periodo-notas-block">
               {periodoFiltrado === "todos" && (

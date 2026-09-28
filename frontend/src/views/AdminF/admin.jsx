@@ -21,6 +21,7 @@ import {
   listarTodasLasPaginas,
   getAnioLectivoStorageKey,
 } from "../../services/api";
+import { getAdminRecentCoursesKey } from "../../utils/adminRecentCourses";
 
 function Admin() {
   // Dashboard administrativo: carga datos independientes y muestra un resumen
@@ -42,8 +43,7 @@ function Admin() {
 
   const cursosRecientes = useMemo(() => {
     try {
-      if (localStorage.getItem("admin_recent_courses_context") !== localStorage.getItem("contexto_activo")) return [];
-      const raw = JSON.parse(localStorage.getItem("admin_recent_courses") || "[]");
+      const raw = JSON.parse(localStorage.getItem(getAdminRecentCoursesKey()) || "[]");
       const lista = Array.isArray(raw) ? raw : [];
       const ids = new Set();
       return lista
@@ -139,13 +139,13 @@ function Admin() {
     if (!cursos.length) return;
     const idsValidos = new Set(cursos.map((curso) => Number(curso.id_curso)));
     try {
-      const recientes = JSON.parse(localStorage.getItem("admin_recent_courses") || "[]");
+      const recientes = JSON.parse(localStorage.getItem(getAdminRecentCoursesKey()) || "[]");
       const depurados = (Array.isArray(recientes) ? recientes : []).filter((item) =>
         idsValidos.has(Number(item?.id_curso)),
       );
-      localStorage.setItem("admin_recent_courses", JSON.stringify(depurados));
+      localStorage.setItem(getAdminRecentCoursesKey(), JSON.stringify(depurados));
     } catch {
-      localStorage.removeItem("admin_recent_courses");
+      localStorage.removeItem(getAdminRecentCoursesKey());
     }
   }, [cursos]);
 
@@ -349,7 +349,7 @@ function Admin() {
       title="Panel del administrador"
       subtitle="Organice la estructura académica, prepare cursos y revise pendientes del periodo."
       headerActions={
-        <button type="button" className="btn-add-docente btn-inline-icon btn-add-year-wrap" onClick={abrirNuevoAnio}>
+        <button data-tutorial="admin-crear-anio" type="button" className="btn-add-docente btn-inline-icon btn-add-year-wrap" onClick={abrirNuevoAnio}>
           <Plus size={16} />
           <span>Nuevo año<br />lectivo</span>
         </button>
@@ -361,6 +361,7 @@ function Admin() {
             Año lectivo de trabajo
           </label>
           <CustomSelect
+            dataTutorial="admin-selector-anio"
             value={anioActivo}
             onChange={setAnioActivo}
             options={anios.map((a) => ({ value: a, label: a }))}
@@ -369,18 +370,18 @@ function Admin() {
           />
         </div>
         <div className="admin-year-actions">
-          <button type="button" className="btn-view btn-inline-icon admin-year-action-btn" onClick={() => setModalPeriodizacionOpen(true)}>
+          <button data-tutorial="admin-periodizacion" type="button" className="btn-view btn-inline-icon admin-year-action-btn" onClick={() => setModalPeriodizacionOpen(true)}>
             <CalendarClock size={18} />
             <span>Periodización</span>
           </button>
-          <button type="button" className="btn-view btn-inline-icon admin-year-action-btn" onClick={configurarAnio}>
+          <button data-tutorial="admin-configuracion-anio" type="button" className="btn-view btn-inline-icon admin-year-action-btn" onClick={configurarAnio}>
             <Settings2 size={18} />
             <span>Configuración</span>
           </button>
         </div>
       </div>
 
-      <div className="cards-grid dashboard-summary-grid admin-metrics-grid">
+      <div className="cards-grid dashboard-summary-grid admin-metrics-grid" data-tutorial="admin-indicadores">
         <div className="stat-card accent">
           <p className="stat-label">Usuarios</p>
           <h3 className="stat-value">{resumen.totalUsuarios}</h3>
@@ -551,7 +552,7 @@ function Admin() {
           <h3>Administración del sistema</h3>
           <p>Acciones clave para preparar y mantener el sistema.</p>
         </div>
-        <div className="dashboard-grid admin-action-grid admin-action-grid-4">
+        <div className="dashboard-grid admin-action-grid admin-action-grid-4" data-tutorial="admin-acciones">
           {pasosInicioAnio.map((p) => (
             <button
               key={p.to}
@@ -568,7 +569,7 @@ function Admin() {
 
       <div className="panel-divider" />
 
-      <div className="section-block admin-recent-section">
+      <div className="section-block admin-recent-section" data-tutorial="admin-cursos-recientes">
         <div className="section-block-head">
           <h3>Cursos recientes</h3>
           <p>Últimos 5 cursos abiertos desde el panel de admin.</p>

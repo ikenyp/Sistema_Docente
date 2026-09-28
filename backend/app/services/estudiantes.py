@@ -105,6 +105,7 @@ async def listar_estudiantes(
     estado: EstadoEstudiante | None,
     nombre: str | None,
     apellido: str | None,
+    busqueda: str | None,
     id_curso_actual: int | None,
     page: int,
     size: int
@@ -118,6 +119,7 @@ async def listar_estudiantes(
         estado=estado, 
         nombre=nombre, 
         apellido=apellido, 
+        busqueda=busqueda,
         id_curso_actual=id_curso_actual, 
         page=page, 
         size=size

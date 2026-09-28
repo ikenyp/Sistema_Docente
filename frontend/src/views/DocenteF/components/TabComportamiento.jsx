@@ -2,6 +2,7 @@ import React from "react";
 import { nombrePersona } from "../../../utils/personas";
 import { Compass, Save } from "lucide-react";
 import CustomSelect from "../../../components/admin/CustomSelect";
+import TabHelpButton from "../../../components/TabHelpButton";
 
 const VALORES = ["A", "B", "C", "D"];
 export const TabComportamiento = ({
@@ -34,10 +35,10 @@ export const TabComportamiento = ({
     <div className="panel-card tab-pane active">
       <div className="panel-header">
         <div>
-          <h3><Compass size={18} /> Comportamiento</h3>
+          <h3><Compass size={18} /> Comportamiento <TabHelpButton title="Comportamiento" steps={[{ title: "Selecciona el periodo", description: "Elige el periodo que deseas valorar.", target: "comportamiento-periodo" }, { title: "Registra las valoraciones", description: "En el listado puedes asignar una valoración y añadir observaciones. Puedes guardar el registro de cada estudiante por separado o guardar todo el curso al finalizar.", target: "comportamiento-tabla" }, { title: "Guarda el comportamiento", description: "Usa esta acción para guardar de forma general las valoraciones del curso.", target: "comportamiento-guardar" }]} /></h3>
           <p className="panel-sub">{soloLecturaTutor ? "Consulta las valoraciones de comportamiento del curso en esta materia" : "Selecciona un periodo y registra valoraciones del curso en esta materia"}</p>
         </div>
-        <div className="periodo-selector-comportamiento">
+        <div className="periodo-selector-comportamiento" data-help-target="comportamiento-periodo">
           <label className="control-label">Periodo:</label>
           <CustomSelect
             value={mesComportamiento}
@@ -49,7 +50,7 @@ export const TabComportamiento = ({
         </div>
       </div>
 
-      <div className="table-container">
+      <div className="table-container" data-help-target="comportamiento-tabla">
         <table className="behavior-table">
           <colgroup>
             <col className="behavior-col-student" />
@@ -142,7 +143,7 @@ export const TabComportamiento = ({
       </div>
 
       <div className="tab-footer-actions">
-        <button className="btn-primary btn-save-inline behavior-save-btn" type="button" onClick={onGuardarTodo} disabled={soloLecturaTutor || guardandoComportamiento}>
+        <button data-help-target="comportamiento-guardar" className="btn-primary btn-save-inline behavior-save-btn" type="button" onClick={onGuardarTodo} disabled={soloLecturaTutor || guardandoComportamiento}>
           <Save size={16} />
           <span>{soloLecturaTutor ? "Solo lectura" : guardandoComportamiento ? "Guardando..." : "Guardar comportamiento"}</span>
         </button>
