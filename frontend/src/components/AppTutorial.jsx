@@ -8,6 +8,7 @@ const TUTORIAL_YEAR_CREATED = "sistema-docente:tutorial-year-created";
 const TUTORIAL_PERIODIZATION_SAVED = "sistema-docente:tutorial-periodization-saved";
 const TUTORIAL_COURSE_CREATED = "sistema-docente:tutorial-course-created";
 const TUTORIAL_COURSE_TAB = "sistema-docente:tutorial-course-tab";
+const TUTORIAL_COURSE_READY = "sistema-docente:tutorial-course-ready";
 
 const PERSONAL_DOCENTE_STEPS = [
   {
@@ -184,16 +185,24 @@ function AppTutorial() {
 
   useEffect(() => {
     const abrir = () => { setStep(0); setVisible(true); };
+    const abrirCursoListo = () => {
+      if (window.location.pathname.startsWith("/curso/") && !localStorage.getItem(getTutorialKey(role, mode, "curso"))) {
+        setStep(0);
+        setVisible(true);
+      }
+    };
     const avanzar = () => {
       setVisible(true);
       setStep((current) => Math.min(current + 1, steps.length - 1));
     };
     window.addEventListener(TUTORIAL_EVENT, abrir);
+    window.addEventListener(TUTORIAL_COURSE_READY, abrirCursoListo);
     window.addEventListener(TUTORIAL_YEAR_CREATED, avanzar);
     window.addEventListener(TUTORIAL_PERIODIZATION_SAVED, avanzar);
     window.addEventListener(TUTORIAL_COURSE_CREATED, avanzar);
     return () => {
       window.removeEventListener(TUTORIAL_EVENT, abrir);
+      window.removeEventListener(TUTORIAL_COURSE_READY, abrirCursoListo);
       window.removeEventListener(TUTORIAL_YEAR_CREATED, avanzar);
       window.removeEventListener(TUTORIAL_PERIODIZATION_SAVED, avanzar);
       window.removeEventListener(TUTORIAL_COURSE_CREATED, avanzar);
@@ -202,6 +211,7 @@ function AppTutorial() {
 
   useEffect(() => {
     if (pathname === "/" || !localStorage.getItem("token")) return;
+    if (esCurso) return;
     // El tutorial del curso es independiente y debe aparecer al entrar,
     // incluso si el usuario ya tiene configurado su panel.
     if (!esCurso && tieneConfiguracionExistente(role, mode)) return;

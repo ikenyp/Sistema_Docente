@@ -623,6 +623,12 @@ function CursoPrincipal() {
         (item) => Number(item.id_docente) === Number(usuario.id_usuario),
       );
 
+      if (asignacionesGestionables.length > 0) {
+        window.dispatchEvent(new CustomEvent("sistema-docente:tutorial-course-ready", {
+          detail: { idCurso: id_curso },
+        }));
+      }
+
       setMateriasGestionablesDocente(
         asignacionesGestionables
           .map((item) => item.id_cmd || item.cmd?.id_cmd || item.id_materia || item.materia?.id_materia)
