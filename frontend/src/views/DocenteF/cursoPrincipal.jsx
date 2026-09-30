@@ -1249,7 +1249,12 @@ function CursoPrincipal() {
         </div>
 
         <h2 className="navbar-title navbar-title-curso">
-          Panel de Gestión Docente
+          {!esModoPersonal && (
+            <small className="navbar-institution-context">
+              {localStorage.getItem("contexto_nombre") || "Institución activa"}
+            </small>
+          )}
+          <span>Panel de Gestión Docente</span>
         </h2>
 
         <button type="button" className="navbar-help-trigger" aria-label="Abrir tutorial" data-tooltip="Tutorial" onClick={() => { setMenuUsuario(false); abrirTutorial(); }}>
@@ -1432,7 +1437,7 @@ function CursoPrincipal() {
               <div className="panel-card tab-pane active estudiantes-tab-panel">
                 <div className="panel-header estudiantes-tab-header">
                   <div>
-                    <h3><Users size={18} /> Estudiantes <TabHelpButton title="Estudiantes" steps={[{ title: "Busca estudiantes", description: "Escribe un nombre, apellido o cédula para encontrar rápidamente un registro.", target: "estudiantes-busqueda" }, { title: "Filtra por estado", description: "Usa este selector para mostrar estudiantes matriculados, retirados o graduados.", target: "estudiantes-filtro" }, { title: "Importa o añade", description: "Importa una lista desde Excel o registra un estudiante individual.", target: "estudiantes-acciones" }, { title: "Edita o retira", description: "En cada fila puedes editar la información o retirar al estudiante del curso.", target: "estudiantes-tabla" }]} /></h3>
+                    <h3><Users size={18} /> Estudiantes <TabHelpButton title="Estudiantes" steps={[{ title: "Importa o añade estudiantes", description: "Importa una lista desde Excel o registra un estudiante individual.", target: "estudiantes-acciones" }, { title: "Busca estudiantes", description: "Escribe un nombre, apellido o cédula para encontrar rápidamente un registro.", target: "estudiantes-busqueda" }, { title: "Filtra por estado", description: "Usa este selector para mostrar estudiantes matriculados, retirados o graduados.", target: "estudiantes-filtro" }, { title: "Edita o retira", description: "En cada fila puedes editar la información o retirar al estudiante del curso.", target: "estudiantes-tabla" }]} /></h3>
                     <p className="panel-sub">Gestiona los estudiantes del curso. Puedes buscar, filtrar y retirar.</p>
                   </div>
                   <div data-help-target="estudiantes-acciones" style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>

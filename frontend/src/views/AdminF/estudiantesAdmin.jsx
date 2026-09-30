@@ -258,11 +258,12 @@ function EstudiantesAdmin() {
 
   return (
     <AdminLayout
-      title=""
-      subtitle=""
+      title={<span className="admin-title-with-help">Estudiantes <TabHelpButton title="Estudiantes" description="Busca, filtra, importa, añade, edita y retira estudiantes del año lectivo activo." /></span>}
+      subtitle="Registra, busca, filtra y gestiona estudiantes del año lectivo activo."
     >
+      <div className="table-container admin-students-view">
       <div className="docentes-header">
-        <h2 className="section-title">Directorio de estudiantes <TabHelpButton title="Estudiantes" description="Busca, filtra, importa, añade, edita y retira estudiantes del año lectivo activo." /></h2>
+        <h2 className="section-title">Directorio</h2>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <button className="btn-view btn-inline-icon" onClick={() => setModalImportOpen(true)} type="button">
             <Upload size={16} />
@@ -273,10 +274,6 @@ function EstudiantesAdmin() {
             <span>Añadir<br />Estudiante</span>
           </button>
         </div>
-      </div>
-
-      <div className="panel-sub" style={{ marginBottom: 12 }}>
-        Registre, busque, filtre y gestione estudiantes
       </div>
 
       {anioActivo && (
@@ -345,7 +342,7 @@ function EstudiantesAdmin() {
         </button>
       </div>
 
-      <div className="table-container">
+      <div className="admin-students-table-wrap">
         {cargando ? (
           <p>Cargando...</p>
         ) : error ? (
@@ -424,6 +421,7 @@ function EstudiantesAdmin() {
         >
           Siguiente
         </button>
+      </div>
       </div>
 
       {modalOpen && (

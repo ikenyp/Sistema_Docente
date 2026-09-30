@@ -289,47 +289,38 @@ function Docente() {
       );
     }
 
-    const numeroCurso = (nombre = "") => {
-      const texto = String(nombre).toLowerCase();
-      const numero = parseInt(texto.match(/\d+/)?.[0] || "0", 10);
-      return Number.isNaN(numero) ? 0 : numero;
-    };
-
     const gradoCurso = (nombre = "") => {
-      const texto = String(nombre).toLowerCase();
-      if (texto.includes("8")) return 8;
-      if (texto.includes("9")) return 9;
-      if (texto.includes("10")) return 10;
-      if (
-        texto.includes("1ro") ||
-        texto.includes("1er") ||
-        texto.includes("primero")
-      )
-        return 11;
-      if (texto.includes("2do") || texto.includes("segundo")) return 12;
-      if (texto.includes("3ro") || texto.includes("tercero")) return 13;
+      const texto = String(nombre).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      if (/\b(?:10(?:mo|imo|º|°)?|decimo)\b/.test(texto)) return 10;
+      if (/\b(?:8(?:vo|avo|º|°)?|octavo|octava)\b/.test(texto)) return 8;
+      if (/\b(?:9(?:no|eno|º|°)?|noveno|novena)\b/.test(texto)) return 9;
+      if (/\b(?:1(?:ro|er|ero|º|°)?|primero|primer)\b/.test(texto)) return 11;
+      if (/\b(?:2(?:do|º|°)?|segundo|segunda)\b/.test(texto)) return 12;
+      if (/\b(?:3(?:ro|ero|º|°)?|tercero|tercera)\b/.test(texto)) return 13;
       return 99;
     };
+    const normalizarNombreCurso = (nombre = "") => String(nombre)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/\boctav[oa]\b|\b8(?:vo|avo|º|°)\b/g, "8")
+      .replace(/\bnov(en[oa])\b|\b9(?:no|eno|º|°)\b/g, "9")
+      .replace(/\bdecimo\b|\b10(?:mo|imo|º|°)\b/g, "10")
+      .replace(/\bprimer[oa]?\b|\b1(?:ro|er|ero|º|°)\b/g, "1")
+      .replace(/\bsegund[oa]\b|\b2do\b/g, "2")
+      .replace(/\btercer[oa]\b|\b3(?:ro|ero|º|°)\b/g, "3");
+    const comparadorNombreNatural = new Intl.Collator("es", { numeric: true, sensitivity: "base" });
 
     const comparador =
       {
         "colegio-asc": (a, b) =>
           gradoCurso(a.nombre) - gradoCurso(b.nombre) ||
-          numeroCurso(a.nombre) - numeroCurso(b.nombre) ||
-          a.nombre.localeCompare(b.nombre),
+          comparadorNombreNatural.compare(normalizarNombreCurso(a.nombre), normalizarNombreCurso(b.nombre)),
         "colegio-desc": (a, b) =>
           gradoCurso(b.nombre) - gradoCurso(a.nombre) ||
-          numeroCurso(b.nombre) - numeroCurso(a.nombre) ||
-          b.nombre.localeCompare(a.nombre),
-        reciente: (a, b) =>
-          String(b.anio_lectivo || "").localeCompare(
-            String(a.anio_lectivo || ""),
-          ) || a.nombre.localeCompare(b.nombre),
-        antiguo: (a, b) =>
-          String(a.anio_lectivo || "").localeCompare(
-            String(b.anio_lectivo || ""),
-          ) || a.nombre.localeCompare(b.nombre),
-        alfabetico: (a, b) => a.nombre.localeCompare(b.nombre),
+          comparadorNombreNatural.compare(normalizarNombreCurso(b.nombre), normalizarNombreCurso(a.nombre)),
+        reciente: (a, b) => Number(b.id_curso) - Number(a.id_curso),
+        antiguo: (a, b) => Number(a.id_curso) - Number(b.id_curso),
       }[ordenCursos] || ((a, b) => a.nombre.localeCompare(b.nombre));
 
     return lista.sort(comparador);
@@ -340,10 +331,22 @@ function Docente() {
     (total, curso) => total + (estudiantesPorCurso[curso.id_curso] || 0),
     0,
   );
-  const idsCursosVisibles = new Set(cursosVisibles.map((curso) => curso.id_curso));
-  const asignacionesVisiblesCount = asignacionesPersonales.filter(
-    (asignacion) => idsCursosVisibles.has(asignacion.id_curso),
-  ).length;
+  const idsCursosVisibles = new Set(cursosVisibles.map((curso) => String(curso.id_curso)));
+  const materiasVisibles = new Set();
+  asignacionesPersonales.forEach((asignacion) => {
+    const idCurso = asignacion.id_curso || asignacion.curso?.id_curso;
+    if (!idsCursosVisibles.has(String(idCurso))) return;
+
+    const idMateria = asignacion.id_materia || asignacion.materia?.id_materia;
+    const nombreMateria = asignacion.materia?.nombre || asignacion.nombre_materia;
+    const claveMateria = idMateria != null
+      ? `id:${idMateria}`
+      : nombreMateria?.trim()
+        ? `nombre:${nombreMateria.trim().toLocaleLowerCase("es")}`
+        : null;
+    if (claveMateria) materiasVisibles.add(claveMateria);
+  });
+  const asignacionesVisiblesCount = materiasVisibles.size;
   useEffect(() => {
     if (!cursosVisibles.length) {
       setEstudiantesPorCurso({});
@@ -1274,7 +1277,7 @@ function Docente() {
       </div>
 
       {/* ====================== CONTENIDO ====================== */}
-      <div className="docente-container">
+      <div className={`docente-container${appMode === "personal" ? "" : " docente-container-institutional"}`}>
         {appMode === "personal" && (
           <div className="personal-year-context">
             <div className="personal-year-context-head">
@@ -1400,7 +1403,7 @@ function Docente() {
                 inputMode="numeric"
                 pattern="[0-9]{4}-[0-9]{4}"
                 maxLength={9}
-                placeholder="2027-2028"
+                placeholder="2026-2027"
                 value={anioNuevoPersonal}
                 onChange={(e) => {
                   const numeros = e.target.value.replace(/\D/g, "").slice(0, 8);
@@ -1688,13 +1691,9 @@ function Docente() {
         )}
 
         {appMode !== "personal" && (
-          <div className="docente-section-hero docente-section-hero-institutional">
-            <div>
-              <h3 className="docente-section-hero-title">Mis Cursos</h3>
-              <p className="docente-section-hero-subtitle">
-                Revisa los cursos, entra a cada uno y gestiona tu trabajo diario.
-              </p>
-            </div>
+          <div className="docente-institution-banner">
+            <span>Institución</span>
+            <strong>{localStorage.getItem("contexto_nombre") || "Institución activa"}</strong>
           </div>
         )}
 
@@ -1729,9 +1728,9 @@ function Docente() {
                 onClick={() => setMostrarPendientesModal(true)}
               >
                 <p className="stat-label">Pendientes</p>
-                 <h3 className="stat-value">
-                   {cargandoPendientes ? pendientesRapidos.length : pendientesPersonal.length}
-                 </h3>
+                <h3 className="stat-value">
+                  {cargandoPendientes ? pendientesRapidos.length : pendientesPersonal.length}
+                </h3>
                 <p className="stat-sub">Toca para revisar lo que falta</p>
               </button>
             </>
@@ -1757,6 +1756,17 @@ function Docente() {
             </>
           )}
         </div>
+
+        {appMode !== "personal" && (
+          <div className="docente-section-hero docente-section-hero-institutional docente-courses-section">
+            <div>
+              <h3 className="docente-section-hero-title">Mis Cursos</h3>
+              <p className="docente-section-hero-subtitle">
+                Revisa los cursos, entra a cada uno y gestiona tu trabajo diario.
+              </p>
+            </div>
+          </div>
+        )}
 
         {mostrarPendientesModal && (
           <div className="personal-modal-overlay docente-pendientes-overlay">
@@ -1836,6 +1846,24 @@ function Docente() {
                 <span>Crear curso</span>
               </button>
             )}
+            <div className="docente-toolbar-statuses">
+              <div className="toolbar-status-pill">
+                <strong>Mostrando:</strong>{" "}
+                {anioContextoVisible === "todos" ? "Todos los años lectivos" : anioContextoVisible}
+              </div>
+              <div className="toolbar-status-pill">
+                <strong>Orden:</strong>{" "}
+                {ordenCursos === "colegio-asc"
+                  ? "Colegio A-Z"
+                  : ordenCursos === "colegio-desc"
+                    ? "Colegio Z-A"
+                    : ordenCursos === "reciente"
+                      ? "Más reciente"
+                      : ordenCursos === "antiguo"
+                        ? "Más antiguo"
+                        : "Colegio A-Z"}
+              </div>
+            </div>
             <div className="docente-toolbar-right">
               {appMode !== "personal" && (
                 <div className="toolbar-anchor toolbar-anchor-filter">
@@ -1910,7 +1938,6 @@ function Docente() {
                       { value: "colegio-desc", label: "Colegio Z-A" },
                       { value: "reciente", label: "Más reciente" },
                       { value: "antiguo", label: "Más antiguo" },
-                      { value: "alfabetico", label: "Alfabético" },
                     ].map((option) => (
                       <li
                         key={option.value}
@@ -1928,24 +1955,6 @@ function Docente() {
                   </ul>
                 )}
               </div>
-            </div>
-          </div>
-          <div className="docente-toolbar-statuses">
-            <div className="toolbar-status-pill">
-              <strong>Mostrando:</strong>{" "}
-              {anioContextoVisible === "todos" ? "Todos los años lectivos" : anioContextoVisible}
-            </div>
-            <div className="toolbar-status-pill">
-              <strong>Orden:</strong>{" "}
-              {ordenCursos === "colegio-asc"
-                ? "Colegio A-Z"
-                : ordenCursos === "colegio-desc"
-                  ? "Colegio Z-A"
-                  : ordenCursos === "reciente"
-                    ? "Más reciente"
-                    : ordenCursos === "antiguo"
-                      ? "Más antiguo"
-                      : "Alfabético"}
             </div>
           </div>
         </div>
@@ -2038,7 +2047,7 @@ function Docente() {
                     <input
                       className="personal-input"
                       type="text"
-                      placeholder="Nombre del curso (ej: 4to A)"
+                      placeholder="Nombre del curso (ej: 2do Ciencias, 8vo A)"
                       value={nuevoCurso.nombre}
                       onChange={(e) =>
                         setNuevoCurso((p) => ({

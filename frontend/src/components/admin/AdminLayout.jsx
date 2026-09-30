@@ -11,7 +11,7 @@ import { requestHttp } from "../../services/http";
 import { getAdminRecentCoursesKey } from "../../utils/adminRecentCourses";
 import "../../styles/admin.css";
 
-function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, headerActions }) {
+function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, headerActions, pageTitleTutorialTarget }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [menuUsuario, setMenuUsuario] = useState(false);
@@ -112,9 +112,11 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
           <small>Institución activa</small>
           <strong>{contextoNombre}</strong>
         </div>
-        <button type="button" className="navbar-help-trigger" aria-label="Abrir tutorial" data-tooltip="Tutorial" onClick={() => { setMenuUsuario(false); abrirTutorial(); }}>
-          <CircleHelp size={17} />
-        </button>
+        {(location.pathname === "/admin" || location.pathname.startsWith("/admin/cursos/")) && (
+          <button type="button" className="navbar-help-trigger" aria-label="Abrir tutorial" data-tooltip="Tutorial" onClick={() => { setMenuUsuario(false); abrirTutorial(); }}>
+            <CircleHelp size={17} />
+          </button>
+        )}
         <div
           className="navbar-user"
           onClick={() => setMenuUsuario(!menuUsuario)}
@@ -196,7 +198,7 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
           <div className="admin-container admin-container-wide">
             {(title || subtitle) && (
               <header className="admin-page-head">
-                <div className="admin-page-head-main">
+                <div className="admin-page-head-main" data-tutorial={pageTitleTutorialTarget}>
                   {title && <h1 className="admin-page-title">{title}</h1>}
                   {subtitle && <p className="panel-sub">{subtitle}</p>}
                 </div>

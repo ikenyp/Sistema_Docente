@@ -12,10 +12,11 @@ import {
 } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import TabHelpButton from "../../components/TabHelpButton";
-import { estructurasAcademicasAPI, materiasAPI } from "../../services/api";
+import { estructurasAcademicasAPI, materiasAPI, getAnioLectivoStorageKey } from "../../services/api";
 import { notify, requestConfirm } from "../../components/notify";
 
 function MateriasAdmin() {
+  const [anioActivo] = useState(() => localStorage.getItem(getAnioLectivoStorageKey()) || "");
   const [estructuras, setEstructuras] = useState([]);
   const [estructuraSeleccionada, setEstructuraSeleccionada] = useState("");
   const [materiasEstructura, setMateriasEstructura] = useState([]);
@@ -370,13 +371,18 @@ function MateriasAdmin() {
 
   return (
     <AdminLayout
-      title="Materias"
+      title={<span className="admin-title-with-help">Materias <TabHelpButton title="Materias y estructuras" description="Crea plantillas académicas y materias, y organiza las materias que pertenecen a cada plantilla." /></span>}
       subtitle="Administre plantillas académicas, el catálogo de materias y las materias que corresponden a cada plantilla."
     >
       <div className="dashboard-grid" style={{ alignItems: "start", gap: 16 }}>
         <div className="table-container">
           <div className="docentes-header table-header-actions">
-            <h2 className="section-title">Plantillas académicas <TabHelpButton title="Materias y estructuras" description="Crea una plantilla indicando su nombre; si corresponde, agrega la especialidad técnica. Después configura las materias que le pertenecen." /></h2>
+            <div>
+              <h2 className="section-title">Plantillas académicas</h2>
+              <div className="cursos-year-helper cursos-filter-helper" style={{ marginBottom: 10 }}>
+                Año lectivo activo: {anioActivo || "Sin año seleccionado"}
+              </div>
+            </div>
             <button
               className="btn-add-docente btn-inline-icon btn-add-structure-wrap"
               type="button"
@@ -447,7 +453,12 @@ function MateriasAdmin() {
 
         <div className="table-container">
           <div className="docentes-header table-header-actions">
-            <h2 className="section-title">Catálogo de materias</h2>
+            <div>
+              <h2 className="section-title">Catálogo de materias</h2>
+              <div className="cursos-year-helper cursos-filter-helper" style={{ marginBottom: 10 }}>
+                Año lectivo activo: {anioActivo || "Sin año seleccionado"}
+              </div>
+            </div>
             <button
               className="btn-add-docente btn-inline-icon btn-add-materia-wrap"
               type="button"

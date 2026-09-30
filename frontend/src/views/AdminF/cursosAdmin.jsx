@@ -214,17 +214,21 @@ function CursosAdmin() {
 
   return (
     <AdminLayout
-      title={<><span>Cursos</span> <TabHelpButton title="Cursos" description="Crea cursos, asigna tutores, edita información, elimina registros y abre un curso para administrarlo." /></>}
+      title={<span className="admin-title-with-help">Cursos <TabHelpButton title="Cursos" description="Crea cursos, asigna tutores, edita información, elimina registros y abre un curso para administrarlo." /></span>}
       subtitle="Cada curso se crea con el año lectivo activo del sistema. Entra a un curso para ver estudiantes, docentes y consultas académicas."
     >
       <div className="table-container">
+        <div className="docentes-header">
+          <div>
+            <h2 className="section-title">Mis cursos</h2>
+          </div>
+        </div>
         <div className="docentes-header cursos-header">
           <div className="cursos-year-block">
             <label className="admin-inline-label cursos-year-label">Año lectivo</label>
             <div className="cursos-year-display">
               <span>{filtroAnio || aniosDisponibles[0] || "Sin año seleccionado"}</span>
             </div>
-          <div className="cursos-year-helper">Se usará para cursos nuevos</div>
           {filtroAlerta && (
             <div className="cursos-year-helper cursos-filter-helper">
               Filtro activo: {filtroAlerta === "sin-tutor" ? "sin tutor" : filtroAlerta === "sin-estructura" ? "sin estructura" : "sin materias"}

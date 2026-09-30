@@ -57,6 +57,10 @@
   color: #23324f;
 }
 
+.docente-container-institutional {
+  padding-top: 1rem;
+}
+
 .panel-title {
   margin: 0;
   text-align: center;
@@ -1698,6 +1702,42 @@
   margin-bottom: 1rem;
 }
 
+.docente-institution-banner {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  width: fit-content;
+  max-width: min(100%, 900px);
+  margin: 0 auto 1rem;
+  padding: 0.72rem 1.25rem;
+  border: 1px solid rgba(192, 208, 231, 0.95);
+  border-radius: 15px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(235, 242, 252, 0.9));
+  box-shadow: 0 8px 20px rgba(45, 64, 101, 0.09);
+}
+
+.docente-institution-banner span {
+  color: #5f7599;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.docente-institution-banner strong {
+  color: #172b4c;
+  font-size: 1.42rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.docente-courses-section {
+  margin-top: 1.2rem;
+  border-top: 1px solid rgba(120, 143, 180, 0.22);
+}
+
 .docente-section-hero {
   display: flex;
   align-items: center;
@@ -1717,6 +1757,47 @@
   font-weight: 800;
   color: #1b2e4f;
   text-align: center;
+}
+
+.docente-courses-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.12rem;
+}
+
+.docente-institution-context {
+  display: grid;
+  justify-items: center;
+  gap: 0.1rem;
+  max-width: min(82vw, 680px);
+  margin: 0 0 0.25rem;
+  overflow: hidden;
+  border: 1px solid #bfcee4;
+  border-radius: 14px;
+  padding: 0.48rem 1.15rem 0.52rem;
+  color: #172b4c;
+  background: linear-gradient(135deg, rgba(227, 237, 251, 0.96), rgba(255, 255, 255, 0.94));
+  box-shadow: 0 7px 16px rgba(47, 70, 111, 0.1);
+}
+
+.docente-institution-context span {
+  color: #5f7599;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.docente-institution-context strong {
+  overflow: hidden;
+  color: #172b4c;
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .docente-section-hero-subtitle {

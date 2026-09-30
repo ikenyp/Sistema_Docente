@@ -15,6 +15,7 @@
 
 .tutorial-card {
   position: fixed;
+  z-index: 92;
   top: 50%;
   left: 50%;
   width: min(520px, calc(100vw - 2rem));

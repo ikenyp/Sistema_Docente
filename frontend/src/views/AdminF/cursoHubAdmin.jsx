@@ -33,6 +33,11 @@ const TABS = [
   { id: "consulta", label: "Consulta académica" },
 ];
 
+const normalizarEstadoEstudiante = (valor) => {
+  const estado = String(valor || "matriculado").toLowerCase();
+  return { activo: "matriculado", inactivo: "retirado" }[estado] || estado;
+};
+
 function CursoHubAdmin() {
   const { id } = useParams();
   const idCurso = Number(id);
@@ -60,7 +65,6 @@ function CursoHubAdmin() {
     nombre: "",
     apellido: "",
     cedula: "",
-    fecha_nacimiento: "",
   });
 
   const [notas, setNotas] = useState([]);
@@ -220,6 +224,22 @@ function CursoHubAdmin() {
   };
 
   useEffect(() => {
+    const handleTutorialTab = (event) => {
+      if (TABS.some((item) => item.id === event.detail)) {
+        setSearchParams({ tab: event.detail }, { replace: true });
+      }
+    };
+    window.addEventListener("sistema-docente:tutorial-course-tab", handleTutorialTab);
+    return () => window.removeEventListener("sistema-docente:tutorial-course-tab", handleTutorialTab);
+  }, [setSearchParams]);
+
+  useEffect(() => {
+    if (!cargando && curso?.id_curso) {
+      window.dispatchEvent(new Event("sistema-docente:tutorial-course-ready"));
+    }
+  }, [cargando, curso?.id_curso]);
+
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       setCargando(true);
@@ -300,7 +320,6 @@ function CursoHubAdmin() {
       nombre: "",
       apellido: "",
       cedula: "",
-      fecha_nacimiento: "",
     });
     setModalCrearEstOpen(true);
   };
@@ -316,7 +335,7 @@ function CursoHubAdmin() {
         nombre: nuevoEstudiante.nombre.trim(),
         apellido: nuevoEstudiante.apellido.trim(),
         cedula: nuevoEstudiante.cedula.trim(),
-        fecha_nacimiento: nuevoEstudiante.fecha_nacimiento || undefined,
+        fecha_nacimiento: null,
         estado: "matriculado",
         id_curso_actual: idCurso,
       });
@@ -723,6 +742,7 @@ function CursoHubAdmin() {
     <AdminLayout
       title={cargando ? "Cargando curso…" : titulo}
       subtitle="Vista central del curso: personal, estudiantes, notas y consultas."
+      pageTitleTutorialTarget="admin-course-info"
     >
       <div className="admin-hub-toolbar">
         <button
@@ -733,7 +753,7 @@ function CursoHubAdmin() {
           <ArrowLeft size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
           Volver a cursos
         </button>
-        <div className="admin-tabs" role="tablist">
+        <div className="admin-tabs" data-tutorial="admin-course-tabs" role="tablist">
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -741,6 +761,7 @@ function CursoHubAdmin() {
               role="tab"
               aria-selected={tab === t.id}
               className={`admin-tab${tab === t.id ? " active" : ""}`}
+              data-tutorial={`admin-course-tab-${t.id}`}
               onClick={() => setTab(t.id)}
             >
               {t.label}
@@ -772,7 +793,7 @@ function CursoHubAdmin() {
           <div className="course-hub-summary-head">
             <p>Un vistazo rápido a los datos clave antes de entrar a gestionar.</p>
           </div>
-          <div className="cards-grid dashboard-summary-grid course-hub-summary-grid">
+          <div className="cards-grid dashboard-summary-grid course-hub-summary-grid" data-tutorial="admin-course-dashboard">
           <div className="stat-card accent course-hub-summary-card course-hub-summary-card-main">
             <p className="stat-label">Estudiantes</p>
             <h3 className="stat-value">{estudiantes.length}</h3>
@@ -892,7 +913,7 @@ function CursoHubAdmin() {
       {!cargando && tab === "estudiantes" && (
         <div className="table-container">
           <div className="course-hub-add-students">
-            <div className="docentes-header course-hub-add-students-header">
+            <div className="docentes-header course-hub-add-students-header" data-tutorial="admin-course-students-tools">
               <div className="course-hub-add-title-block">
                 <div>
                   <h3>Agregar estudiantes al curso</h3>
@@ -957,7 +978,7 @@ function CursoHubAdmin() {
             </div>
           </div>
 
-          <table className="materias-base-table course-hub-students-table">
+          <table className="materias-base-table course-hub-students-table" data-tutorial="admin-course-students-list">
             <colgroup>
               <col style={{ width: "34%" }} />
               <col style={{ width: "20%" }} />
@@ -979,7 +1000,16 @@ function CursoHubAdmin() {
                     {nombrePersona(e)}
                   </td>
                   <td>{e.cedula || "—"}</td>
-                  <td>{e.estado || "—"}</td>
+                  <td>
+                    {(() => {
+                      const estado = normalizarEstadoEstudiante(e.estado);
+                      return (
+                        <span className={`admin-status-pill admin-status-student-${estado}`}>
+                          {estado.charAt(0).toUpperCase() + estado.slice(1)}
+                        </span>
+                      );
+                    })()}
+                  </td>
                   <td className="plantillas-academicas-actions">
                     <div className="plantillas-academicas-actions-row materias-base-actions course-hub-actions-row">
                       <button
@@ -1018,7 +1048,7 @@ function CursoHubAdmin() {
       )}
 
       {!cargando && tab === "materias" && (
-        <div className="table-container">
+          <div className="table-container" data-tutorial="admin-course-subjects">
           <div className="docentes-header">
             <div>
               <h3>Materias y docentes</h3>
@@ -1125,7 +1155,7 @@ function CursoHubAdmin() {
       )}
 
       {!cargando && tab === "notas" && (
-        <div className="table-container">
+        <div className="table-container" data-tutorial="admin-course-grades">
           <div className="docentes-header">
             <div>
               <h3>Notas del curso</h3>
@@ -1291,30 +1321,32 @@ function CursoHubAdmin() {
 
       {!cargando && tab === "reportes" && (
         <>
-          <div className="course-hub-reportes-intro">
-            <div className="course-hub-reportes-intro-icon" aria-hidden="true">
-              <FileText size={22} />
+          <div data-tutorial="admin-course-reports">
+            <div className="course-hub-reportes-intro">
+              <div className="course-hub-reportes-intro-icon" aria-hidden="true">
+                <FileText size={22} />
+              </div>
+              <div>
+                <h3>Reportes del curso</h3>
+                <p>
+                  Selecciona una materia del curso para exportar y previsualizar sus reportes en formato académico.
+                </p>
+              </div>
             </div>
-            <div>
-              <h3>Reportes del curso</h3>
-              <p>
-                Selecciona una materia del curso para exportar y previsualizar sus reportes en formato académico.
-              </p>
-            </div>
-          </div>
 
-          <div className="admin-consulta-filters" style={{ marginBottom: 16 }}>
-            <CustomSelect
-              value={materiaReporteSeleccionada}
-              onChange={setMateriaReporteSeleccionada}
-              placeholder="Materia"
-              searchable
-              className="custom-select-white"
-              options={materiasOrdenadas.map((a) => ({
-                value: String(a.id_cmd),
-                label: a.materia?.nombre || a.id_materia,
-              }))}
-            />
+            <div className="admin-consulta-filters" style={{ marginBottom: 16 }}>
+              <CustomSelect
+                value={materiaReporteSeleccionada}
+                onChange={setMateriaReporteSeleccionada}
+                placeholder="Materia"
+                searchable
+                className="custom-select-white"
+                options={materiasOrdenadas.map((a) => ({
+                  value: String(a.id_cmd),
+                  label: a.materia?.nombre || a.id_materia,
+                }))}
+              />
+            </div>
           </div>
 
           {materiaReporteActiva ? (
@@ -1339,33 +1371,35 @@ function CursoHubAdmin() {
 
       {!cargando && tab === "consulta" && (
         <>
-          <div className="course-hub-reportes-intro course-hub-consulta-intro">
-            <div className="course-hub-reportes-intro-icon" aria-hidden="true">
-              <Calendar size={22} />
+          <div data-tutorial="admin-course-consultation">
+            <div className="course-hub-reportes-intro course-hub-consulta-intro">
+              <div className="course-hub-reportes-intro-icon" aria-hidden="true">
+                <Calendar size={22} />
+              </div>
+              <div>
+                <h3>Consulta académica <span>(solo lectura)</span></h3>
+                <p>
+                  Elige un estudiante del curso para revisar notas, asistencia, comportamiento y promedios.
+                </p>
+              </div>
             </div>
-            <div>
-              <h3>Consulta académica <span>(solo lectura)</span></h3>
-              <p>
-                Elige un estudiante del curso para revisar notas, asistencia, comportamiento y promedios.
-              </p>
+
+            <div className="admin-consulta-filters">
+              <CustomSelect
+                value={estSel}
+                onChange={setEstSel}
+                placeholder="Estudiante"
+                searchable
+                className="custom-select-white"
+                options={estudiantes.map((e) => ({
+                  value: String(e.id_estudiante),
+                  label: `${e.apellido} ${e.nombre}`,
+                }))}
+              />
             </div>
           </div>
 
-          <div className="admin-consulta-filters">
-            <CustomSelect
-              value={estSel}
-              onChange={setEstSel}
-              placeholder="Estudiante"
-              searchable
-              className="custom-select-white"
-              options={estudiantes.map((e) => ({
-                value: String(e.id_estudiante),
-                label: `${e.apellido} ${e.nombre}`,
-              }))}
-            />
-          </div>
-
-          <div className="admin-subtabs">
+          <div className="admin-subtabs" data-tutorial="admin-course-consultation-tabs">
             {[
               { id: "notas", label: "Notas" },
               { id: "asistencia", label: "Asistencia" },
@@ -1692,11 +1726,6 @@ function CursoHubAdmin() {
               value={nuevoEstudiante.cedula}
               onChange={(e) => setNuevoEstudiante((prev) => ({ ...prev, cedula: e.target.value }))}
             />
-            <input
-              type="date"
-              value={nuevoEstudiante.fecha_nacimiento}
-              onChange={(e) => setNuevoEstudiante((prev) => ({ ...prev, fecha_nacimiento: e.target.value }))}
-            />
             <div className="modal-buttons">
               <button type="button" className="btn-neutral btn-inline-icon" onClick={() => setModalCrearEstOpen(false)}>
                 <X size={14} />
@@ -1714,6 +1743,7 @@ function CursoHubAdmin() {
         idCurso={idCurso}
         nombreCurso={curso?.nombre}
         habilitado={!cargando && Boolean(curso)}
+        tutorialTarget="admin-course-analysis"
       />
     </AdminLayout>
   );

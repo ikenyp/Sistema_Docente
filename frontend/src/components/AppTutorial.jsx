@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { BookOpen, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import "../styles/tutorial.css";
 import { getAdminRecentCoursesKey } from "../utils/adminRecentCourses";
@@ -17,7 +18,7 @@ const PERSONAL_DOCENTE_STEPS = [
   },
   {
     title: "Crea tu año lectivo",
-    text: "Comienza creando el año que vas a trabajar. Pulsa Nuevo año, escribe el formato, por ejemplo 2027-2028, y confirma.",
+    text: "Comienza creando el año que vas a trabajar. Pulsa Nuevo año, escribe el formato, por ejemplo 2026-2027, y confirma.",
     target: "crear-anio",
   },
   {
@@ -66,6 +67,22 @@ const INSTITUTIONAL_DOCENTE_STEPS = [
   { title: "Tu resumen de trabajo", text: "Estas cards muestran los cursos visibles, materias asignadas, estudiantes a cargo y tu condición de tutor.", target: "dashboard-cards" },
   { title: "Tus cursos", text: "Cada card representa un curso disponible para ti. Revisa su información y pulsa Ver curso para entrar.", target: "curso-card" },
   { title: "Panel listo", text: "Dentro de cada curso encontrarás una guía para recorrer estudiantes, insumos, asistencia, notas, reportes y periodización." },
+];
+
+const ADMIN_COURSE_STEPS = [
+  { title: "Bienvenido al curso", text: "Desde esta vista puedes consultar y administrar los datos académicos del curso." },
+  { title: "Información del curso", text: "La cabecera identifica el curso y el año lectivo al que pertenece.", target: "admin-course-info" },
+  { title: "Indicadores del curso", text: "Aquí ves estudiantes, materias asignadas, estructura y tutor responsable.", target: "admin-course-dashboard" },
+  { title: "Secciones del curso", text: "Usa estas pestañas para administrar estudiantes, materias y docentes, notas, reportes y consultas académicas.", target: "admin-course-tabs" },
+  { title: "Estudiantes", text: "Importa estudiantes desde Excel, crea uno directamente en este curso o busca entre los ya inscritos.", tab: "estudiantes", target: "admin-course-students-tools" },
+  { title: "Estudiantes inscritos", text: "Revisa quiénes pertenecen al curso, busca un registro y administra su matrícula.", tab: "estudiantes", target: "admin-course-students-list" },
+  { title: "Materias y docentes", text: "Consulta las materias del curso y asigna, cambia o retira al docente responsable.", tab: "materias", target: "admin-course-subjects" },
+  { title: "Notas", text: "Revisa promedios por materia y consulta calificaciones por estudiante.", tab: "notas", target: "admin-course-grades" },
+  { title: "Reportes", text: "Selecciona una materia para previsualizar y exportar los reportes del curso.", tab: "reportes", target: "admin-course-reports" },
+  { title: "Consulta académica", text: "Selecciona un estudiante para consultar su información académica en modo de solo lectura.", tab: "consulta", target: "admin-course-consultation" },
+  { title: "Elige qué consultar", text: "Cambia entre notas, asistencia, comportamiento y promedios del estudiante seleccionado.", tab: "consulta", target: "admin-course-consultation-tabs" },
+  { title: "Análisis académico", text: "Abre el análisis para revisar el rendimiento del curso, detectar pendientes y reconocer situaciones que requieren atención.", target: "admin-course-analysis" },
+  { title: "Curso listo para administrar", text: "Ya conoces las secciones principales del curso. Puedes volver a ver esta guía desde el botón de ayuda." },
 ];
 
 const ADMIN_STEPS = [
@@ -160,11 +177,19 @@ function AppTutorial() {
   const role = (localStorage.getItem("role") || "docente").toLowerCase();
   const mode = (localStorage.getItem("app_mode") || "institucional").toLowerCase();
   const pathname = window.location.pathname;
-  const esCurso = pathname.startsWith("/curso/");
-  const tutorialScope = esCurso ? "curso" : "panel";
+  const esCursoAdmin = pathname.startsWith("/admin/cursos/");
+  const esCursoDocente = pathname.startsWith("/curso/");
+  const esCurso = esCursoAdmin || esCursoDocente;
+  const tutorialScope = esCursoAdmin ? "curso-admin" : esCursoDocente ? "curso" : "panel";
   const steps = useMemo(() => (
-    esCurso
-      ? COURSE_STEPS.filter((item) => mode === "personal" || item.tab !== "estudiantes")
+    esCursoAdmin
+      ? ADMIN_COURSE_STEPS
+      : esCursoDocente
+      ? COURSE_STEPS
+        .filter((item) => mode === "personal" || item.tab !== "estudiantes")
+        .map((item) => mode === "personal" && item.target === "curso-materia"
+          ? { ...item, text: "Elige la materia que vas a gestionar dentro de este curso para consultar o registrar su información académica." }
+          : item)
       : role === "docente" && mode === "personal"
       ? PERSONAL_DOCENTE_STEPS
       : role === "docente" && mode === "institucional"
@@ -172,7 +197,7 @@ function AppTutorial() {
       : role === "administrativo"
       ? ADMIN_STEPS
       : GENERIC_STEPS[role] || GENERIC_STEPS.docente
-  ), [esCurso, mode, role]);
+  ), [esCursoAdmin, esCursoDocente, mode, role]);
   const currentStep = steps[step] || steps[0];
 
   const cambiarPaso = (nextStep) => {
@@ -184,9 +209,23 @@ function AppTutorial() {
   };
 
   useEffect(() => {
-    const abrir = () => { setStep(0); setVisible(true); };
+    const irAlResumenAdmin = () => {
+      if (window.location.pathname.startsWith("/admin/cursos/")) {
+        window.dispatchEvent(new CustomEvent(TUTORIAL_COURSE_TAB, { detail: "resumen" }));
+      }
+    };
+    const abrir = () => {
+      irAlResumenAdmin();
+      setStep(0);
+      setVisible(true);
+    };
     const abrirCursoListo = () => {
-      if (window.location.pathname.startsWith("/curso/") && !localStorage.getItem(getTutorialKey(role, mode, "curso"))) {
+      const path = window.location.pathname;
+      const esCursoAdminListo = path.startsWith("/admin/cursos/") && role === "administrativo";
+      const scope = esCursoAdminListo ? "curso-admin" : "curso";
+      const esCursoDocenteListo = path.startsWith("/curso/") && role === "docente";
+      if ((esCursoAdminListo || esCursoDocenteListo) && !localStorage.getItem(getTutorialKey(role, mode, scope))) {
+        irAlResumenAdmin();
         setStep(0);
         setVisible(true);
       }
@@ -231,28 +270,46 @@ function AppTutorial() {
       return undefined;
     }
     let targetElement = null;
+    let targetPositioned = false;
     const updatePosition = () => {
-      targetElement = document.querySelector(`[data-tutorial="${currentStep.target}"]`);
-      if (targetElement) {
+      const nextTarget = document.querySelector(`[data-tutorial="${currentStep.target}"]`);
+      if (nextTarget) {
+        targetElement = nextTarget;
         if (window.getComputedStyle(targetElement).position === "static") {
           targetElement.classList.add("tutorial-target-positioned");
         }
         targetElement.classList.add("tutorial-active-target");
         let rect = targetElement.getBoundingClientRect();
-        if (rect.top < 16 || rect.bottom > window.innerHeight - 16) {
-          targetElement.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+        const targetIsTall = rect.height > window.innerHeight * 0.75;
+        if (!targetPositioned && targetIsTall) {
+          const cardHeight = cardRef.current?.getBoundingClientRect().height || 250;
+          const targetTop = Math.min(
+            window.innerHeight - 80,
+            cardHeight + 28 + 24 + 14,
+          );
+          window.scrollTo({
+            top: Math.max(0, window.scrollY + rect.top - targetTop),
+            behavior: "auto",
+          });
+          rect = targetElement.getBoundingClientRect();
+        } else if (!targetPositioned && (rect.top < 16 || rect.bottom > window.innerHeight - 16)) {
+          targetElement.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "auto" });
           rect = targetElement.getBoundingClientRect();
         }
+        targetPositioned = true;
         setTargetRect(rect);
       } else {
         setTargetRect(null);
       }
     };
     const frame = window.requestAnimationFrame(updatePosition);
+    const observer = new MutationObserver(updatePosition);
+    observer.observe(document.body, { childList: true, subtree: true });
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
     return () => {
       window.cancelAnimationFrame(frame);
+      observer.disconnect();
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
       targetElement?.classList.remove("tutorial-target-positioned");
@@ -271,16 +328,18 @@ function AppTutorial() {
     const gap = 28;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
+    const targetIsWide = targetRect.width > viewportWidth * 0.6;
+    const wideTargetGap = 12;
     const clamp = (value, min, max) => Math.max(min, Math.min(value, Math.max(min, max)));
     let left;
     let top;
     let placement;
 
-    if (targetRect.width > viewportWidth * 0.6 && targetRect.top >= card.height + gap + margin) {
+    if (targetIsWide && targetRect.top >= card.height + wideTargetGap + 16) {
       placement = "top";
       left = clamp(targetRect.left + (targetRect.width - card.width) / 2, margin, viewportWidth - card.width - margin);
-      top = targetRect.top - card.height - gap;
-    } else if (targetRect.width > viewportWidth * 0.6) {
+      top = Math.max(16, targetRect.top - card.height - wideTargetGap);
+    } else if (targetIsWide) {
       placement = "bottom";
       left = clamp(targetRect.left + (targetRect.width - card.width) / 2, margin, viewportWidth - card.width - margin);
       top = clamp(targetRect.bottom + gap + 36, margin, viewportHeight - card.height - margin);
@@ -322,9 +381,11 @@ function AppTutorial() {
     : undefined;
 
   return (
-    <div className={`tutorial-overlay${targetRect ? " tutorial-overlay-contextual" : ""}`} role="dialog" aria-modal="false" aria-labelledby="tutorial-title">
-      {targetRect && <div className="tutorial-spotlight" style={spotlightStyle} aria-hidden="true" />}
-      <section ref={cardRef} className={`tutorial-card${targetRect ? ` tutorial-card-contextual tutorial-card-placement-${cardLayout?.placement || "bottom"}${targetRect.width > window.innerWidth * 0.6 ? " tutorial-card-wide" : ""}` : " tutorial-card-intro"}`} style={cardStyle}>
+    <>
+      <div className={`tutorial-overlay${targetRect ? " tutorial-overlay-contextual" : ""}`}>
+        {targetRect && <div className="tutorial-spotlight" style={spotlightStyle} aria-hidden="true" />}
+      </div>
+      {createPortal(<section ref={cardRef} role="dialog" aria-modal="false" aria-labelledby="tutorial-title" className={`tutorial-card${targetRect ? ` tutorial-card-contextual tutorial-card-placement-${cardLayout?.placement || "bottom"}${targetRect.width > window.innerWidth * 0.6 ? " tutorial-card-wide" : ""}` : " tutorial-card-intro"}`} style={cardStyle}>
         <p className="tutorial-kicker">
           <span className="tutorial-icon" aria-hidden="true">
             {isLastStep ? <CheckCircle2 size={20} /> : <BookOpen size={20} />}
@@ -343,8 +404,8 @@ function AppTutorial() {
             {isLastStep ? "Entendido" : "Siguiente"}{!isLastStep && <ChevronRight size={16} />}
           </button>
         </div>
-      </section>
-    </div>
+      </section>, document.body)}
+    </>
   );
 }
 

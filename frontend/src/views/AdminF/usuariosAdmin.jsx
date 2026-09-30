@@ -8,6 +8,13 @@ import { notify, requestConfirm } from "../../components/notify";
 import { nombrePersona } from "../../utils/personas";
 
 function UsuariosAdmin() {
+  const usuarioSesion = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("usuario") || "null");
+    } catch {
+      return null;
+    }
+  })();
   const [usuarios, setUsuarios] = useState([]);
   const [busquedaUsuarios, setBusquedaUsuarios] = useState("");
   const [cargandoUsuarios, setCargandoUsuarios] = useState(true);
@@ -41,6 +48,9 @@ function UsuariosAdmin() {
       : usuarios;
 
     return [...filtrados].sort((a, b) => {
+      const actualA = Number(a?.id_usuario) === Number(usuarioSesion?.id_usuario) ? 0 : 1;
+      const actualB = Number(b?.id_usuario) === Number(usuarioSesion?.id_usuario) ? 0 : 1;
+      if (actualA !== actualB) return actualA - actualB;
       const rolA = (a?.rol || "").toLowerCase() === "administrativo" ? 0 : 1;
       const rolB = (b?.rol || "").toLowerCase() === "administrativo" ? 0 : 1;
       if (rolA !== rolB) return rolA - rolB;
@@ -48,7 +58,7 @@ function UsuariosAdmin() {
       if (apellido !== 0) return apellido;
       return (a?.nombre || "").localeCompare(b?.nombre || "", "es", { sensitivity: "base" });
     });
-  }, [busquedaUsuarios, usuarios]);
+  }, [busquedaUsuarios, usuarioSesion?.id_usuario, usuarios]);
 
   useEffect(() => {
     const fetchUsuarios = async () => {
@@ -92,13 +102,17 @@ function UsuariosAdmin() {
       return;
     }
     try {
-      const body = {
+      const esUsuarioActual = Number(usuarioEditar.id_usuario) === Number(usuarioSesion?.id_usuario);
+      const body = esUsuarioActual ? {
+        nombre: usuarioEditar.nombre,
+        apellido: usuarioEditar.apellido,
+      } : {
         nombre: usuarioEditar.nombre,
         apellido: usuarioEditar.apellido,
         correo: usuarioEditar.correo,
         rol: usuarioEditar.rol,
       };
-      if (usuarioEditar.contrasena) body.contrasena = usuarioEditar.contrasena;
+      if (!esUsuarioActual && usuarioEditar.contrasena) body.contrasena = usuarioEditar.contrasena;
 
       const usuarioActualizado = await usuariosAPI.actualizar(
         usuarioEditar.id_usuario,
@@ -117,6 +131,7 @@ function UsuariosAdmin() {
   };
 
   const eliminarUsuario = async (usuario) => {
+    if (Number(usuario.id_usuario) === Number(usuarioSesion?.id_usuario)) return;
     const ok = await requestConfirm(
       "Eliminar usuario",
       {
@@ -175,13 +190,14 @@ function UsuariosAdmin() {
 
   return (
     <AdminLayout
-      title="Usuarios del sistema"
+      title={<span className="admin-title-with-help">Usuarios <TabHelpButton title="Usuarios" description="Busca usuarios por nombre, correo o rol, y usa las acciones para crear, editar o eliminar cuentas." /></span>}
       subtitle="Registra docentes y otros administradores. Un docente puede ser tutor de un curso al crear o editar el curso."
     >
       <div className="table-container">
         <div className="docentes-header">
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 className="section-title">Directorio <TabHelpButton title="Usuarios" description="Busca usuarios por nombre, correo o rol, y usa las acciones para crear, editar o eliminar cuentas." /></h2>
+            <h2 className="section-title">Directorio</h2>
+            <p className="panel-sub" style={{ margin: "0.2rem 0 0" }}>Directorio de docentes y administradores</p>
             <input
               className="table-search"
               type="text"
@@ -238,14 +254,16 @@ function UsuariosAdmin() {
                         <Pencil size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
                         Editar
                       </button>
-                      <button
-                        type="button"
-                        className="btn-danger btn-inline-icon"
-                        onClick={() => eliminarUsuario(u)}
-                      >
-                        <Trash2 size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
-                        Eliminar
-                      </button>
+                      {Number(u.id_usuario) !== Number(usuarioSesion?.id_usuario) && (
+                        <button
+                          type="button"
+                          className="btn-danger btn-inline-icon"
+                          onClick={() => eliminarUsuario(u)}
+                        >
+                          <Trash2 size={14} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                          Eliminar
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -292,37 +310,30 @@ function UsuariosAdmin() {
                 setUsuarioEditar({ ...usuarioEditar, apellido: e.target.value })
               }
             />
-            <input
-              type="email"
-              placeholder="Correo"
-              value={usuarioEditar.correo}
-              onChange={(e) =>
-                setUsuarioEditar({ ...usuarioEditar, correo: e.target.value })
-              }
-            />
-            <input
-              type="password"
-              placeholder="Nueva contraseña (opcional)"
-              value={usuarioEditar.contrasena}
-              onChange={(e) =>
-                setUsuarioEditar({
-                  ...usuarioEditar,
-                  contrasena: e.target.value,
-                })
-              }
-            />
-            <CustomSelect
-              value={usuarioEditar.rol}
-              onChange={(value) =>
-                setUsuarioEditar({ ...usuarioEditar, rol: value })
-              }
-              options={[
-                { value: "docente", label: "Docente" },
-                { value: "administrativo", label: "Administrador" },
-              ]}
-              placeholder="Rol"
-              className="custom-select-white"
-            />
+            {Number(usuarioEditar.id_usuario) !== Number(usuarioSesion?.id_usuario) && <>
+              <input
+                type="email"
+                placeholder="Correo"
+                value={usuarioEditar.correo}
+                onChange={(e) => setUsuarioEditar({ ...usuarioEditar, correo: e.target.value })}
+              />
+              <input
+                type="password"
+                placeholder="Nueva contraseña (opcional)"
+                value={usuarioEditar.contrasena}
+                onChange={(e) => setUsuarioEditar({ ...usuarioEditar, contrasena: e.target.value })}
+              />
+              <CustomSelect
+                value={usuarioEditar.rol}
+                onChange={(value) => setUsuarioEditar({ ...usuarioEditar, rol: value })}
+                options={[
+                  { value: "docente", label: "Docente" },
+                  { value: "administrativo", label: "Administrador" },
+                ]}
+                placeholder="Rol"
+                className="custom-select-white"
+              />
+            </>}
             <div className="modal-buttons">
               <button
                 type="button"
