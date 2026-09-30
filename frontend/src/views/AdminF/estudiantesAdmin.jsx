@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Pencil, Brush, Save, X, UserPlus, Upload } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
+import TabHelpButton from "../../components/TabHelpButton";
 import CustomSelect from "../../components/admin/CustomSelect";
 import ImportarEstudiantesModal from "../../components/estudiantes/ImportarEstudiantesModal";
 import { estudiantesAPI, cursosAPI, listarTodasLasPaginas } from "../../services/api";
@@ -261,7 +262,7 @@ function EstudiantesAdmin() {
       subtitle=""
     >
       <div className="docentes-header">
-        <h2 className="section-title">Directorio de estudiantes</h2>
+        <h2 className="section-title">Directorio de estudiantes <TabHelpButton title="Estudiantes" description="Busca, filtra, importa, añade, edita y retira estudiantes del año lectivo activo." /></h2>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <button className="btn-view btn-inline-icon" onClick={() => setModalImportOpen(true)} type="button">
             <Upload size={16} />

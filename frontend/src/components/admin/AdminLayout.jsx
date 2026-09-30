@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { CircleHelp } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { ADMIN_NAV, PERSONAL_DOCENTE_NAV } from "./adminNav";
 import { clearSessionStorage } from "../../services/session";
@@ -111,6 +112,9 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
           <small>Institución activa</small>
           <strong>{contextoNombre}</strong>
         </div>
+        <button type="button" className="navbar-help-trigger" aria-label="Abrir tutorial" data-tooltip="Tutorial" onClick={() => { setMenuUsuario(false); abrirTutorial(); }}>
+          <CircleHelp size={17} />
+        </button>
         <div
           className="navbar-user"
           onClick={() => setMenuUsuario(!menuUsuario)}
@@ -126,9 +130,6 @@ function AdminLayout({ title, subtitle, children, navItems, defaultUserLabel, he
         </div>
         {menuUsuario && (
           <div className="menu-usuario">
-            <button type="button" onClick={() => { setMenuUsuario(false); abrirTutorial(); }}>
-              Ver tutorial
-            </button>
             <button type="button" onClick={cerrarSesion}>
               Cerrar sesión
             </button>

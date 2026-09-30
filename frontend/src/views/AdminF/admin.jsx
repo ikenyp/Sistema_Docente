@@ -374,7 +374,7 @@ function Admin() {
             <CalendarClock size={18} />
             <span>Periodización</span>
           </button>
-          <button data-tutorial="admin-configuracion-anio" type="button" className="btn-view btn-inline-icon admin-year-action-btn" onClick={configurarAnio}>
+          <button data-tutorial="admin-configuracion-anio" type="button" className="btn-view btn-inline-icon admin-year-action-btn config-year-admin" onClick={configurarAnio}>
             <Settings2 size={18} />
             <span>Configuración</span>
           </button>

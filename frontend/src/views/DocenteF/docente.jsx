@@ -8,6 +8,8 @@ import React, {
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
+  CheckCircle2,
+  CircleSlash,
   Save,
   CalendarClock,
   Settings2,
@@ -15,6 +17,7 @@ import {
   Pencil,
   Trash2,
   X,
+  CircleHelp,
 } from "lucide-react";
 import CustomSelect from "../../components/admin/CustomSelect";
 import PeriodizacionPage from "../Periodizacion/PeriodizacionPage";
@@ -1249,6 +1252,9 @@ function Docente() {
           Panel de Gestión Docente
         </div>
 
+        <button type="button" className="navbar-help-trigger" aria-label="Abrir tutorial" data-tooltip="Tutorial" onClick={() => { setMenuUsuario(false); abrirTutorial(); }}>
+          <CircleHelp size={17} />
+        </button>
         <div
           className="navbar-user"
           onClick={() => setMenuUsuario(!menuUsuario)}
@@ -1262,9 +1268,6 @@ function Docente() {
 
         {menuUsuario && (
           <div className="menu-usuario">
-            <button type="button" onClick={() => { setMenuUsuario(false); abrirTutorial(); }}>
-              Ver tutorial
-            </button>
             <button onClick={cerrarSesion}>Cerrar Sesión</button>
           </div>
         )}
@@ -1328,7 +1331,7 @@ function Docente() {
                 </button>
                 <button
                   type="button"
-                  className="toolbar-outline-btn btn-inline-icon"
+                  className="toolbar-outline-btn btn-inline-icon config-year-personal"
                   data-tutorial="configurar-anio"
                   onClick={() => setMostrarConfigAnioModal(true)}
                 >
@@ -1374,7 +1377,7 @@ function Docente() {
 
         {mostrarAnioModal && (
           <div className="personal-modal-overlay">
-            <div className="personal-modal-card personal-year-modal">
+            <div className="personal-modal-card personal-year-modal admin-style-year-modal">
               <div className="personal-modal-header">
                 <h3 className="personal-modal-title personal-modal-title-center">
                   Nuevo año lectivo
@@ -1448,42 +1451,39 @@ function Docente() {
                   <X size={14} />
                 </button>
               </div>
-              <p className="panel-sub">
+              <p className="panel-sub" style={{ marginBottom: 12, textAlign: "center" }}>
                 {anioLectivoActivoPersonal || "Sin año seleccionado"}
               </p>
-              <div
-                className="personal-modal-error"
-                style={{ background: "#eef3fb", color: "#223553" }}
-              >
-                Puedes activar, inactivar o eliminar el año lectivo actual.
-              </div>
-              <div
-                className="wizard-actions"
-                style={{ marginTop: "1rem", flexWrap: "wrap" }}
-              >
+              <p style={{ marginTop: -6, marginBottom: 10, fontSize: "0.85rem", color: "#6b7a99", textAlign: "center" }}>
+                Estado actual: {anioActualObjPersonal?.activo ?? true ? "Activo" : "Inactivo"}
+              </p>
+              <div className="modal-buttons cursos-modal-buttons">
                 <button
                   type="button"
-                  className="btn-add-docente btn-inline-icon"
+                  className="btn-success btn-inline-icon"
                   onClick={() => aplicarEstadoAnioPersonal(true)}
                 >
-                  <Plus size={14} />
+                  <CheckCircle2 size={15} />
                   Activar
                 </button>
                 <button
                   type="button"
-                  className="btn-view btn-inline-icon"
+                  className="btn-neutral btn-inline-icon"
                   onClick={() => aplicarEstadoAnioPersonal(false)}
                 >
-                  <X size={14} />
+                  <CircleSlash size={15} />
                   Inactivar
                 </button>
+              </div>
+              <div style={{ marginTop: 12 }}>
                 <button
                   type="button"
-                  className="btn-danger btn-inline-icon"
+                  className="btn-danger btn-inline-icon admin-year-delete-btn"
                   onClick={eliminarAnioPersonal}
+                  style={{ width: "100%" }}
                 >
-                  <X size={14} />
-                  Eliminar
+                  <Trash2 size={15} />
+                  Eliminar año lectivo
                 </button>
               </div>
             </div>

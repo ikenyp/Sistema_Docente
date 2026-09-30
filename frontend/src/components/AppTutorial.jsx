@@ -191,23 +191,27 @@ function AppTutorial() {
         setVisible(true);
       }
     };
-    const avanzar = () => {
-      setVisible(true);
+    const avanzarEnPaso = (target) => {
+      if (!visible || role !== "docente" || mode !== "personal") return;
+      if (currentStep?.target !== target) return;
       setStep((current) => Math.min(current + 1, steps.length - 1));
     };
     window.addEventListener(TUTORIAL_EVENT, abrir);
     window.addEventListener(TUTORIAL_COURSE_READY, abrirCursoListo);
-    window.addEventListener(TUTORIAL_YEAR_CREATED, avanzar);
-    window.addEventListener(TUTORIAL_PERIODIZATION_SAVED, avanzar);
-    window.addEventListener(TUTORIAL_COURSE_CREATED, avanzar);
+    const alCrearAnio = () => avanzarEnPaso("crear-anio");
+    const alGuardarPeriodizacion = () => avanzarEnPaso("periodizacion");
+    const alCrearCurso = () => avanzarEnPaso("crear-curso");
+    window.addEventListener(TUTORIAL_YEAR_CREATED, alCrearAnio);
+    window.addEventListener(TUTORIAL_PERIODIZATION_SAVED, alGuardarPeriodizacion);
+    window.addEventListener(TUTORIAL_COURSE_CREATED, alCrearCurso);
     return () => {
       window.removeEventListener(TUTORIAL_EVENT, abrir);
       window.removeEventListener(TUTORIAL_COURSE_READY, abrirCursoListo);
-      window.removeEventListener(TUTORIAL_YEAR_CREATED, avanzar);
-      window.removeEventListener(TUTORIAL_PERIODIZATION_SAVED, avanzar);
-      window.removeEventListener(TUTORIAL_COURSE_CREATED, avanzar);
+      window.removeEventListener(TUTORIAL_YEAR_CREATED, alCrearAnio);
+      window.removeEventListener(TUTORIAL_PERIODIZATION_SAVED, alGuardarPeriodizacion);
+      window.removeEventListener(TUTORIAL_COURSE_CREATED, alCrearCurso);
     };
-  }, [steps.length]);
+  }, [currentStep, mode, role, steps.length, visible]);
 
   useEffect(() => {
     if (pathname === "/" || !localStorage.getItem("token")) return;

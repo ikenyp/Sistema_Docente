@@ -129,7 +129,7 @@
 }
 
 .admin-modal-structure-edit {
-  width: min(90vw, 560px);
+  width: min(90vw, 520px);
   max-height: 94vh;
   overflow: auto;
 }

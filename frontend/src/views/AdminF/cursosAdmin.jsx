@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { FolderOpen, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
+import TabHelpButton from "../../components/TabHelpButton";
 import CustomSelect from "../../components/admin/CustomSelect";
 import {
   aniosLectivosAPI,
@@ -213,15 +214,13 @@ function CursosAdmin() {
 
   return (
     <AdminLayout
-      title="Cursos"
+      title={<><span>Cursos</span> <TabHelpButton title="Cursos" description="Crea cursos, asigna tutores, edita información, elimina registros y abre un curso para administrarlo." /></>}
       subtitle="Cada curso se crea con el año lectivo activo del sistema. Entra a un curso para ver estudiantes, docentes y consultas académicas."
     >
       <div className="table-container">
         <div className="docentes-header cursos-header">
           <div className="cursos-year-block">
-            <label className="admin-inline-label cursos-year-label">
-              Año lectivo
-            </label>
+            <label className="admin-inline-label cursos-year-label">Año lectivo</label>
             <div className="cursos-year-display">
               <span>{filtroAnio || aniosDisponibles[0] || "Sin año seleccionado"}</span>
             </div>

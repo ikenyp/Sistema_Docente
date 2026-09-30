@@ -11,7 +11,7 @@ import {
   cmdAPI,
   materiasAPI,
 } from "../../services/api";
-import { Save, UserPlus, BookOpen, Settings2, Trash2, Brush, X, Upload, Pencil, Users, ArrowLeft } from "lucide-react";
+import { Save, UserPlus, BookOpen, Settings2, Trash2, Brush, X, Upload, Pencil, Users, ArrowLeft, CircleHelp } from "lucide-react";
 import CustomSelect from "../../components/admin/CustomSelect";
 import ImportarEstudiantesModal from "../../components/estudiantes/ImportarEstudiantesModal";
 import { AnalisisAcademico } from "../../components/AnalisisAcademico";
@@ -1252,6 +1252,9 @@ function CursoPrincipal() {
           Panel de Gestión Docente
         </h2>
 
+        <button type="button" className="navbar-help-trigger" aria-label="Abrir tutorial" data-tooltip="Tutorial" onClick={() => { setMenuUsuario(false); abrirTutorial(); }}>
+          <CircleHelp size={17} />
+        </button>
         <div
           className="navbar-user"
           onClick={() => setMenuUsuario(!menuUsuario)}
@@ -1265,9 +1268,6 @@ function CursoPrincipal() {
 
         {menuUsuario && (
           <div className="menu-usuario">
-            <button type="button" onClick={() => { setMenuUsuario(false); abrirTutorial(); }}>
-              Ver tutorial
-            </button>
             <button onClick={cerrarSesion}>Cerrar Sesión</button>
           </div>
         )}

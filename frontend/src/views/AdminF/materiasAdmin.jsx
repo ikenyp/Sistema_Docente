@@ -11,6 +11,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
+import TabHelpButton from "../../components/TabHelpButton";
 import { estructurasAcademicasAPI, materiasAPI } from "../../services/api";
 import { notify, requestConfirm } from "../../components/notify";
 
@@ -146,9 +147,6 @@ function MateriasAdmin() {
     setEstructuraEditando(null);
     setEstructuraForm({
       nombre: "",
-      nivel: "",
-      subnivel: "",
-      modalidad: "",
       especialidad: "",
     });
     setModalEditarEstructuraOpen(true);
@@ -158,10 +156,7 @@ function MateriasAdmin() {
     setEstructuraEditando(estructura);
     setEstructuraForm({
       nombre: estructura.nombre || "",
-      nivel: estructura.nivel || "",
-      subnivel: estructura.subnivel || "",
-      modalidad: estructura.modalidad || "",
-      especialidad: estructura.especialidad || "",
+      especialidad: estructura.especialidad || estructura.modalidad || "",
     });
     setModalEditarEstructuraOpen(true);
   };
@@ -237,19 +232,37 @@ function MateriasAdmin() {
 
   const guardarEstructura = async () => {
     try {
-      if (!estructuraForm.nombre || !estructuraForm.nivel) {
-        notify("error", "Nombre y nivel son obligatorios");
+      const nombre = estructuraForm.nombre.trim();
+      if (!nombre) {
+        notify("error", "El nombre de la plantilla es obligatorio");
         return;
       }
-      
+
+      const datosEstructura = estructuraEditando
+        ? {
+            nombre,
+            nivel: estructuraEditando.nivel || nombre,
+            subnivel: estructuraEditando.subnivel || null,
+            modalidad: estructuraEditando.modalidad || null,
+            especialidad: estructuraForm.especialidad.trim() || null,
+          }
+        : {
+            nombre,
+            // El esquema actual requiere nivel; usar el nombre evita pedir un dato redundante.
+            nivel: nombre,
+            subnivel: null,
+            modalidad: null,
+            especialidad: estructuraForm.especialidad.trim() || null,
+          };
+
       if (estructuraEditando) {
         const actualizada = await estructurasAcademicasAPI.actualizar(
           estructuraEditando.id_estructura_academica,
-          estructuraForm,
+          datosEstructura,
         );
         setEstructuraEditando(actualizada);
       } else {
-        await estructurasAcademicasAPI.crear(estructuraForm);
+        await estructurasAcademicasAPI.crear(datosEstructura);
       }
       await cargarEstructuras();
       setModalEditarEstructuraOpen(false);
@@ -357,13 +370,13 @@ function MateriasAdmin() {
 
   return (
     <AdminLayout
-      title="Plantillas académicas"
+      title="Materias"
       subtitle="Administre plantillas académicas, el catálogo de materias y las materias que corresponden a cada plantilla."
     >
       <div className="dashboard-grid" style={{ alignItems: "start", gap: 16 }}>
         <div className="table-container">
           <div className="docentes-header table-header-actions">
-            <h2 className="section-title">Plantillas académicas</h2>
+            <h2 className="section-title">Plantillas académicas <TabHelpButton title="Materias y estructuras" description="Crea una plantilla indicando su nombre; si corresponde, agrega la especialidad técnica. Después configura las materias que le pertenecen." /></h2>
             <button
               className="btn-add-docente btn-inline-icon btn-add-structure-wrap"
               type="button"
@@ -375,16 +388,14 @@ function MateriasAdmin() {
           </div>
           <table className="plantillas-academicas-table">
             <colgroup>
-              <col style={{ width: "28%" }} />
-              <col style={{ width: "22%" }} />
-              <col style={{ width: "20%" }} />
-              <col style={{ width: "30%" }} />
+              <col style={{ width: "34%" }} />
+              <col style={{ width: "26%" }} />
+              <col style={{ width: "40%" }} />
             </colgroup>
             <thead>
               <tr>
                 <th>Nombre</th>
-                <th>Nivel</th>
-                <th>Modalidad</th>
+                 <th>Especialidad</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -392,8 +403,7 @@ function MateriasAdmin() {
               {estructuras.map((estructura) => (
                 <tr key={estructura.id_estructura_academica}>
                   <td>{estructura.nombre}</td>
-                  <td>{estructura.nivel}</td>
-                  <td>{estructura.modalidad || "—"}</td>
+                   <td>{estructura.especialidad || estructura.modalidad || "—"}</td>
                     <td className="plantillas-academicas-actions">
                       <div className="plantillas-academicas-actions-row">
                         <button
@@ -603,35 +613,15 @@ function MateriasAdmin() {
               {estructuraEditando ? "Editar plantilla académica" : "Nueva plantilla académica"}
             </h3>
             <input
-              placeholder="Nombre visible"
+              placeholder="Nombre (ej. Octavo, 2do Ciencias)"
+              maxLength={120}
               value={estructuraForm.nombre}
               onChange={(e) =>
                 setEstructuraForm({ ...estructuraForm, nombre: e.target.value })
               }
             />
             <input
-              placeholder="Nivel (ej: Básica, Bachillerato)"
-              value={estructuraForm.nivel}
-              onChange={(e) =>
-                setEstructuraForm({ ...estructuraForm, nivel: e.target.value })
-              }
-            />
-            <input
-              placeholder="Subnivel (ej: 8vo EGB, 1ro BGU)"
-              value={estructuraForm.subnivel}
-              onChange={(e) =>
-                setEstructuraForm({ ...estructuraForm, subnivel: e.target.value })
-              }
-            />
-            <input
-              placeholder="Modalidad (ej: Ciencias, Técnico)"
-              value={estructuraForm.modalidad}
-              onChange={(e) =>
-                setEstructuraForm({ ...estructuraForm, modalidad: e.target.value })
-              }
-            />
-            <input
-              placeholder="Especialidad (opcional)"
+              placeholder="Especialidad (opcional, ej. Agropecuaria)"
               value={estructuraForm.especialidad}
               onChange={(e) =>
                 setEstructuraForm({

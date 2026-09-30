@@ -234,6 +234,7 @@ body {
   font-size: 0.82rem;
   font-weight: 700;
   white-space: nowrap;
+  order: 5;
 }
 
 .navbar-user::after {
@@ -263,6 +264,76 @@ body {
   width: 1rem;
   height: 1rem;
   color: rgba(255, 255, 255, 0.84);
+}
+
+.navbar-help-trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  margin-left: 0.15rem;
+  order: 4;
+}
+
+.navbar-help-trigger:hover {
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.navbar-help-trigger::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 0.55rem);
+  right: 0;
+  z-index: 160;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 7px;
+  color: #fff;
+  background: rgba(35, 53, 88, 0.94);
+  box-shadow: 0 8px 18px rgba(27, 40, 69, 0.22);
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-3px);
+  transition: opacity 0.16s, transform 0.16s;
+}
+
+.navbar-help-trigger:hover::after,
+.navbar-help-trigger:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.admin-style-year-modal {
+  width: min(92vw, 520px);
+  max-height: 88vh;
+  padding: 1.35rem;
+  border-radius: 18px;
+}
+
+.config-year-personal,
+.config-year-admin {
+  color: #111 !important;
+  background: #f6f8fc !important;
+  border-color: #c4cfdf !important;
+  box-shadow: 0 6px 14px rgba(35, 51, 84, 0.06) !important;
+}
+
+.config-year-personal:hover,
+.config-year-admin:hover {
+  color: #111 !important;
+  background: #edf2f9 !important;
+  border-color: #aebdd2 !important;
 }
 
 .navbar-user-chevron::before {

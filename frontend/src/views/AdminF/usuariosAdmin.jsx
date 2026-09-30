@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Pencil, Trash2, Save, X, UserPlus } from "lucide-react";
 import AdminLayout from "../../components/admin/AdminLayout";
+import TabHelpButton from "../../components/TabHelpButton";
 import CustomSelect from "../../components/admin/CustomSelect";
 import { listarTodasLasPaginas, usuariosAPI } from "../../services/api";
 import { notify, requestConfirm } from "../../components/notify";
@@ -180,7 +181,7 @@ function UsuariosAdmin() {
       <div className="table-container">
         <div className="docentes-header">
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 className="section-title">Directorio</h2>
+            <h2 className="section-title">Directorio <TabHelpButton title="Usuarios" description="Busca usuarios por nombre, correo o rol, y usa las acciones para crear, editar o eliminar cuentas." /></h2>
             <input
               className="table-search"
               type="text"
